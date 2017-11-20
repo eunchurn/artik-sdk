@@ -49,6 +49,7 @@ static const artik_api_module artik_api_a1020_modules[] = {
 	{ ARTIK_MODULE_WEBSOCKET, (char *)"websocket", (char *)"connectivity"},
 	{ ARTIK_MODULE_LWM2M,	  (char *)"lwm2m",     (char *)"lwm2m"},
 	{ ARTIK_MODULE_MQTT,      (char *)"mqtt",      (char *)"mqtt"},
+	{ ARTIK_MODULE_COAP,      (char *)"coap",      (char *)"coap"},
 	{ (artik_module_id_t)-1,  NULL,                NULL},
 };
 

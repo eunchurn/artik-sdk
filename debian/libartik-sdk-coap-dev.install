@@ -1,0 +1,3 @@
+usr/include/*/artik/coap/*
+usr/lib/*/pkgconfig/libartik-sdk-coap.pc
+usr/lib/*/libartik-sdk-coap.so

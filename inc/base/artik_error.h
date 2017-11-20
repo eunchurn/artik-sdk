@@ -92,6 +92,11 @@ typedef int artik_error;
 #define E_TIMEOUT			(-10)
 
 /*!
+ *  \brief An error occurred with the CoAP
+ */
+#define E_COAP_ERROR		(-15)
+
+/*!
  *  \brief An invalid value was returned
  */
 #define E_INVALID_VALUE		(-11)
@@ -217,6 +222,7 @@ static const artik_error_msg_string error_msg_strings[] = {
 	{E_WEBSOCKET_ERROR, "Websocket error"},
 	{E_BT_ERROR, "Bluetooth adapter error"},
 	{E_WIFI_ERROR, "Wi-Fi error"},
+	{E_COAP_ERROR, "CoAP error"},
 	{E_WIFI_ERROR_AUTHENTICATION, "Wi-Fi Authentication failed"},
 	{E_WIFI_ERROR_ASSOCIATION, "Wi-Fi Association failed"},
 	{E_WIFI_ERROR_BAD_PARAMS, "Wrong Wi-Fi parameters"},

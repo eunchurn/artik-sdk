@@ -19,6 +19,7 @@ Requires: %{name}-wifi = %{version}-%{release}
 Requires: %{name}-zigbee = %{version}-%{release}
 Requires: %{name}-lwm2m = %{version}-%{release}
 Requires: %{name}-mqtt = %{version}-%{release}
+Requires: %{name}-coap = %{version}-%{release}
 
 %description
 This library contains a SDK for addressing common features and quickly building
@@ -35,6 +36,7 @@ Requires: %{name}-wifi-devel = %{version}-%{release}
 Requires: %{name}-zigbee-devel = %{version}-%{release}
 Requires: %{name}-lwm2m-devel = %{version}-%{release}
 Requires: %{name}-mqtt-devel = %{version}-%{release}
+Requires: %{name}-coap-devel = %{version}-%{release}
 Summary: Files needed for building applications against the ARTIK SDK libraries
 
 %description devel
@@ -222,6 +224,24 @@ Summary: Files needed for building applications against the ARTIK SDK MQTT libra
 %description mqtt-devel
 This package contains development files for building programs against the ARTIK SDK MQTT library
 
+%package coap
+Group: Development/Libraries
+Requires: %{name}-base = %{version}-%{release}
+Requires: libcoap = 4.2.0
+Provides: %{name}-coap.so.%{version}
+Provides: %{name}-coap.so.1
+Summary: Package containing APIs for communicating with other devices over CoAP
+
+%description coap
+Package containing APIs for communicating with other devices over CoAP
+
+%package coap-devel
+Requires: %{name}-coap = %{version}-%{release}
+Summary: Files needed for building applications against the ARTIK SDK CoAP library
+
+%description coap-devel
+This package contains development files for building programs against the ARTIK SDK CoAP library
+
 %package tests
 Group: Development/Libraries
 Requires: %{name}-base = %{version}-%{release}
@@ -234,6 +254,7 @@ Requires: %{name}-wifi = %{version}-%{release}
 Requires: %{name}-zigbee = %{version}-%{release}
 Requires: %{name}-lwm2m = %{version}-%{release}
 Requires: %{name}-mqtt = %{version}-%{release}
+Requires: %{name}-coap = %{version}-%{release}
 Requires: CUnit
 Summary: Test programs to validate the ARTIK SDK.
 
@@ -392,6 +413,16 @@ make install DESTDIR=%{buildroot}
 %{_libdir}/%{name}-mqtt.so
 %{_includedir}/artik/mqtt/*
 %{_libdir}/pkgconfig/%{name}-mqtt.pc
+
+%files coap
+%defattr(-,root,root)
+%{_libdir}/%{name}-coap.so.*
+
+%files coap-devel
+%defattr(-,root,root)
+%{_libdir}/%{name}-coap.so
+%{_includedir}/artik/coap/*
+%{_libdir}/pkgconfig/%{name}-coap.pc
 
 %files tests
 %defattr(-,root,root)

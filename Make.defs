@@ -37,6 +37,7 @@ CFLAGS += -I$(ARTIK_SDK_DIR)/inc/wifi
 CFLAGS += -I$(ARTIK_SDK_DIR)/inc/connectivity
 CFLAGS += -I$(ARTIK_SDK_DIR)/inc/lwm2m
 CFLAGS += -I$(ARTIK_SDK_DIR)/inc/mqtt
+CFLAGS += -I$(ARTIK_SDK_DIR)/inc/coap
 CFLAGS += -I$(TOPDIR)/../apps/include/netutils
 
 # Base
@@ -94,6 +95,11 @@ CFLAGS += -I$(TOPDIR)/../external/wakaama-client/lwm2mclient
 CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/lwm2m/artik_lwm2m.c)
 CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/lwm2m/tizenrt_lwm2m.c)
 
+# CoAP
+CFLAGS += -I$(TOPDIR)/../external/wakaama-client/core/er-coap-13
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/coap/artik_coap.c)
+CSRCS += $(notdir $(wildcard $(ARTIK_SDK_DIR)/src/modules/coap/tizenrt/*.c))
+
 DEPPATH += --dep-path artik-sdk
 DEPPATH += --dep-path artik-sdk/src/modules/base/log
 DEPPATH += --dep-path artik-sdk/src/modules/base/module
@@ -118,6 +124,8 @@ DEPPATH += --dep-path artik-sdk/src/modules/wifi/tizenrt
 DEPPATH += --dep-path artik-sdk/src/modules/mqtt
 DEPPATH += --dep-path artik-sdk/src/modules/mqtt/tizenrt
 DEPPATH += --dep-path artik-sdk/src/modules/lwm2m
+DEPPATH += --dep-path artik-sdk/src/modules/coap
+DEPPATH += --dep-path artik-sdk/src/modules/coap/tizenrt
 
 VPATH += :artik-sdk
 VPATH += :artik-sdk/src/modules/base/log
@@ -143,5 +151,7 @@ VPATH += :artik-sdk/src/modules/wifi/tizenrt
 VPATH += :artik-sdk/src/modules/mqtt
 VPATH += :artik-sdk/src/modules/mqtt/tizenrt
 VPATH += :artik-sdk/src/modules/lwm2m
+VPATH += :artik-sdk/src/modules/coap
+VPATH += :artik-sdk/src/modules/coap/tizenrt
 
 endif

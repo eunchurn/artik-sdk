@@ -94,6 +94,19 @@ Depends: libartik-sdk-bluetooth,
 	libartik-sdk-base-dev
 Description: Files needed for building applications against the ARTIK SDK Bluetooth library
 
+Package: libartik-sdk-coap
+Architecture: any-arm arm64
+Depends: ${shlibs:Depends}, ${misc:Depends},
+	libartik-sdk-base,
+	libcoap (= 4.2.0-0ubuntu1)
+Description: Package containing APIs for communicating with other devices over CoAP
+
+Package: libartik-sdk-coap-dev
+Architecture: any
+Depends: libartik-sdk-coap,
+	libartik-sdk-base-dev
+Description: Files needed for building applications against the ARTIK SDK CoAP library
+
 Package: libartik-sdk-wifi
 Architecture: any-arm arm64
 Depends: ${shlibs:Depends}, ${misc:Depends},
@@ -152,6 +165,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 	libartik-sdk-connectivity,
 	libartik-sdk-media,
 	libartik-sdk-bluetooth,
+	libartik-sdk-coap,
 	libartik-sdk-sensor,
 	libartik-sdk-wifi,
 	libartik-sdk-zigbee,
@@ -182,6 +196,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 	libartik-sdk-connectivity,
 	libartik-sdk-media,
 	libartik-sdk-bluetooth,
+	libartik-sdk-coap,
 	libartik-sdk-sensor,
 	libartik-sdk-wifi,
 	libartik-sdk-zigbee,
@@ -197,6 +212,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 	libartik-sdk-connectivity-dev,
 	libartik-sdk-media-dev,
 	libartik-sdk-bluetooth-dev,
+	libartik-sdk-coap-dev,
 	libartik-sdk-sensor-dev,
 	libartik-sdk-wifi-dev,
 	libartik-sdk-zigbee-dev,
@@ -213,6 +229,7 @@ Depends:
 	libartik-sdk-connectivity,
 	libartik-sdk-media,
 	libartik-sdk-bluetooth,
+	libartik-sdk-coap,
 	libartik-sdk-sensor,
 	libartik-sdk-wifi,
 	libartik-sdk-zigbee,
