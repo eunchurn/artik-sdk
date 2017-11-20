@@ -195,6 +195,21 @@ typedef struct {
 					unsigned int *len);
 
 	/*!
+	 *  \brief Get EC public key from the certificate passed as parameter
+	 *
+	 *  \param[in] cert Pointer to a string containing the
+	 *             certificate to retrieve the EC public key
+	 *  \param[out] key Pointer to a string that will be allocated
+	 *              by the function
+	 *              and filled with the content of the key. This
+	 *              string must
+	 *              be freed by the calling function.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error(*get_ec_pubkey_from_cert) (const char *cert, char **key);
+
+	/*!
 	 *  \brief Initialize verification of PKCS7 signature against a signed
 	 *         binary.
 	 *
@@ -259,6 +274,21 @@ typedef struct {
 	 *      E_SECURITY_SIGNING_TIME_ROLLBACK  (-7006)
 	 */
 	artik_error(*verify_signature_final) (artik_security_handle handle);
+
+	/*!
+	 *  \brief Convert a certificate or a key from PEM format to
+	 *         DER format
+	 *
+	 *  Only x509 public certificates, EC public key and EC private key are
+	 *  supported.
+	 *
+	 *  \param[in] pem_data Data in PEM format
+	 *  \param[in] der_data Data from the conversion into DER format
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error(*convert_pem_to_der) (const char *pem_data,
+			unsigned char **der_data);
 
 } artik_security_module;
 

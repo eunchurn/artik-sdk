@@ -31,12 +31,15 @@ static artik_error get_random_bytes(artik_security_handle handle,
 		unsigned char *rand, int len);
 static artik_error get_certificate_sn(artik_security_handle handle, artik_security_certificate_id cert_id,
 		unsigned char *sn, unsigned int *len);
+static artik_error get_ec_pubkey_from_cert(const char *cert, char **key);
 static artik_error verify_signature_init(artik_security_handle *handle,
 		const char *signature_pem, const char *root_ca,
 		const artik_time *signing_time_in, artik_time *signing_time_out);
 static artik_error verify_signature_update(artik_security_handle handle,
 		unsigned char *data, unsigned int data_len);
 static artik_error verify_signature_final(artik_security_handle handle);
+static artik_error convert_pem_to_der(const char *pem_data,
+		unsigned char **der_data);
 
 EXPORT_API const artik_security_module security_module = {
 	request,
@@ -46,9 +49,11 @@ EXPORT_API const artik_security_module security_module = {
 	get_ca_chain,
 	get_random_bytes,
 	get_certificate_sn,
+	get_ec_pubkey_from_cert,
 	verify_signature_init,
 	verify_signature_update,
-	verify_signature_final
+	verify_signature_final,
+	convert_pem_to_der
 };
 
 artik_error request(artik_security_handle *handle)
@@ -91,6 +96,11 @@ artik_error get_certificate_sn(artik_security_handle handle,
 	return os_get_certificate_sn(handle, cert_id, sn, len);
 }
 
+artik_error get_ec_pubkey_from_cert(const char *cert, char **key)
+{
+	return os_get_ec_pubkey_from_cert(cert, key);
+}
+
 artik_error verify_signature_init(artik_security_handle *handle,
 		const char *signature_pem, const char *root_ca,
 		const artik_time *signing_time_in, artik_time *signing_time_out)
@@ -108,4 +118,9 @@ artik_error verify_signature_update(artik_security_handle handle,
 artik_error verify_signature_final(artik_security_handle handle)
 {
 	return os_verify_signature_final(handle);
+}
+
+artik_error convert_pem_to_der(const char *pem_data, unsigned char **der_data)
+{
+	return os_convert_pem_to_der(pem_data, der_data);
 }

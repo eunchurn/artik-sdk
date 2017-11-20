@@ -452,6 +452,11 @@ artik_error os_get_certificate_sn(artik_security_handle handle,
 	return S_OK;
 }
 
+artik_error os_get_ec_pubkey_from_cert(const char *cert, char **key)
+{
+	return E_NOT_SUPPORTED;
+}
+
 /*
  * Compare two X.509 Names (aka rdnSequence).
  *
@@ -767,4 +772,10 @@ cleanup:
 	artik_list_delete_node(&verify_nodes, (artik_list *)node);
 
 	return err;
+}
+
+artik_error os_convert_pem_to_der(const char *pem_data,
+		unsigned char **der_data)
+{
+	return E_NOT_SUPPORTED;
 }

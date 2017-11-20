@@ -64,3 +64,13 @@ artik_error artik::Security::get_certificate_sn(
     return E_NOT_INITIALIZED;
   return m_module->get_certificate_sn(m_handle, cert_id, sn, len);
 }
+
+artik_error artik::Security::get_ec_pubkey_from_cert(const char *cert,
+    char **key) {
+  return m_module->get_ec_pubkey_from_cert(cert, key);
+}
+
+artik_error artik::Security::convert_pem_to_der(const char *pem_data,
+    unsigned char **der_data) {
+  return m_module->convert_pem_to_der(pem_data, der_data);
+}

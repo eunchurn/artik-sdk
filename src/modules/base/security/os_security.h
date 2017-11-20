@@ -34,11 +34,14 @@ artik_error os_get_random_bytes(artik_security_handle handle,
 artik_error os_get_certificate_sn(artik_security_handle handle,
 					artik_security_certificate_id cert_id, unsigned char *sn,
 					unsigned int *len);
+artik_error os_get_ec_pubkey_from_cert(const char *cert, char **key);
 artik_error os_verify_signature_init(artik_security_handle *handle,
 		const char *signature_pem, const char *root_ca,
 		const artik_time *signing_time_in, artik_time *signing_time_out);
 artik_error os_verify_signature_update(artik_security_handle handle,
 		unsigned char *data, unsigned int data_len);
 artik_error os_verify_signature_final(artik_security_handle handle);
+artik_error os_convert_pem_to_der(const char *pem_data,
+		unsigned char **der_data);
 
 #endif  /* __OS_SECURITY_H__ */

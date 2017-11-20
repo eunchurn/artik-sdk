@@ -49,6 +49,8 @@ class Security {
   artik_error get_random_bytes(unsigned char*, int);
   artik_error get_certificate_sn(artik_security_certificate_id,
       unsigned char*, unsigned int *);
+  artik_error get_ec_pubkey_from_cert(const char*, char **);
+  artik_error convert_pem_to_der(const char *, unsigned char **);
 };
 
 }  // namespace artik

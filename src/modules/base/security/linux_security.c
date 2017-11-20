@@ -32,18 +32,32 @@
 #include <artik_log.h>
 #include "os_security.h"
 
-#define ARTIK_SE_ENGINE_NAME  "artiksee"
-#define COOKIE_SECURITY       "SEC"
-#define COOKIE_SIGVERIF       "SIG"
+#define ARTIK_SE_ENGINE_NAME	"artiksee"
+#define COOKIE_SECURITY		"SEC"
+#define COOKIE_SIGVERIF		"SIG"
+
+#define PEM_BEGIN_CRT		"-----BEGIN CERTIFICATE-----"
+#define PEM_BEGIN_PUBKEY	"-----BEGIN PUBLIC KEY-----"
+#define PEM_BEGIN_EC_PARAMS	"-----BEGIN EC PARAMETERS-----"
+#define PEM_BEGIN_EC_PRIV_KEY	"-----BEGIN EC PRIVATE KEY-----"
+
+#define SIZE_BUFFER		100
 
 enum CertificateType {
 	EndCertificate = 0,
 	CertificateChain = 1
 };
 
+
 enum CertificateId {
 	ArtikCertificate = 0,
 	ManufacturerCertificate = 1
+};
+
+enum PemType {
+	Certificate = 0,
+	PublicKey = 1,
+	PrivateKey = 2
 };
 
 struct cert_params {
@@ -539,6 +553,81 @@ exit:
 	return ret;
 }
 
+artik_error os_get_ec_pubkey_from_cert(const char *cert, char **key)
+{
+	artik_error ret = S_OK;
+	X509 *x509 = NULL;
+	EC_KEY *ec_pub = NULL;
+	EVP_PKEY *evp_pub = NULL;
+	BIO *ibio = NULL;
+	BUF_MEM *bptr = NULL;
+
+	if (!cert || !key || *key)
+		return E_BAD_ARGS;
+
+	ibio = BIO_new(BIO_s_mem());
+
+	if (!ibio) {
+		ret = E_NO_MEM;
+		goto exit;
+	}
+
+	BIO_write(ibio, cert, strlen(cert));
+
+	x509 = PEM_read_bio_X509(ibio, NULL, NULL, NULL);
+
+	if (!x509) {
+		ret = E_BAD_ARGS;
+		goto exit;
+	}
+
+	evp_pub = X509_get_pubkey(x509);
+
+	if (!evp_pub) {
+		ret = E_BAD_ARGS;
+		goto exit;
+	}
+
+	ec_pub = EVP_PKEY_get1_EC_KEY(evp_pub);
+
+	if (!ec_pub) {
+		ret = E_BAD_ARGS;
+		goto exit;
+	}
+
+	if (ibio)
+		BIO_free(ibio);
+
+	ibio = BIO_new(BIO_s_mem());
+	PEM_write_bio_EC_PUBKEY(ibio, ec_pub);
+	BIO_write(ibio, "\0", 1);
+	BIO_get_mem_ptr(ibio, &bptr);
+
+	if (!bptr) {
+		ret = E_NO_MEM;
+		goto exit;
+	}
+
+	*key = (char *)malloc(sizeof(**key) * bptr->length);
+	if (!(*key)) {
+		ret = E_NO_MEM;
+		goto exit;
+	}
+
+	BIO_read(ibio, (void *)(*key), bptr->length);
+
+exit:
+	if (x509)
+		X509_free(x509);
+	if (ibio)
+		BIO_free(ibio);
+	if (evp_pub)
+		EVP_PKEY_free(evp_pub);
+	if (ec_pub)
+		EC_KEY_free(ec_pub);
+	return ret;
+}
+
 artik_error os_verify_signature_init(artik_security_handle *handle,
 		const char *signature_pem, const char *root_ca,
 		const artik_time *signing_time_in, artik_time *signing_time_out)
@@ -837,5 +926,116 @@ exit:
 	EVP_MD_CTX_destroy(node->md_ctx);
 	artik_list_delete_node(&verify_nodes, (artik_list *)node);
 
+	return ret;
+}
+
+artik_error os_convert_pem_to_der(const char *pem_data,
+		unsigned char **der_data)
+{
+	artik_error ret = S_OK;
+	X509 *x509 = NULL;
+	EC_KEY *ec_key = NULL;
+	BIO *ibio = NULL;
+	char buf[SIZE_BUFFER];
+	const char *p;
+	int i;
+	enum PemType pemType;
+
+	if (!pem_data || !der_data || *der_data)
+		return E_BAD_ARGS;
+
+	p = pem_data;
+
+	for (i = 0; i < SIZE_BUFFER && *p != '\0' && *p != '\n'; i++, p++)
+		buf[i] = *p;
+
+	if (i == SIZE_BUFFER)
+		buf[i-1] = '\0';
+	else
+		buf[i] = '\0';
+
+	if (!strcmp(buf, PEM_BEGIN_CRT)) {
+		log_dbg("The PEM is a certificate");
+		pemType = Certificate;
+	} else if (!strcmp(buf, PEM_BEGIN_PUBKEY)) {
+		log_dbg("The PEM is a public key");
+		pemType = PublicKey;
+	} else if (
+			!strcmp(buf, PEM_BEGIN_EC_PARAMS) ||
+			!strcmp(buf, PEM_BEGIN_EC_PRIV_KEY)) {
+		log_dbg("The PEM is an EC private key");
+		pemType = PrivateKey;
+	} else {
+		log_err("Uknown PEM or wrong format");
+		return E_SECURITY_ERROR;
+	}
+
+	ibio = BIO_new(BIO_s_mem());
+
+	if (!ibio) {
+		log_err("Fail to create bio");
+		ret = E_NO_MEM;
+		goto exit;
+	}
+
+	BIO_write(ibio, pem_data, strlen(pem_data));
+
+	if (pemType == Certificate) {
+
+		x509 = PEM_read_bio_X509(ibio, NULL, NULL, NULL);
+
+		if (!x509) {
+			log_err("Fail to create x509");
+			ret = E_BAD_ARGS;
+			goto exit;
+		}
+
+		if (i2d_X509(x509, der_data) < 0) {
+			log_err("Fail to convert certificate");
+			ret = E_SECURITY_ERROR;
+			goto exit;
+		}
+
+	} else if (pemType == PublicKey) {
+
+		ec_key = PEM_read_bio_EC_PUBKEY(ibio, NULL, NULL, NULL);
+
+		if (!ec_key) {
+			log_err("Fail to create ec key");
+			ret = E_BAD_ARGS;
+			goto exit;
+		}
+
+		if (i2d_EC_PUBKEY(ec_key, der_data) < 0) {
+			log_err("Fail to convert EC public key");
+			ret = E_SECURITY_ERROR;
+			goto exit;
+		}
+
+	} else if (pemType == PrivateKey) {
+
+		ec_key = PEM_read_bio_ECPrivateKey(ibio, NULL, NULL, NULL);
+
+		if (!ec_key) {
+			log_err("Fail to create ec key");
+			ret = E_BAD_ARGS;
+			goto exit;
+		}
+
+		if (i2d_ECPrivateKey(ec_key, der_data) < 0) {
+			log_err("Fail to convert EC private key");
+			ret = E_SECURITY_ERROR;
+			goto exit;
+		}
+	}
+
+
+exit:
+	if (x509)
+		X509_free(x509);
+	if (ibio)
+		BIO_free(ibio);
+	if (ec_key)
+		EC_KEY_free(ec_key);
 	return ret;
 }
