@@ -27,6 +27,7 @@
 #include "ftp.h"
 #include "advertisement.h"
 #include "agent.h"
+#include "a2dp.h"
 
 artik_error os_bt_set_scan_filter(artik_bt_scan_filter *filter)
 {
@@ -625,4 +626,9 @@ artik_error os_bt_agent_send_error(artik_bt_agent_request_handle handle, artik_b
 artik_error os_bt_agent_send_empty_response(artik_bt_agent_request_handle handle)
 {
 	return bt_agent_send_empty_response(handle);
+}
+
+artik_error os_bt_a2dp_source_get_state(char **state)
+{
+	return bt_a2dp_source_get_state(state);
 }

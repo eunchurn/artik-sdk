@@ -195,8 +195,7 @@ artik_error bt_ftp_create_session(char *dest_addr)
 
 	if (error == NULL) {
 		g_variant_get(result, "(o)", &path);
-		strncpy(session_path, path, strlen(path));
-		session_path[strlen(path)] = '\0';
+		strncpy(session_path, path, BT_TRANSPORT_PATH_LEN);
 		internal_callback[BT_EVENT_FTP].fn = _ftp_internal_callback;
 		return S_OK;
 	}
@@ -237,7 +236,7 @@ artik_error bt_ftp_remove_session(void)
 
 		return E_BT_ERROR;
 	}
-	memset(session_path, 0, SESSION_PATH_LEN);
+	memset(session_path, 0, BT_TRANSPORT_PATH_LEN);
 
 	_bt_deinit_session();
 

@@ -2035,6 +2035,17 @@ extern "C" {
 		 * \return S_OK on success, otherwise a negative error value.
 		 */
 		artik_error(*agent_send_empty_response)(artik_bt_agent_request_handle handle);
+		/*!
+		 * \brief Get the state of A2DP media streaming transport.
+		 *
+		 * \param[out] state of A2DP media transport, possible values :
+		 *				"idle": not streaming
+		 *				"pending": streaming but not acquired
+		 *				"active": streaming and acquired
+		 *
+		 * \return S_OK on success, otherwise a negative error value.
+		 */
+		artik_error(*a2dp_source_get_state)(char **state);
 	} artik_bluetooth_module;
 
 	extern const artik_bluetooth_module bluetooth_module;

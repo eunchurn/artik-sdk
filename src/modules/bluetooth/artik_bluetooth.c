@@ -184,6 +184,7 @@ static artik_error artik_bluetooth_agent_send_passkey(artik_bt_agent_request_han
 static artik_error artik_bluetooth_agent_send_error(artik_bt_agent_request_handle handle,
 		artik_bt_agent_request_error e, const char *err_msg);
 static artik_error artik_bluetooth_agent_send_empty_response(artik_bt_agent_request_handle handle);
+static artik_error artik_bluetooth_a2dp_source_get_state(char **state);
 const artik_bluetooth_module bluetooth_module = {
 	artik_bluetooth_start_scan,
 	artik_bluetooth_stop_scan,
@@ -297,7 +298,8 @@ const artik_bluetooth_module bluetooth_module = {
 	artik_bluetooth_agent_send_pincode,
 	artik_bluetooth_agent_send_passkey,
 	artik_bluetooth_agent_send_error,
-	artik_bluetooth_agent_send_empty_response
+	artik_bluetooth_agent_send_empty_response,
+	artik_bluetooth_a2dp_source_get_state
 };
 
 artik_error artik_bluetooth_set_scan_filter(artik_bt_scan_filter *filter)
@@ -1064,4 +1066,9 @@ artik_error artik_bluetooth_agent_send_empty_response(artik_bt_agent_request_han
 		return E_BAD_ARGS;
 
 	return os_bt_agent_send_empty_response(handle);
+}
+
+artik_error artik_bluetooth_a2dp_source_get_state(char **state)
+{
+	return os_bt_a2dp_source_get_state(state);
 }

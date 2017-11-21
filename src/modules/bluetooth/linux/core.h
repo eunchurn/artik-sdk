@@ -87,7 +87,7 @@ extern "C" {
 
 #define BT_UUID_LENGHT			32
 #define BT_DEVICE_OBJECT_PATH	38
-#define SESSION_PATH_LEN		43
+#define BT_TRANSPORT_PATH_LEN	43
 #define BT_DBUS_CALL_TIMEOUT_MSEC	5000
 
 #define error_list(x)	{x, bt_error_message[x]},
@@ -215,7 +215,8 @@ typedef struct {
 
 extern bt_handler hci;
 extern bt_event_callback internal_callback[BT_EVENT_END];
-extern char session_path[SESSION_PATH_LEN];
+extern char session_path[BT_TRANSPORT_PATH_LEN];
+extern char a2dp_path[BT_TRANSPORT_PATH_LEN];
 extern artik_bt_ftp_property transfer_property;
 
 artik_error _bt_init_session(void);

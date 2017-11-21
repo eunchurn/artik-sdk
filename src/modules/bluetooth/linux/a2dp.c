@@ -83,45 +83,41 @@ static void _handle_set_configuration(GVariant *parameters,
 		GDBusMethodInvocation *invocation)
 {
 	artik_bt_a2dp_source_property properties;
-	GVariant *_g_property = NULL, *prop_dict = NULL;
+	GVariant *_g_property = NULL;
 	GVariant *value = NULL, *internal = NULL;
+	GVariantIter *iter = NULL;
 	gchar *key = NULL;
-	gint i = 0, j = 0, property_len = 0, interval_len = 0;
+	gint i = 0, interval_len = 0;
 
 	memset(&properties, 0, sizeof(artik_bt_a2dp_source_property));
 
 	if (_endpoint->transport_path)
 		free(_endpoint->transport_path);
 
-	g_variant_get(parameters, "(o@a{sv})", &_endpoint->transport_path, &_g_property);
+	g_variant_get(parameters, "(o@a{sv})", &_endpoint->transport_path,
+		&_g_property);
 	g_dbus_method_invocation_return_value(invocation, NULL);
 
-	property_len = g_variant_n_children(_g_property);
-	if (!property_len)
-		return;
-
-	for (i = 0; i < property_len; i++) {
-		prop_dict = g_variant_get_child_value(_g_property, i);
-		g_variant_get(prop_dict, "{&sv}", &key, &value);
-
+	g_variant_get(_g_property, "a{sv}", &iter);
+	while (g_variant_iter_loop(iter, "{&sv}", &key, &value)) {
 		if (g_strcmp0(key, "Device") == 0) {
 			g_variant_get(value, "&o", &properties.device);
 			log_dbg("device is: %s\n", properties.device);
 		} else if (g_strcmp0(key, "UUID") == 0) {
 			g_variant_get(value, "&s", &properties.uuid);
 			log_dbg("uuid is: %s\n", properties.uuid);
-		} else if (g_strcmp0(key, "Codec") == 0) {
+		} else if (g_strcmp0(key, "Codec") == 0)
 			g_variant_get(value, "y", &properties.codec);
-		} else if (g_strcmp0(key, "Configuration") == 0) {
+		else if (g_strcmp0(key, "Configuration") == 0) {
 			interval_len = g_variant_n_children(value);
 			if (interval_len > 0) {
 				if (!properties.configuration) {
 					properties.configuration = (unsigned char *) malloc
-							((sizeof(unsigned char) * interval_len) + 1);
-					for (j = 0; j < interval_len; j++) {
-						internal = g_variant_get_child_value(value, j);
+						((sizeof(unsigned char) * interval_len) + 1);
+					for (i = 0; i < interval_len; i++) {
+						internal = g_variant_get_child_value(value, i);
 						g_variant_get(internal, "y",
-								&properties.configuration[j]);
+							&properties.configuration[i]);
 						g_variant_unref(internal);
 					}
 					properties.configuration[interval_len] = '\0';
@@ -132,8 +128,8 @@ static void _handle_set_configuration(GVariant *parameters,
 			log_dbg("state is: %s\n", properties.state);
 		}
 		g_variant_unref(value);
-		g_variant_unref(prop_dict);
 	}
+	g_variant_iter_free(iter);
 
 	if (_endpoint->set_callback)
 		_endpoint->set_callback(&properties);
@@ -164,6 +160,77 @@ static void handle_method_call(GDBusConnection *connection,
 		_handle_clear_configuration();
 }
 
+static artik_error _get_media_transport_path(void)
+{
+	GVariant *obj1 = NULL, *ar1 = NULL, *ar2 = NULL;
+	GVariantIter *iter1 = NULL, *iter2 = NULL;
+	char *dev_path = NULL, *itf = NULL;
+	bool is_find = false;
+
+	artik_error err = _get_managed_objects(&obj1);
+
+	if (err != S_OK)
+		return err;
+
+	g_variant_get(obj1, "(a{oa{sa{sv}}})", &iter1);
+	while (g_variant_iter_loop(iter1, "{&o@a{sa{sv}}}", &dev_path, &ar1)) {
+		g_variant_get(ar1, "a{sa{sv}}", &iter2);
+		while (g_variant_iter_loop(iter2, "{&s@a{sv}}", &itf, &ar2)) {
+			if (strncmp(itf, DBUS_IF_MEDIA_TRANSPORT1,
+				strlen(DBUS_IF_MEDIA_TRANSPORT1)) == 0) {
+				strncpy(a2dp_path, dev_path, BT_TRANSPORT_PATH_LEN);
+				is_find = true;
+			}
+			if (is_find) {
+				g_variant_unref(ar2);
+				break;
+			}
+		}
+		g_variant_iter_free(iter2);
+		if (is_find) {
+			g_variant_unref(ar1);
+			break;
+		}
+	}
+
+	g_variant_iter_free(iter1);
+	g_variant_unref(obj1);
+	if (is_find) {
+		log_dbg("media_transport_path[%s]\n", a2dp_path);
+		return S_OK;
+	}
+	return E_BT_ERROR;
+}
+
+static artik_error _get_property(const char *property, GVariant **v)
+{
+	artik_error e = E_NOT_INITIALIZED;
+
+	if (strlen(a2dp_path) == 0)
+		_get_media_transport_path();
+	if (strlen(a2dp_path) != 0) {
+		GVariant *result = NULL;
+		GError *error = NULL;
+
+		result = g_dbus_connection_call_sync(
+			hci.conn,
+			DBUS_BLUEZ_BUS,
+			a2dp_path,
+			DBUS_IF_PROPERTIES,
+			"Get",
+			g_variant_new("(ss)", DBUS_IF_MEDIA_TRANSPORT1, property),
+			G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE,
+			G_MAXINT, NULL, &error);
+
+		e = bt_check_error(error);
+		if (e == S_OK) {
+			g_variant_get(result, "(v)", v);
+			g_variant_unref(result);
+		}
+	}
+	return e;
+}
+
 static const GDBusInterfaceVTable _interface_vtable = {
 		.method_call = handle_method_call,
 		.get_property = NULL,
@@ -181,10 +248,9 @@ static void bt_a2dp_source_create(
 			_endpoint->codec = codec;
 			_endpoint->delay_reporting = delay_reporting;
 			_endpoint->endpoint_path = (char *) malloc(strlen(path) + 1);
-			if (_endpoint->endpoint_path) {
-				strncpy(_endpoint->endpoint_path, path, strlen(path));
-				_endpoint->endpoint_path[strlen(path)] = '\0';
-			} else {
+			if (_endpoint->endpoint_path)
+				strncpy(_endpoint->endpoint_path, path, strlen(path) + 1);
+			else {
 				free(_endpoint);
 				_endpoint = NULL;
 				return;
@@ -399,8 +465,7 @@ artik_error bt_a2dp_source_get_properties(
 		g_variant_get(v, "o", &device);
 
 		(*properties)->device = (char *) malloc(strlen(device) + 1);
-		strncpy((*properties)->device, device, strlen(device));
-		(*properties)->device[strlen(device)] = '\0';
+		strncpy((*properties)->device, device, strlen(device) + 1);
 
 		g_variant_unref(v);
 		g_variant_unref(tuple);
@@ -417,8 +482,7 @@ artik_error bt_a2dp_source_get_properties(
 		g_variant_get(tuple, "(v)", &v);
 		g_variant_get(v, "s", &uuid);
 		(*properties)->uuid = (char *) malloc(strlen(uuid) + 1);
-		strncpy((*properties)->uuid, uuid, strlen(uuid));
-		(*properties)->uuid[strlen(uuid)] = '\0';
+		strncpy((*properties)->uuid, uuid, strlen(uuid) + 1);
 
 		g_variant_unref(v);
 		g_variant_unref(tuple);
@@ -472,9 +536,8 @@ artik_error bt_a2dp_source_get_properties(
 
 		g_variant_get(tuple, "(v)", &v);
 		g_variant_get(v, "s", &state);
-		(*properties)->state = (char *) malloc(strlen(state) + 1);
-		strncpy((*properties)->state, state, strlen(state));
-		(*properties)->state[strlen(state)] = '\0';
+		(*properties)->state = (char *) malloc(strlen(state)+1);
+		strncpy((*properties)->state, state, strlen(state) + 1);
 		log_dbg("Current state is :%s\n", (*properties)->state);
 
 		return S_OK;
@@ -521,3 +584,15 @@ artik_error bt_a2dp_source_set_callback(select_config_callback select_func,
 	}
 }
 
+artik_error bt_a2dp_source_get_state(char **state)
+{
+	GVariant *v = NULL;
+	artik_error e = _get_property("State", &v);
+
+	if (e == S_OK && v) {
+		g_variant_get(v, "s", state);
+		g_variant_unref(v);
+		log_dbg("Current streaming state is :%s\n", *state);
+	}
+	return e;
+}

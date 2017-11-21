@@ -547,3 +547,7 @@ artik_error artik::Bluetooth::agent_send_empty_response(
     artik_bt_agent_request_handle handle) {
   return m_module->agent_send_empty_response(handle);
 }
+
+artik_error artik::Bluetooth::a2dp_source_get_state(char **state) {
+  return m_module->a2dp_source_get_state(state);
+}

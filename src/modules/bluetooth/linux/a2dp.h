@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include <artik_bluetooth.h>
 #include <stdint.h>
+#include "core.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,10 +39,10 @@ typedef enum {
 } artik_bt_a2dp_codec;
 
 /*!
- *  \brief Bluetooth AD2P source definition
+ *  \brief Bluetooth A2DP source definition
  *
  *  Structure containing the elements
- *  defining Bluetooth A2P source properties
+ *  defining Bluetooth A2DP source properties
  */
 typedef struct	{
 	char *device;
@@ -79,6 +81,7 @@ artik_error bt_a2dp_source_get_properties(
 artik_error bt_a2dp_source_release(void);
 artik_error bt_a2dp_source_set_callback(select_config_callback select_func,
 		set_config_callback set_func, clear_config_callback clear_func);
+artik_error bt_a2dp_source_get_state(char **state);
 
 #ifdef __cplusplus
 }

@@ -168,6 +168,8 @@ artik_error os_bt_agent_send_passkey(artik_bt_agent_request_handle handle, unsig
 artik_error os_bt_agent_send_error(artik_bt_agent_request_handle handle,
 		artik_bt_agent_request_error e, const char *err_msg);
 artik_error os_bt_agent_send_empty_response(artik_bt_agent_request_handle handle);
+artik_error os_bt_a2dp_source_get_state(char **state);
+
 #ifdef __cplusplus
 }
 #endif

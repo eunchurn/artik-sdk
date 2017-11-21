@@ -27,7 +27,9 @@
 
 bt_handler hci = {0};
 bt_event_callback internal_callback[BT_EVENT_END];
-char session_path[SESSION_PATH_LEN];
+char session_path[BT_TRANSPORT_PATH_LEN];
+char a2dp_path[BT_TRANSPORT_PATH_LEN];
+
 artik_bt_ftp_property transfer_property = {0};
 
 static void _free_func(gpointer data)
@@ -830,8 +832,7 @@ void _on_interface_added(const gchar *sender_name,
 			if (transfer_property.object_path != NULL)
 				free(transfer_property.object_path);
 			transfer_property.object_path = (char *) malloc(strlen(path) + 1);
-			strncpy(transfer_property.object_path, path, strlen(path));
-			transfer_property.object_path[strlen(path)] = '\0';
+			strncpy(transfer_property.object_path, path, strlen(path) + 1);
 
 			if (transfer_property.file_name != NULL) {
 				free(transfer_property.file_name);
@@ -850,6 +851,9 @@ void _on_interface_added(const gchar *sender_name,
 			transfer_property.transfered = 0;
 			transfer_property.size = 0;
 			_fill_transfer_property(prop_array);
+		} else if (g_strcmp0(interface, DBUS_IF_MEDIA_TRANSPORT1) == 0) {
+			strncpy(a2dp_path, path, BT_TRANSPORT_PATH_LEN);
+			log_dbg("A2DP transport path added:%s", a2dp_path);
 		}
 	}
 	g_variant_iter_free(iter);
@@ -867,11 +871,9 @@ void _on_interface_removed(const gchar *sender_name,
 	log_dbg("%s [%s]", __func__, path);
 
 	while (g_variant_iter_loop(iter, "&s", &interface)) {
-		if (g_strcmp0(interface, DBUS_IF_OBEX_SESSION) == 0) {
-			memset(session_path, 0, SESSION_PATH_LEN);
-
-		} else if (g_strcmp0(interface, DBUS_IF_OBEX_TRANSFER) == 0) {
-
+		if (g_strcmp0(interface, DBUS_IF_OBEX_SESSION) == 0)
+			memset(session_path, 0, BT_TRANSPORT_PATH_LEN);
+		else if (g_strcmp0(interface, DBUS_IF_OBEX_TRANSFER) == 0) {
 			g_free(transfer_property.object_path);
 			transfer_property.object_path = NULL;
 
@@ -886,7 +888,8 @@ void _on_interface_removed(const gchar *sender_name,
 
 			transfer_property.transfered = 0;
 			transfer_property.size = 0;
-		}
+		} else if (g_strcmp0(interface, DBUS_IF_MEDIA_TRANSPORT1) == 0)
+			memset(a2dp_path, 0, BT_TRANSPORT_PATH_LEN);
 	}
 	g_variant_iter_free(iter);
 }

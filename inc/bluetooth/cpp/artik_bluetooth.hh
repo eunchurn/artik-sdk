@@ -190,6 +190,7 @@ class Bluetooth {
   artik_error agent_send_error(artik_bt_agent_request_handle handle,
       artik_bt_agent_request_error e, const char *err_msg);
   artik_error agent_send_empty_response(artik_bt_agent_request_handle handle);
+  artik_error a2dp_source_get_state(char **state);
 };
 
 }  // namespace artik
