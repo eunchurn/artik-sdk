@@ -1744,6 +1744,8 @@ extern "C" {
 		 * \brief Get a player status from an AVRCP target .
 		 *
 		 * \param[out] status The player status got from an AVRCP target.
+		 *			Possible values:  "playing", "stopped",
+		 *			"paused", "forward-seek", "reverse-seek" or "error"
 		 *
 		 * \return S_OK on success, otherwise a negative error value.
 		 *
@@ -1753,6 +1755,7 @@ extern "C" {
 		 * \brief Get a player subtype from an AVRCP target .
 		 *
 		 * \param[out] subtype The player subtype got from an AVRCP target.
+		 *			Possible values:  "Audio Book", "Podcast"
 		 *
 		 * \return S_OK on success, otherwise a negative error value.
 		 *
@@ -1762,6 +1765,8 @@ extern "C" {
 		 * \brief Get a player type from an AVRCP target .
 		 *
 		 * \param[out] type The player type got from an AVRCP target.
+		 *			Possible values:  "Audio", "Video",
+		 *			"Audio Broadcasting", "Video Broadcasting"
 		 *
 		 * \return S_OK on success, otherwise a negative error value.
 		 *
