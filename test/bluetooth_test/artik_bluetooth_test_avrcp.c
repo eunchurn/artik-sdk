@@ -444,6 +444,18 @@ static void prv_get_metadata(char *buffer, void *user_data)
 	}
 }
 
+static void prv_get_status(char *buffer, void *user_data)
+{
+	artik_error ret = S_OK;
+	char *status = NULL;
+
+	ret = bt->avrcp_controller_get_status(&status);
+	if (ret == S_OK && status) {
+		printf("The current status of player is: %s\n", status);
+		free(status);
+	}
+}
+
 static void prv_quit(char *buffer, void *user_data)
 {
 	g_quit = 1;
@@ -487,6 +499,8 @@ command_desc_t commands[] = {
 			prv_fast_forward, NULL},
 		{"get-metadata", "Get the metadata of current controller.", "get-metadata",
 			prv_get_metadata, NULL},
+		{"get-status", "Get current status of target player.", "get-status",
+			prv_get_status, NULL},
 		{"quit", "Quit application.", "quit", prv_quit, NULL},
 
 		COMMAND_END_LIST
