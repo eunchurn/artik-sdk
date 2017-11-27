@@ -46,40 +46,87 @@ class Cloud {
 
   artik_error send_message(const char* device_id, const char* message,
       char **response, artik_ssl_config *ssl);
+  artik_error send_message_async(const char* device_id, const char* message,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
   artik_error send_action(const char* device_id, const char* action,
       char **response, artik_ssl_config *ssl);
+  artik_error send_action_async(const char* device_id, const char* action,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
   artik_error get_current_user_profile(char **response, artik_ssl_config *ssl);
+  artik_error get_current_user_profile_async(
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
   artik_error get_user_devices(int count, bool properties, int offset,
       const char *user_id, char **response, artik_ssl_config *ssl);
-  artik_error get_user_device_types(int count, bool shared, int offset,
+  artik_error get_user_devices_async(
+      int count, bool properties, int offset, const char *user_id,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error get_user_device_types(int count, bool shared, int offset,
       const char *user_id, char **response, artik_ssl_config *ssl);
-  artik_error get_user_application_properties(const char *user_id,
+    artik_error get_user_device_types_async(
+      int count, bool shared, int offset, const char *user_id,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error get_user_application_properties(const char *user_id,
       const char *app_id, char **response, artik_ssl_config *ssl);
-  artik_error get_device(const char *device_id, bool properties,
+    artik_error get_user_application_properties_async(
+     const char *user_id, const char *app_id,
+     artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error get_device(const char *device_id, bool properties,
       char **response, artik_ssl_config *ssl);
-  artik_error get_device_token(const char *device_id, char **response,
+    artik_error get_device_async(const char *device_id, bool properties,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error get_device_token(const char *device_id, char **response,
       artik_ssl_config *ssl);
-  artik_error add_device(const char *user_id, const char *dt_id,
+    artik_error get_device_token_async(const char *device_id,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error add_device(const char *user_id, const char *dt_id,
       const char *name, char **response, artik_ssl_config *ssl);
-  artik_error update_device_token(const char *device_id, char **response,
+    artik_error add_device_async(
+      const char *user_id, const char *dt_id, const char *name,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error update_device_token(const char *device_id, char **response,
       artik_ssl_config *ssl);
-  artik_error delete_device_token(const char *device_id, char **response,
+    artik_error update_device_token_async(const char *device_id,
+      artik_cloud_callback callback, void *user_data,
       artik_ssl_config *ssl);
-  artik_error delete_device(const char *device_id, char **response,
+    artik_error delete_device_token(const char *device_id, char **response,
       artik_ssl_config *ssl);
-  artik_error get_device_properties(const char *device_id,
+    artik_error delete_device_token_async(const char *device_id,
+      artik_cloud_callback callback, void *user_data,
+      artik_ssl_config *ssl);
+    artik_error delete_device(const char *device_id, char **response,
+      artik_ssl_config *ssl);
+    artik_error delete_device_async(const char *device_id,
+      artik_cloud_callback callback, void *user_data,
+      artik_ssl_config *ssl);
+    artik_error get_device_properties(const char *device_id,
       bool timestamp, char **response, artik_ssl_config *ssl);
-  artik_error set_device_server_properties(const char *device_id,
+    artik_error get_device_properties_async(
+      const char *device_id, bool timestamp,
+      artik_cloud_callback callback, void *user_data, artik_ssl_config *ssl);
+    artik_error set_device_server_properties(const char *device_id,
       const char *data, char **response, artik_ssl_config *ssl_config);
-  artik_error sdr_start_registration(
+    artik_error set_device_server_properties_async(
+      const char *device_id, const char *data,
+      artik_cloud_callback callback, void *user_data,
+      artik_ssl_config *ssl_config);
+    artik_error sdr_start_registration(
       artik_security_certificate_id cert_id, const char* device_type_id,
       const char* vendor_id, char **response);
-  artik_error sdr_registration_status(
+    artik_error sdr_start_registration_async(
+      artik_security_certificate_id cert_id, const char* device_type_id,
+      const char* vendor_id, artik_cloud_callback callback, void *user_data);
+    artik_error sdr_registration_status(
       artik_security_certificate_id cert_id, const char* reg_id,
       char **response);
-  artik_error sdr_complete_registration(
+    artik_error sdr_registration_status_async(
+      artik_security_certificate_id cert_id, const char* reg_id,
+      artik_cloud_callback callback, void *user_data);
+    artik_error sdr_complete_registration(
       artik_security_certificate_id cert_id, const char* reg_id,
       const char* reg_nonce, char **response);
+    artik_error sdr_complete_registration_async(
+      artik_security_certificate_id cert_id, const char* reg_id,
+      const char* reg_nonce, artik_cloud_callback callback, void *user_data);
   artik_error websocket_open_stream(const char *access_token,
       const char *device_id, artik_ssl_config *ssl);
   artik_error websocket_send_message(char *message);

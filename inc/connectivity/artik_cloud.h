@@ -52,6 +52,19 @@ extern "C" {
 #define	MAX_TOKEN_LEN	64
 #define	WEBSOCKET_CONNECTION_TIMEOUT_MS (10*1000)
 
+/*!
+ *  \brief Response callback prototype
+ *
+ *  \param[in] result Error returned by
+ *             the cloud process, S_OK on success, error code otherwise
+ *  \param[in] response Pointer to a string filled up with the
+ *              response JSON data returned by the Cloud.
+ *  \param[in] user_data The user data passed from the callback
+ *             function
+ */
+typedef void (*artik_cloud_callback)(artik_error result,
+				char *response, void *user_data);
+
 /*! \struct artik_cloud_module
  *
  *  \brief Cloud module operations
@@ -78,11 +91,34 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*send_message) (const char *access_token,
+	artik_error (*send_message)(const char *access_token,
 					const char *device_id,
 					const char *message,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Send a message to the Cloud asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the source device from which
+	 *             the message is sent
+	 *  \param[in] message Content of the message to send in a
+	 *             JSON formatted string
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*send_message_async)(const char *access_token,
+					const char *device_id,
+					const char *message,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Send actions to a device
 	 *
@@ -102,11 +138,35 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*send_action) (const char *access_token,
+	artik_error (*send_action)(const char *access_token,
 					const char *device_id,
 					const char *action,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Send actions to a device asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the destination device to
+	 *             send the actions to
+	 *  \param[in] action JSON formatted string containing the
+	 *             list of actions to send with/without
+	 *             parameters
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*send_action_async)(const char *access_token,
+					const char *device_id,
+					const char *action,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get current user profile
 	 *
@@ -123,10 +183,30 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_current_user_profile) (const char
+	artik_error (*get_current_user_profile)(const char
 					*access_token,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get current user profile asynchronously
+	 *
+	 *  \param[in] access_token Authorization token. It must
+	 *             be a user token associated to the user
+	 *             whose profile is requested
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_current_user_profile_async)(const char
+					*access_token,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get user devices
 	 *
@@ -148,12 +228,39 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_user_devices) (const char *access_token,
+	artik_error (*get_user_devices)(const char *access_token,
 					int count, bool properties,
 					int offset,
 					const char *user_id,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get user devices asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] count Number of entries to return
+	 *  \param[in] properties Returns the properties of the
+	 *             devices if true
+	 *  \param[in] offset Offset in the complete device list
+	 *             to return 'count' entries from
+	 *  \param[in] user_id ID of the user to get the device
+	 *             list from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_user_devices_async)(const char *access_token,
+					int count, bool properties,
+					int offset,
+					const char *user_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get user device types
 	 *
@@ -175,14 +282,42 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_user_device_types) (
+	artik_error (*get_user_device_types)(
 					const char *access_token,
 					int count, bool shared,
 					int offset,
 					const char *user_id,
 					char **response,
-					artik_ssl_config * ssl
+					artik_ssl_config *ssl
 					);
+	/*!
+	 *  \brief Get user device types asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] count Number of entries to return
+	 *  \param[in] shared Return also the shared public devices
+	 *             if true
+	 *  \param[in] offset Offset in the complete device list to
+	 *             return 'count' entries from
+	 *  \param[in] user_id ID of the user to get the device type
+	 *             list from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_user_device_types_async)(
+					const char *access_token,
+					int count, bool shared,
+					int offset,
+					const char *user_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get user application properties
 	 *
@@ -201,14 +336,36 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_user_application_properties) (const char
-				       *access_token,
-					const char
-					*user_id,
-					const char
-					*app_id,
+	artik_error (*get_user_application_properties)(
+					const char *access_token,
+					const char *user_id,
+					const char *app_id,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get user application properties asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] user_id ID of the user owning the application
+	 *             to get the properties from
+	 *  \param[in] app_id ID of the application to get the
+	 *             properties from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_user_application_properties_async)(
+					const char *access_token,
+					const char *user_id,
+					const char *app_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get device
 	 *
@@ -227,10 +384,33 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_device) (const char *access_token,
+	artik_error (*get_device)(const char *access_token,
 				const char *device_id,
 				bool properties, char **response,
-				artik_ssl_config * ssl);
+				artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get device asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device from which to read
+	 *             the information
+	 *  \param[in] properties Return also the device properties
+	 *             if true
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback functio
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_device_async)(const char *access_token,
+				const char *device_id,
+				bool properties,
+				artik_cloud_callback callback,
+				void *user_data,
+				artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get device token
 	 *
@@ -247,10 +427,30 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_device_token) (const char *access_token,
+	artik_error (*get_device_token)(const char *access_token,
 					const char *device_id,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get device token asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to get the token
+	 *             from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_device_token_async)(const char *access_token,
+					const char *device_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Add device
 	 *
@@ -269,11 +469,35 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*add_device) (const char *access_token,
+	artik_error (*add_device)(const char *access_token,
 				const char *user_id,
 				const char *dt_id,
 				const char *name, char **response,
-				artik_ssl_config * ssl);
+				artik_ssl_config *ssl);
+	/*!
+	 *  \brief Add device asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] user_id ID of the user to assign the new
+	 *             device
+	 *  \param[in] dt_id Device type ID of the device to create
+	 *  \param[in] name Friendly name to give to the new device
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*add_device_async)(const char *access_token,
+				const char *user_id,
+				const char *dt_id,
+				const char *name,
+				artik_cloud_callback callback,
+				void *user_data,
+				artik_ssl_config *ssl);
 	/*!
 	 *  \brief Create device token. If exists, update it.
 	 *
@@ -290,10 +514,30 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*update_device_token) (const char *access_token,
+	artik_error (*update_device_token)(const char *access_token,
 					const char *device_id,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Create device token asynchronously. If exists, update it.
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to create the
+	 *             token from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting
+	 *             https urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*update_device_token_async)(const char *access_token,
+					const char *device_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Delete device token
 	 *
@@ -309,10 +553,30 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*delete_device_token) (const char *access_token,
+	artik_error (*delete_device_token)(const char *access_token,
 					const char *device_id,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Delete device token asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to delete the token
+	 *             from
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting https
+	 *             urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*delete_device_token_async)(const char *access_token,
+					const char *device_id,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Delete device
 	 *
@@ -328,10 +592,29 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*delete_device) (const char *access_token,
+	artik_error (*delete_device)(const char *access_token,
 				const char *device_id,
 				char **response,
-				artik_ssl_config * ssl);
+				artik_ssl_config *ssl);
+	/*!
+	 *  \brief Delete device asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to delete
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting https
+	 *             urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*delete_device_async)(const char *access_token,
+				const char *device_id,
+				artik_cloud_callback callback,
+				void *user_data,
+				artik_ssl_config *ssl);
 	/*!
 	 *  \brief Get a device's properties (server/system/device properties)
 	 *
@@ -348,11 +631,33 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_device_properties) (const char *access_token,
+	artik_error (*get_device_properties)(const char *access_token,
 					const char *device_id,
 					bool timestamp,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Get a device's properties (server/system/device properties) asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to read properties from
+	 *  \param[in] timestamp Include timestamp
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting https
+	 *             urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*get_device_properties_async)(
+					const char *access_token,
+					const char *device_id,
+					bool timestamp,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Set a device's server properties
 	 *
@@ -369,11 +674,32 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*set_device_server_properties) (const char *access_token,
+	artik_error (*set_device_server_properties)(const char *access_token,
 					const char *device_id,
 					const char *data,
 					char **response,
-					artik_ssl_config * ssl);
+					artik_ssl_config *ssl);
+	/*!
+	 *  \brief Set a device's server properties asynchronously
+	 *
+	 *  \param[in] access_token Authorization token
+	 *  \param[in] device_id ID of the device to set server properties to
+	 *  \param[in] data JSON data for setting a device's server properties
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *  \param[in] ssl SSL configuration to use when targeting https
+	 *             urls. Can be NULL.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*set_device_server_properties_async)(const char *access_token,
+					const char *device_id,
+					const char *data,
+					artik_cloud_callback callback,
+					void *user_data,
+					artik_ssl_config *ssl);
 	/*!
 	 *  \brief Start Secure Device Registration process
 	 *
@@ -393,17 +719,37 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*sdr_start_registration) (
+	artik_error (*sdr_start_registration)(
 					artik_security_certificate_id cert_id,
 					const char *device_type_id,
 					const char *vendor_id,
 					char **response);
 	/*!
+	 *  \brief Start Secure Device Registration process asynchronously
+	 *
+	 *  \param[in] Certificate identifier
+	 *  \param[in] device_type_id Device Type ID of the device to
+	 *             register
+	 *  \param[in] vendor_id Vendor ID of the device to register
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*sdr_start_registration_async)(
+					artik_security_certificate_id cert_id,
+					const char *device_type_id,
+					const char *vendor_id,
+					artik_cloud_callback callback,
+					void *user_data);
+	/*!
 	 *  \brief Get Secure Device Registration process status
 	 *
 	 *  \param[in] Certificate identifier
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
-	 *             sdr_start_registration
+	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[out] response Pointer to a string allocated and filled up
 	 *              by the function with the
 	 *              response JSON data returned by the Cloud. It should
@@ -413,18 +759,36 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*sdr_registration_status) (
+	artik_error (*sdr_registration_status)(
 					artik_security_certificate_id cert_id,
 					const char *reg_id,
 					char **response);
+	/*!
+	 *  \brief Get Secure Device Registration process status asynchronously
+	 *
+	 *  \param[in] Certificate identifier
+	 *  \param[in] reg_id Registration ID (rid) returned by \ref
+	 *             sdr_start_registration or \ref sdr_start_registration_async
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*sdr_registration_status_async)(
+					artik_security_certificate_id cert_id,
+					const char *reg_id,
+					artik_cloud_callback callback,
+					void *user_data);
 	/*!
 	 *  \brief Complete Secure Device Registration process
 	 *
 	 *  \param[in] Certificate identifier
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
-	 *             sdr_start_registration
+	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[in] reg_nonce Registration nonce returned by \ref
-	 *             sdr_start_registration
+	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[out] response Pointer to a string allocated and
 	 *              filled up by the function with the
 	 *              response JSON data returned by the Cloud. It should
@@ -432,11 +796,32 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*sdr_complete_registration) (
+	artik_error (*sdr_complete_registration)(
 					artik_security_certificate_id cert_id,
 					const char *reg_id,
 					const char *reg_nonce,
 					char **response);
+	/*!
+	 *  \brief Complete Secure Device Registration process asynchronously
+	 *
+	 *  \param[in] Certificate identifier
+	 *  \param[in] reg_id Registration ID (rid) returned by \ref
+	 *             sdr_start_registration or \ref sdr_start_registration_async
+	 *  \param[in] reg_nonce Registration nonce returned by \ref
+	 *             sdr_start_registration or \ref sdr_start_registration_async
+	 *  \param[in] callback Function called upon receiving response
+	 *             returned by the server
+	 *  \param[in] user_data Pointer to user data that will be
+	 *             passed as a parameter to the callback function
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error (*sdr_complete_registration_async)(
+					artik_security_certificate_id cert_id,
+					const char *reg_id,
+					const char *reg_nonce,
+					artik_cloud_callback callback,
+					void *user_data);
 	/*!
 	 *  \brief Open websocket stream
 	 *
@@ -451,10 +836,10 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*websocket_open_stream) (artik_websocket_handle * handle,
+	artik_error (*websocket_open_stream)(artik_websocket_handle *handle,
 						const char *access_token,
 						const char *device_id,
-						artik_ssl_config * ssl);
+						artik_ssl_config *ssl);
 	/*!
 	 *  \brief Send a message through websocket stream
 	 *
@@ -465,7 +850,7 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*websocket_send_message) (artik_websocket_handle
+	artik_error (*websocket_send_message)(artik_websocket_handle
 						handle, char *message);
 	/*!
 	 *  \brief Set a callback function handling received data
@@ -479,7 +864,7 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*websocket_set_receive_callback)(
+	artik_error (*websocket_set_receive_callback)(
 		artik_websocket_handle handle,
 		artik_websocket_callback callback,
 		void *user_data
@@ -497,7 +882,7 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*websocket_set_connection_callback)(
+	artik_error (*websocket_set_connection_callback)(
 		artik_websocket_handle handle,
 		artik_websocket_callback callback,
 		void *user_data
@@ -510,7 +895,7 @@ typedef struct {
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*websocket_close_stream) (artik_websocket_handle handle);
+	artik_error (*websocket_close_stream)(artik_websocket_handle handle);
 } artik_cloud_module;
 
 extern const artik_cloud_module cloud_module;
