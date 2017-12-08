@@ -783,48 +783,13 @@ artik_error artik_bluetooth_avrcp_controller_free_items(
 artik_error artik_bluetooth_avrcp_controller_get_repeat(
 		artik_bt_avrcp_repeat_mode * repeat_mode)
 {
-	int max_repeat_mode_len = 12;
-	char *repeat_mode_str = (char *) malloc(max_repeat_mode_len *
-			sizeof(char));
-	artik_error ret = S_OK;
-
-	if (!repeat_mode_str)
-		return E_NO_MEM;
-
-	memset(repeat_mode_str, 0, max_repeat_mode_len * sizeof(char));
-	ret = os_bt_avrcp_controller_get_repeat(&repeat_mode_str);
-	int str_len = strlen(repeat_mode_str);
-
-	if (strncmp(repeat_mode_str, "singletrack", str_len) == 0)
-		*repeat_mode = BT_AVRCP_REPEAT_SINGLETRACK;
-	else if (strncmp(repeat_mode_str, "alltracks", str_len) == 0)
-		*repeat_mode = BT_AVRCP_REPEAT_ALLTRACKS;
-	else if (strncmp(repeat_mode_str, "group", str_len) == 0)
-		*repeat_mode = BT_AVRCP_REPEAT_GROUP;
-	else if (strncmp(repeat_mode_str, "off", str_len) == 0)
-		*repeat_mode = BT_AVRCP_REPEAT_OFF;
-	else
-		return E_INVALID_VALUE;
-	return ret;
+	return os_bt_avrcp_controller_get_repeat(repeat_mode);
 }
 
 artik_error artik_bluetooth_avrcp_controller_set_repeat(
 		artik_bt_avrcp_repeat_mode repeat_mode)
 {
-	char *repeat_mode_str = NULL;
-
-	if (repeat_mode == BT_AVRCP_REPEAT_SINGLETRACK)
-		repeat_mode_str = "singletrack";
-	else if (repeat_mode == BT_AVRCP_REPEAT_ALLTRACKS)
-		repeat_mode_str = "alltracks";
-	else if (repeat_mode == BT_AVRCP_REPEAT_GROUP)
-		repeat_mode_str = "group";
-	else if (repeat_mode == BT_AVRCP_REPEAT_OFF)
-		repeat_mode_str = "off";
-	else
-		return E_INVALID_VALUE;
-
-	return os_bt_avrcp_controller_set_repeat(repeat_mode_str);
+	return os_bt_avrcp_controller_set_repeat(repeat_mode);
 }
 
 bool artik_bluetooth_avrcp_controller_is_connected(void)

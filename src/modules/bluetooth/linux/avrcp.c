@@ -400,12 +400,25 @@ artik_error bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list)
 		return E_BAD_ARGS;
 }
 
-artik_error bt_avrcp_controller_set_repeat(const char *repeat_mode)
+artik_error bt_avrcp_controller_set_repeat(
+	artik_bt_avrcp_repeat_mode repeat_mode)
 {
 	GVariant *result;
 	GError *g_error = NULL;
 	artik_error e = S_OK;
 	char *player_path = NULL;
+	char *repeat_mode_str = NULL;
+
+	if (repeat_mode == BT_AVRCP_REPEAT_SINGLETRACK)
+		repeat_mode_str = "singletrack";
+	else if (repeat_mode == BT_AVRCP_REPEAT_ALLTRACKS)
+		repeat_mode_str = "alltracks";
+	else if (repeat_mode == BT_AVRCP_REPEAT_GROUP)
+		repeat_mode_str = "group";
+	else if (repeat_mode == BT_AVRCP_REPEAT_OFF)
+		repeat_mode_str = "off";
+	else
+		return E_INVALID_VALUE;
 
 	e = _get_player_path(&player_path);
 
@@ -414,7 +427,7 @@ artik_error bt_avrcp_controller_set_repeat(const char *repeat_mode)
 				player_path,
 				DBUS_IF_PROPERTIES, "Set",
 				g_variant_new("(ssv)", DBUS_IF_MEDIA_PLAYER1, "Repeat",
-						g_variant_new_string(repeat_mode)), NULL,
+						g_variant_new_string(repeat_mode_str)), NULL,
 				G_DBUS_CALL_FLAGS_NONE,
 				BT_DBUS_CALL_TIMEOUT_MSEC, NULL, &g_error);
 		free(player_path);
@@ -430,11 +443,13 @@ artik_error bt_avrcp_controller_set_repeat(const char *repeat_mode)
 	return E_BT_ERROR;
 }
 
-artik_error bt_avrcp_controller_get_repeat(char **repeat_mode)
+artik_error bt_avrcp_controller_get_repeat(
+	artik_bt_avrcp_repeat_mode * repeat_mode)
 {
-	char *player_path = NULL;
+	char *player_path = NULL, *repeat_mode_str = NULL;
 	artik_error e = S_OK;
 	GVariant *v = NULL;
+	int str_len = 0;
 
 	e = _get_player_path(&player_path);
 	if (e != S_OK || !player_path)
@@ -447,8 +462,23 @@ artik_error bt_avrcp_controller_get_repeat(char **repeat_mode)
 	if (e != S_OK && !v)
 		return E_BT_ERROR;
 
-	g_variant_get(v, "s", repeat_mode);
+	g_variant_get(v, "s", &repeat_mode_str);
 	g_variant_unref(v);
+
+	str_len = strlen(repeat_mode_str);
+	if (strncmp(repeat_mode_str, "singletrack", str_len) == 0)
+		*repeat_mode = BT_AVRCP_REPEAT_SINGLETRACK;
+	else if (strncmp(repeat_mode_str, "alltracks", str_len) == 0)
+		*repeat_mode = BT_AVRCP_REPEAT_ALLTRACKS;
+	else if (strncmp(repeat_mode_str, "group", str_len) == 0)
+		*repeat_mode = BT_AVRCP_REPEAT_GROUP;
+	else if (strncmp(repeat_mode_str, "off", str_len) == 0)
+		*repeat_mode = BT_AVRCP_REPEAT_OFF;
+	else {
+		g_free(repeat_mode_str);
+		return E_INVALID_VALUE;
+	}
+	g_free(repeat_mode_str);
 	return S_OK;
 }
 

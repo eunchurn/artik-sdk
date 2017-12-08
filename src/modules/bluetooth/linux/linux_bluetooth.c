@@ -382,12 +382,14 @@ artik_error os_bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list)
 	return bt_avrcp_controller_free_items(item_list);
 }
 
-artik_error os_bt_avrcp_controller_get_repeat(char **repeat_mode)
+artik_error os_bt_avrcp_controller_get_repeat(
+	artik_bt_avrcp_repeat_mode * repeat_mode)
 {
 	return bt_avrcp_controller_get_repeat(repeat_mode);
 }
 
-artik_error os_bt_avrcp_controller_set_repeat(const char *repeat_mode)
+artik_error os_bt_avrcp_controller_set_repeat(
+	artik_bt_avrcp_repeat_mode repeat_mode)
 {
 	return bt_avrcp_controller_set_repeat(repeat_mode);
 }

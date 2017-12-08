@@ -114,8 +114,10 @@ artik_error os_bt_avrcp_controller_change_folder(int index);
 artik_error os_bt_avrcp_controller_list_item(int start_item, int end_item,
 		artik_bt_avrcp_item **item_list);
 artik_error os_bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list);
-artik_error os_bt_avrcp_controller_get_repeat(char **repeat_mode);
-artik_error os_bt_avrcp_controller_set_repeat(const char *repeat_mode);
+artik_error os_bt_avrcp_controller_get_repeat(
+	artik_bt_avrcp_repeat_mode * repeat_mode);
+artik_error os_bt_avrcp_controller_set_repeat(
+	artik_bt_avrcp_repeat_mode repeat_mode);
 bool os_bt_avrcp_controller_is_connected(void);
 artik_error os_bt_avrcp_controller_resume_play(void);
 artik_error os_bt_avrcp_controller_pause(void);
