@@ -85,14 +85,14 @@ static void disconnect(void)
 
 static int check_connected(void)
 {
-	char any_key[16];
+	int ret = 0;
+	int any_key = 0;
 	bool connected = false;
 
 	fprintf(stdout, "press any key to check connect status");
-	if (fgets(any_key, 16, stdin) == NULL)
+	ret = fscanf(stdin, "%d", &any_key);
+	if (ret < 0)
 		return -1;
-
-	printf("%s\n", any_key);
 
 	connected = bt->avrcp_controller_is_connected();
 
@@ -144,12 +144,12 @@ static int clean_suite1(void)
 	return 0;
 }
 
-artik_error _item_search(artik_bt_avrcp_item **item,
-	const char *opt, const char *item_type)
+int _item_search(const char *opt, const char *item_type)
 {
 	artik_error ret = S_OK;
 	int start_item = 0;
 	int end_item = 10;
+	int index = -1;
 	artik_bt_avrcp_item *item_list = NULL, *node = NULL;
 
 	ret = bt->avrcp_controller_list_item(start_item, end_item, &item_list);
@@ -162,16 +162,22 @@ artik_error _item_search(artik_bt_avrcp_item **item,
 			strlen(item_type))) {
 			if (opt) {
 				if (!strncmp(node->property->name,
-					opt, strlen(opt)))
+					opt, strlen(opt))) {
+					index = node->index;
 					break;
-			} else
+				}
+			} else {
+				index = node->index;
 				break;
+			}
 		}
 		node = node->next_item;
 	}
-	*item = node;
 
-	return S_OK;
+	if (item_list)
+		bt->avrcp_controller_free_items(&item_list);
+
+	return index;
 }
 
 static void avrcp_is_connected_test(void)
@@ -193,6 +199,9 @@ static void avrcp_list_item_test(void)
 	CU_ASSERT(ret != S_OK);
 	CU_ASSERT(item_list == NULL);
 
+	ret = bt->avrcp_controller_free_items(&item_list);
+	CU_ASSERT(ret != S_OK);
+
 	item_list = NULL;
 	start_item = 0;
 	end_item = 10;
@@ -200,19 +209,29 @@ static void avrcp_list_item_test(void)
 	CU_ASSERT(ret == S_OK);
 	CU_ASSERT(item_list != NULL);
 
+	if (item_list) {
+		ret = bt->avrcp_controller_free_items(&item_list);
+		CU_ASSERT(ret == S_OK);
+	}
+
 	item_list = NULL;
 	start_item = -1;
 	end_item = -1;
 	ret = bt->avrcp_controller_list_item(start_item, end_item, &item_list);
 	CU_ASSERT(ret == S_OK);
 	CU_ASSERT(item_list != NULL);
+
+	if (item_list) {
+		ret = bt->avrcp_controller_free_items(&item_list);
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_change_folder_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_folder = "folder";
-	artik_bt_avrcp_item *item = NULL;
+	int index;
 
 	ret = bt->avrcp_controller_change_folder(99999);
 	CU_ASSERT(ret == E_BAD_ARGS);
@@ -223,11 +242,9 @@ static void avrcp_change_folder_test(void)
 	ret = bt->avrcp_controller_change_folder(0);
 	CU_ASSERT(ret == S_OK);
 
-	ret = _item_search(&item, NULL, type_folder);
-	CU_ASSERT(ret == S_OK);
-
-	if (item) {
-		ret = bt->avrcp_controller_change_folder(item->index);
+	index = _item_search(NULL, type_folder);
+	if (index > 0) {
+		ret = bt->avrcp_controller_change_folder(index);
 		CU_ASSERT(ret == S_OK);
 	}
 }
@@ -236,19 +253,19 @@ static void avrcp_play_item_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_play_item(-1);
 	CU_ASSERT(ret == E_BAD_ARGS);
+
 	ret = bt->avrcp_controller_play_item(99999);
 	CU_ASSERT(ret == E_BAD_ARGS);
 
-
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
+	}
 
 	ret = bt->avrcp_controller_stop();
 	CU_ASSERT(ret == S_OK);
@@ -258,154 +275,151 @@ static void avrcp_pause_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_pause();
 	CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_pause();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_pause();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_resume_play_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_resume_play();
 	CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_pause();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_pause();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_resume_play();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_resume_play();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_stop_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_stop();
 	CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_next_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_next();
 	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_next();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_next();
-	CU_ASSERT(ret == S_OK);
-
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_previous_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_previous();
 	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_previous();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_previous();
-	CU_ASSERT(ret == S_OK);
-
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_fast_forward_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_fast_forward();
 	CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_fast_forward();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_fast_forward();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_rewind_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_rewind();
 	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_play_item(index);
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_play_item(item->index);
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_rewind();
+		CU_ASSERT(ret == S_OK);
 
-	ret = bt->avrcp_controller_rewind();
-	CU_ASSERT(ret == S_OK);
-
-	ret = bt->avrcp_controller_stop();
-	CU_ASSERT(ret == S_OK);
+		ret = bt->avrcp_controller_stop();
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_get_repeat_mode_test(void)
@@ -441,18 +455,19 @@ static void avrcp_add_to_playing_test(void)
 {
 	artik_error ret = S_OK;
 	const char *type_audio = "audio";
-	artik_bt_avrcp_item *item = NULL;
-
-	ret = _item_search(&item, NULL, type_audio);
-	CU_ASSERT(ret == S_OK);
+	int index;
 
 	ret = bt->avrcp_controller_add_to_playing(-1);
 	CU_ASSERT(ret == E_BAD_ARGS);
+
 	ret = bt->avrcp_controller_add_to_playing(99999);
 	CU_ASSERT(ret == E_BAD_ARGS);
 
-	ret = bt->avrcp_controller_add_to_playing(item->index);
-	CU_ASSERT(ret == S_OK);
+	index = _item_search(NULL, type_audio);
+	if (index > 0) {
+		ret = bt->avrcp_controller_add_to_playing(index);
+		CU_ASSERT(ret == S_OK);
+	}
 }
 
 static void avrcp_get_property_test(void)
