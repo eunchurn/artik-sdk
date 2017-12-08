@@ -30,7 +30,7 @@ artik_error bt_avrcp_controller_change_folder(int index);
 
 artik_error bt_avrcp_controller_list_item(int start_item, int end_item,
 		artik_bt_avrcp_item **item_list);
-
+artik_error bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list);
 artik_error bt_avrcp_controller_set_repeat(const char *repeat_mode);
 
 artik_error bt_avrcp_controller_get_repeat(char **repeat_mode);

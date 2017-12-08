@@ -120,6 +120,8 @@ static artik_error artik_bluetooth_gatt_notify(int svc_id, int char_id,
 static artik_error artik_bluetooth_avrcp_controller_change_folder(int index);
 static artik_error artik_bluetooth_avrcp_controller_list_item(int start_item,
 		int end_item, artik_bt_avrcp_item **item_list);
+static artik_error artik_bluetooth_avrcp_controller_free_items(
+		artik_bt_avrcp_item **item_list);
 static artik_error artik_bluetooth_avrcp_controller_get_repeat(
 		artik_bt_avrcp_repeat_mode * repeat_mode);
 static artik_error artik_bluetooth_avrcp_controller_set_repeat(
@@ -251,6 +253,7 @@ const artik_bluetooth_module bluetooth_module = {
 	artik_bluetooth_gatt_notify,
 	artik_bluetooth_avrcp_controller_change_folder,
 	artik_bluetooth_avrcp_controller_list_item,
+	artik_bluetooth_avrcp_controller_free_items,
 	artik_bluetooth_avrcp_controller_get_repeat,
 	artik_bluetooth_avrcp_controller_set_repeat,
 	artik_bluetooth_avrcp_controller_is_connected,
@@ -769,6 +772,12 @@ artik_error artik_bluetooth_avrcp_controller_list_item(int start_item,
 		int end_item, artik_bt_avrcp_item **item_list)
 {
 	return os_bt_avrcp_controller_list_item(start_item, end_item, item_list);
+}
+
+artik_error artik_bluetooth_avrcp_controller_free_items(
+		artik_bt_avrcp_item **item_list)
+{
+	return os_bt_avrcp_controller_free_items(item_list);
 }
 
 artik_error artik_bluetooth_avrcp_controller_get_repeat(

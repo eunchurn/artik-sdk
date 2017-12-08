@@ -243,6 +243,8 @@ static void prv_list_items(char *buffer, void *user_data)
 		}
 		node = node->next_item;
 	}
+	if (item_list)
+		bt->avrcp_controller_free_items(&item_list);
 }
 
 static void prv_change_folder(char *buffer, void *user_data)

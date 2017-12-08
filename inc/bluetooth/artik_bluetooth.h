@@ -1616,7 +1616,17 @@ extern "C" {
 		 *
 		 */
 		artik_error(*avrcp_controller_list_item)(int start_item, int end_item,
-				artik_bt_avrcp_item * *item_list);
+				artik_bt_avrcp_item**item_list);
+		/*!
+		 * \brief Free the item list returned by avrcp_controller_list_item.
+		 *
+		 * \param[in] item_list The item list
+		 *
+		 * \return S_OK on success, otherwise a negative error value.
+		 *
+		 */
+		artik_error(*avrcp_controller_free_items)(
+				artik_bt_avrcp_item**item_list);
 		/*!
 		 * \brief Get the repeat mode of the player
 		 *

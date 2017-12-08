@@ -338,6 +338,11 @@ artik_error artik::Bluetooth::avrcp_controller_list_item(int start_item,
   return m_module->avrcp_controller_list_item(start_item, end_item, item_list);
 }
 
+artik_error artik::Bluetooth::avrcp_controller_free_items(
+  artik_bt_avrcp_item **item_list) {
+  return m_module->avrcp_controller_free_items(item_list);
+}
+
 artik_error artik::Bluetooth::avrcp_controller_get_repeat_mode(
     artik_bt_avrcp_repeat_mode *repeat_mode) {
   return m_module->avrcp_controller_get_repeat_mode(repeat_mode);

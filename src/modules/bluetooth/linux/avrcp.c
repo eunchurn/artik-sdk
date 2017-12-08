@@ -380,6 +380,26 @@ artik_error bt_avrcp_controller_list_item(int start_item, int end_item,
 	return S_OK;
 }
 
+artik_error bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list)
+{
+	if (*item_list) {
+		artik_bt_avrcp_item *current = *item_list;
+		artik_bt_avrcp_item *temp = NULL;
+
+		while (current != NULL) {
+			if (current->property)
+				bt_avrcp_controller_free_property(&(current->property));
+			temp = current->next_item;
+			free(current);
+			current = temp;
+		}
+
+		*item_list = NULL;
+		return S_OK;
+	} else
+		return E_BAD_ARGS;
+}
+
 artik_error bt_avrcp_controller_set_repeat(const char *repeat_mode)
 {
 	GVariant *result;

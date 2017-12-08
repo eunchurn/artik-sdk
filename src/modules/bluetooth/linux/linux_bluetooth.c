@@ -377,6 +377,11 @@ artik_error os_bt_avrcp_controller_list_item(int start_item, int end_item,
 	return bt_avrcp_controller_list_item(start_item, end_item, item_list);
 }
 
+artik_error os_bt_avrcp_controller_free_items(artik_bt_avrcp_item **item_list)
+{
+	return bt_avrcp_controller_free_items(item_list);
+}
+
 artik_error os_bt_avrcp_controller_get_repeat(char **repeat_mode)
 {
 	return bt_avrcp_controller_get_repeat(repeat_mode);
