@@ -130,17 +130,25 @@ static void _handle_method_call(GDBusConnection *connection,
 static void _asyn_ready_cb(GObject *source_object,
 		GAsyncResult *res, gpointer user_data)
 {
-	GDBusConnection *bus = G_DBUS_CONNECTION(source_object);
 	GVariant *v;
 	GError *e = NULL;
+	gboolean b = true;
 
-	v = g_dbus_connection_call_finish(bus, res, &e);
+	log_dbg("%s", __func__);
+
+	v = g_dbus_connection_call_finish(hci.conn, res, &e);
 
 	if (e) {
-		log_err("%s failed :%s\n", user_data, e->message);
+		log_err("%s", e->message);
 		g_clear_error(&e);
+
+		b = false;
+		_user_callback(BT_EVENT_ADVERTISING_READY, &b);
+
 		return;
 	}
+
+	_user_callback(BT_EVENT_ADVERTISING_READY, &b);
 
 	g_variant_unref(v);
 }
@@ -197,7 +205,7 @@ artik_error bt_register_advertisement(artik_bt_advertisement *user_adv, int *id)
 			"RegisterAdvertisement",
 			g_variant_new("(oa{sv})", obj_path, NULL),
 			NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL,
-			(GAsyncReadyCallback)_asyn_ready_cb, "Register Advertisement");
+			(GAsyncReadyCallback)_asyn_ready_cb, NULL);
 
 	*id = adv_id;
 
@@ -209,30 +217,39 @@ exit:
 
 artik_error bt_unregister_advertisement(int id)
 {
+	GVariant *v;
+	GError *e = NULL;
 	bt_advertisement *adv_info;
 
-	log_dbg("%s", __func__);
+	log_dbg("%s id: %d", __func__, id);
 
 	adv_info = g_slist_nth_data(hci.advertisements, id);
 
 	if (adv_info == NULL)
 		return E_BT_ERROR;
 
-	g_dbus_connection_call(
+	v = g_dbus_connection_call_sync(
 			hci.conn,
 			DBUS_BLUEZ_BUS,
 			DBUS_BLUEZ_OBJECT_PATH_HCI0,
 			DBUS_IF_LEADV_MANAGER1,
 			"UnregisterAdvertisement",
 			g_variant_new("(o)", adv_info->adv_path),
-			NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL,
-			(GAsyncReadyCallback)_asyn_ready_cb, "Unregister Advertisement");
+			NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &e);
+
+	if (e) {
+		log_err(e->message);
+		g_error_free(e);
+		return E_BT_ERROR;
+	}
 
 	hci.advertisements = g_slist_remove(hci.advertisements, adv_info);
 	g_dbus_connection_unregister_object(hci.conn, adv_info->adv_id);
 	g_free(adv_info->adv_path);
 	g_free(adv_info);
 	g_dbus_node_info_unref(node_info);
+
+	g_variant_unref(v);
 
 	return S_OK;
 }

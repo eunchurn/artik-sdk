@@ -155,6 +155,30 @@ void on_connect(artik_bt_event event, void *data, void *user_data)
 	}
 }
 
+void on_advertising_ready(artik_bt_event event, void *data, void *user_data)
+{
+	bool b = *(bool *)data;
+
+	if (b)
+		printf("> advertising registered\n");
+	else {
+		printf("> register advertising fail\n");
+		loop->quit();
+	}
+}
+
+void on_service_ready(artik_bt_event event, void *data, void *user_data)
+{
+	bool b = *(bool *)data;
+
+	if (b)
+		printf("> service registered\n");
+	else {
+		printf("> register service fail\n");
+		loop->quit();
+	}
+}
+
 static void set_callbacks(void)
 {
 	printf("> set agent for authorization with capability [KEYBOARDDISPLAY]\n");
@@ -164,10 +188,12 @@ static void set_callbacks(void)
 		{BT_EVENT_AGENT_AUTHORIZE, on_authorization_request, NULL},
 		{BT_EVENT_AGENT_AUTHORIZE_SERVICE, on_connection_request, NULL},
 		{BT_EVENT_BOND, on_bond, NULL},
-		{BT_EVENT_CONNECT, on_connect, NULL}
+		{BT_EVENT_CONNECT, on_connect, NULL},
+		{BT_EVENT_ADVERTISING_READY, on_advertising_ready, NULL},
+		{BT_EVENT_GATT_SERVICE_READY, on_service_ready, NULL},
 	};
 
-	bt->set_callbacks(cb, 5);
+	bt->set_callbacks(cb, 7);
 	bt->agent_register_capability(BT_CAPA_KEYBOARDDISPLAY);
 	bt->agent_set_default();
 }
@@ -207,7 +233,6 @@ int main(void)
 
 	set_advertisement(&adv);
 	bt->register_advertisement(&adv, &adv_id);
-	printf("> start advertising\n");
 
 	printf("> add %s service\n", TEST_SERVICE);
 	svc.uuid = TEST_SERVICE;
@@ -238,7 +263,6 @@ int main(void)
 	bt->gatt_set_char_on_notify_request(svc_id, char_id, on_notify_req, NULL);
 
 	bt->gatt_register_service(svc_id);
-	printf("> gatt service registered\n");
 
 	bt->set_discoverable(true);
 	printf("> set discoverable\n");

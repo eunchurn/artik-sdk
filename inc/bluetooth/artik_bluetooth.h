@@ -91,6 +91,8 @@ extern "C" {
 		BT_EVENT_FTP, /*<! This event is raised to monitor a FTP transfer. */
 		BT_EVENT_SERVICE_RESOLVED, /*<! This event is raised when bluetooth services are resolved. */
 		BT_EVENT_GATT_CHARACTERISTIC, /*<! This event is raised when custom gatt data is received. */
+		BT_EVENT_GATT_SERVICE_READY, /*<! This event is raised when a GATT services are registered. */
+		BT_EVENT_ADVERTISING_READY, /*<! This event is raised when an advertisement is registered. */
 		BT_EVENT_END
 	} artik_bt_event;
 
@@ -99,16 +101,30 @@ extern "C" {
 	 *
 	 * \param[in] event The type of event raised.
 	 * \param[in] data This parameter contains data that describe an event.
-	 *                   Event type           | Data type
-	 *                 ----------------------------------------
-	 *                 BT_EVENT_SCAN          | \ref artik_bt_device
-	 *                 BT_EVENT_BOND          | A boolean, true if the device is paired, false otherwise.
-	 *                 BT_EVENT_CONNECT       | A bollean, true if the device is connected, false otherwise.
-	 *                 BT_EVENT_PROXIMITY     | \ref artik_bt_gatt_data
-	 *                 BT_EVENT_PF_HEARTRATE  | \ref artik_bt_hrp_data
-	 *                 BT_EVENT_FTP           | \ref artik_bt_ftp_property
-	 *                 BT_EVENT_GATT_PROPERTY | not used
-	 *                 BT_EVENT_GATT_CHARACTERISTIC     | \ref artik_bt_gatt_data
+	 * Event type                       | Data type
+	 * ----------------------------------------------------------------------
+	 * BT_EVENT_SCAN                    | \ref artik_bt_device
+	 * BT_EVENT_BOND                    | \ref artik_bt_device
+	 * BT_EVENT_CONNECT                 | \ref artik_bt_device
+	 * BT_EVENT_SPP_CONNECT             | \ref artik_bt_spp_connect_property
+	 * BT_EVENT_SPP_RELEASE             | NULL
+	 * BT_EVENT_SPP_DISCONNECT          | Char* Address
+	 * BT_EVENT_AGENT_REQUEST_PINCODE   | \ref artik_bt_agent_request_property
+	 * BT_EVENT_AGENT_DISPLAY_PINCODE   | \ref artik_bt_agent_pincode_property
+	 * BT_EVENT_AGENT_REQUEST_PASSKEY   | \ref artik_bt_agent_request_property
+	 * BT_EVENT_AGENT_DISPLAY_PASSKEY   | \ref artik_bt_agent_passkey_property
+	 * BT_EVENT_AGENT_CONFIRM           | \ref artik_bt_agent_confirmation_property
+	 * BT_EVENT_AGENT_AUTHORIZE         | \ref artik_bt_agent_request_property
+	 * BT_EVENT_AGENT_AUTHORIZE_SERVICE | \ref artik_bt_agent_authorize_property
+	 * BT_EVENT_AGENT_RELEASE           | NULL
+	 * BT_EVENT_AGENT_CANCEL            | NULL
+	 * BT_EVENT_PROXIMITY               | \ref artik_bt_gatt_data
+	 * BT_EVENT_PF_HEARTRATE            | \ref artik_bt_hrp_data
+	 * BT_EVENT_FTP                     | \ref artik_bt_ftp_property
+	 * BT_EVENT_SERVICE_RESOLVED        | \ref artik_bt_device
+	 * BT_EVENT_GATT_CHARACTERISTIC     | \ref artik_bt_gatt_data
+	 * BT_EVENT_GATT_SERVICE_READY      | \ref boolean
+	 * BT_EVENT_ADVERTISING_REGISTER    | \ref boolean
 	 * \param[in] user_data The user data passed from the \ref set_callback.
 	 */
 	typedef void (*artik_bt_callback) (artik_bt_event event, void *data,
@@ -623,7 +639,7 @@ extern "C" {
 		unsigned char *svc_data;
 		/*<! The length of svc_data */
 		int svc_data_len;
-		/*<! If true, the Tx Power is included in the advertisement packet*/
+		/*<! If true, the Tx Power is included in the advertisement packet. */
 		bool tx_power;
 	} artik_bt_advertisement;
 

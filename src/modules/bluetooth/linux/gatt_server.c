@@ -557,18 +557,28 @@ static void _desc_method_call(GDBusConnection *connection,
 	}
 }
 
-static void register_service_cb(GObject *object, GAsyncResult *res,
+static void _asyn_ready_cb(GObject *source_object, GAsyncResult *res,
 		gpointer user_data)
 {
 	GVariant *v;
 	GError *e = NULL;
+	gboolean b = true;
+
+	log_dbg("%s", __func__);
 
 	v = g_dbus_connection_call_finish(hci.conn, res, &e);
-	if (e != NULL) {
+
+	if (e) {
 		log_dbg("%s", e->message);
 		g_clear_error(&e);
+
+		b = false;
+		_user_callback(BT_EVENT_GATT_SERVICE_READY, &b);
+
+		return;
 	}
-	log_dbg("gatt service registered");
+
+	_user_callback(BT_EVENT_GATT_SERVICE_READY, &b);
 
 	g_variant_unref(v);
 }
@@ -1023,7 +1033,7 @@ int bt_gatt_register_service(int sid)
 		"RegisterApplication",
 		g_variant_new("(oa{sv})", svc->serv_path, NULL),
 		NULL, G_DBUS_CALL_FLAGS_NONE, G_MAXINT, NULL,
-		(GAsyncReadyCallback)register_service_cb, NULL);
+		(GAsyncReadyCallback)_asyn_ready_cb, NULL);
 
 	return S_OK;
 }
