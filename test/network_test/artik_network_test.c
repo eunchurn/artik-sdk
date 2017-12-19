@@ -159,7 +159,11 @@ static void reconnect(void *user_data)
 
 	if (system("ifconfig wlan0 up; sleep 1; pkill dhclient;"\
 			" sleep 1; dhclient wlan0"))
-		fprintf(stdout, "Failed to bring up network interface\n");
+		fprintf(stdout, "Failed to bring up wifi network interface\n");
+
+	if (system("ifconfig eth0 up; sleep 1; pkill dhclient;"\
+			" sleep 1; dhclient eth0"))
+		fprintf(stdout, "Failed to bring up ethernet network interface\n");
 
 	loop->add_timeout_callback(&timeout_quit_id, 4000, quit, NULL);
 	artik_release_api_module(loop);
@@ -172,7 +176,10 @@ static void disconnect(void *user_data)
 	int timeout_reconnect_id;
 
 	if (system("ifconfig wlan0 down"))
-		fprintf(stdout, "Failed to bring down network interface\n");
+		fprintf(stdout, "Failed to bring down wifi network interface\n");
+
+	if (system("ifconfig eth0 down"))
+		fprintf(stdout, "Failed to bring down ethernet network interface\n");
 
 	loop->add_timeout_callback(&timeout_reconnect_id, 2000, reconnect,
 									NULL);
