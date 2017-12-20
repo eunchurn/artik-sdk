@@ -57,7 +57,7 @@ static void on_lwm2m_service_callback(void *user_data)
 
 	log_dbg("");
 
-	timeout = lwm2m_client_service(node->client, 1);
+	timeout = lwm2m_client_service(node->client, 1000);
 	if (timeout < LWM2M_CLIENT_OK) {
 		if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
 			artik_error err = (timeout == LWM2M_CLIENT_QUIT) ?
