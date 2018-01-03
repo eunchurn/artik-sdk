@@ -122,21 +122,26 @@ static artik_error _get_control_path(char **path)
 			if (strncmp(itf, DBUS_IF_MEDIA_CONTROL1,
 					strlen(DBUS_IF_MEDIA_CONTROL1)) == 0) {
 				GVariant *v = NULL;
-				artik_error e = S_OK;
 
-				e = _get_property(dev_path,
+				err = _get_property(dev_path,
 					DBUS_IF_MEDIA_CONTROL1, "Connected", &v);
-				if (e == S_OK) {
-					g_variant_get(v, "b", &is_connected);
+				if (err == S_OK) {
+					is_connected = g_variant_get_boolean(v);
 					g_variant_unref(v);
 					if (is_connected) {
 						*path = strdup(dev_path);
 						is_find = true;
+						g_variant_unref(ar2);
+						break;
 					}
 				}
 			}
 		}
 		g_variant_iter_free(iter2);
+		if (is_find) {
+			g_variant_unref(ar1);
+			break;
+		}
 	}
 
 	g_variant_iter_free(iter1);
