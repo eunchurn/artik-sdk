@@ -207,7 +207,7 @@ artik_error bt_set_callbacks(artik_bt_callback_property *user_callbacks,
 		user_callbacks++, callback_num++) {
 		bt_event = user_callbacks->event;
 
-		if ((bt_event < 0) || (bt_event >= BT_EVENT_END))
+		if (bt_event >= BT_EVENT_END)
 			continue;
 
 		hci.callback[bt_event].fn = user_callbacks->fn;

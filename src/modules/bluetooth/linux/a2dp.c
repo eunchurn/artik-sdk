@@ -110,10 +110,10 @@ static void _handle_set_configuration(GVariant *parameters,
 			g_variant_get(value, "y", &properties.codec);
 		else if (g_strcmp0(key, "Configuration") == 0) {
 			interval_len = g_variant_n_children(value);
-			if (interval_len > 0) {
-				if (!properties.configuration) {
-					properties.configuration = (unsigned char *) malloc
-						((sizeof(unsigned char) * interval_len) + 1);
+			if (interval_len > 0 && !properties.configuration) {
+				properties.configuration = (unsigned char *) malloc
+					((sizeof(unsigned char) * interval_len) + 1);
+				if (properties.configuration) {
 					for (i = 0; i < interval_len; i++) {
 						internal = g_variant_get_child_value(value, i);
 						g_variant_get(internal, "y",

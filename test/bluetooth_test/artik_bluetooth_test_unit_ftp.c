@@ -70,11 +70,9 @@ artik_error _ftp_object_search(const char *object_name,
 				if (user_data) {
 					*user_data = (char *)
 						malloc(strlen(list->file_name) + 1);
-					if (*user_data) {
+					if (*user_data)
 						strncpy(*user_data, list->file_name,
-							strlen(list->file_name));
-						(*user_data)[strlen(list->file_name)] = '\0';
-					}
+							strlen(list->file_name) + 1);
 				}
 				ret = S_OK;
 				goto quit;

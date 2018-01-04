@@ -162,7 +162,7 @@ void _user_callback(artik_bt_event event, void *data)
 {
 	log_dbg("%s [%d]", __func__, event);
 
-	if ((event < 0) || (event >= BT_EVENT_END))
+	if (event >= BT_EVENT_END)
 		return;
 
 	if (hci.callback[event].fn == NULL)

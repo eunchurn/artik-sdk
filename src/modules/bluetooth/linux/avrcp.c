@@ -470,6 +470,9 @@ artik_error bt_avrcp_controller_get_repeat(
 	g_variant_get(v, "s", &repeat_mode_str);
 	g_variant_unref(v);
 
+	if (!repeat_mode_str)
+		return E_BT_ERROR;
+
 	str_len = strlen(repeat_mode_str);
 	if (strncmp(repeat_mode_str, "singletrack", str_len) == 0)
 		*repeat_mode = BT_AVRCP_REPEAT_SINGLETRACK;

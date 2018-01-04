@@ -79,6 +79,8 @@ artik_error bt_gatt_get_descriptor_list(const char *addr,
 
 	_get_gatt_path(addr, DBUS_IF_GATTCHARACTERISTIC1, char_uuid, "Service",
 			srv_path, &char_path);
+
+	g_free(srv_path);
 	if (char_path == NULL)
 		return E_BT_ERROR;
 
