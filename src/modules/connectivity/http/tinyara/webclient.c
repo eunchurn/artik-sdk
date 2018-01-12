@@ -215,10 +215,6 @@ static const char g_httpuseragentfields[] =
 	CONFIG_NSH_WGET_USERAGENT
 	"\r\n\r\n";
 
-static const char g_http200[]         = "200 ";
-static const char g_http301[]         = "301 ";
-static const char g_http302[]         = "302 ";
-
 static const char g_httpcrnl[]        = "\r\n";
 
 static const char g_httpform[]        = "Content-Type: application/x-www-form-urlencoded";
