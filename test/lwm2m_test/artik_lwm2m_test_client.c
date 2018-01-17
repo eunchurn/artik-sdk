@@ -298,6 +298,7 @@ artik_error test_lwm2m_default(void)
 	config.name = akc_device_id;
 	config.tls_psk_identity = akc_device_id;
 	config.tls_psk_key = akc_device_token;
+	config.connect_timeout = 1000;
 	config.lifetime = 30;
 	config.ssl_config = &ssl_config;
 

@@ -49,10 +49,9 @@ typedef struct {
 
 static artik_list *nodes = NULL;
 
-static void on_lwm2m_service_callback(void *user_data)
+static int on_lwm2m_service_callback(void *user_data)
 {
 	lwm2m_node *node = (lwm2m_node *)user_data;
-	artik_error ret;
 	int timeout;
 
 	log_dbg("");
@@ -65,20 +64,11 @@ static void on_lwm2m_service_callback(void *user_data)
 			node->callbacks[ARTIK_LWM2M_EVENT_ERROR]((void *)(intptr_t)err,
 					node->callbacks_params[
 						ARTIK_LWM2M_EVENT_ERROR]);
-		}
-	} else {
-		/* Set next timeout callback */
-		node->loop_module->remove_timeout_callback(
-							node->service_cbk_id);
-		ret = node->loop_module->add_timeout_callback(
-				&node->service_cbk_id, timeout*1000,
-				on_lwm2m_service_callback, (void *)node);
-		if (ret != S_OK) {
-			log_err("Failed to start timeout callback for\n"
-				"LWM2M servicing");
-			os_lwm2m_client_disconnect(node->client);
+			return 0;
 		}
 	}
+
+	return 1;
 }
 
 static int on_idle_callback(void *user_data)
@@ -311,6 +301,8 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 		log_dbg("Copy PSK parameters (%s/%s)", config->tls_psk_identity,
 							config->tls_psk_key);
 	}
+
+	server->connect_timeout = config->connect_timeout;
 	server->lifetime = config->lifetime;
 	server->serverId = config->server_id;
 
@@ -455,8 +447,8 @@ artik_error os_lwm2m_client_connect(artik_lwm2m_handle handle)
 	}
 
 	/* Start timeout callback to service the LWM2M library */
-	ret = node->loop_module->add_timeout_callback(&node->service_cbk_id,
-			100, on_lwm2m_service_callback, (void *)node);
+	ret = node->loop_module->add_idle_callback(&node->service_cbk_id,
+							on_lwm2m_service_callback, (void *)node);
 	if (ret != S_OK) {
 		log_err("Failed to start timeout callback for LWM2M servicing");
 		os_lwm2m_client_disconnect(node);

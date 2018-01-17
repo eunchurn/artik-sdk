@@ -180,6 +180,10 @@ typedef struct {
 	 */
 	int lifetime;
 	/*!
+	 * \brief Connection timeout of this client in milliseconds
+	 */
+	int connect_timeout;
+	/*!
 	 * \brief Public Identity for PSK based DTLS/TLS connection
 	 */
 	char *tls_psk_identity;
