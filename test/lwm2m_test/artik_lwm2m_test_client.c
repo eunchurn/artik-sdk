@@ -171,16 +171,24 @@ static void on_error(void *data, void *user_data)
 
 static void on_execute_resource(void *data, void *user_data)
 {
-	char *uri = (char *)data;
+	char *uri = (char *)(((artik_lwm2m_resource_t *)data)->uri);
 
 	fprintf(stdout, "LWM2M resource execute: %s\r\n", uri);
 }
 
 static void on_changed_resource(void *data, void *user_data)
 {
-	char *uri = (char *)data;
+	artik_lwm2m_resource_t *res = (artik_lwm2m_resource_t *)data;
+	char *uri = (char *)res->uri;
 
-	fprintf(stdout, "LWM2M resource changed: %s\r\n", uri);
+	fprintf(stdout, "LWM2M resource changed: %s", uri);
+	if (res->length > 0) {
+		char *buffer = strndup((char *)res->buffer, res->length);
+
+		fprintf(stdout, " with buffer : %s\r\n", buffer);
+	} else {
+		fprintf(stdout, "\r\n");
+	}
 }
 
 static void test_serialization(artik_lwm2m_handle handle)
@@ -347,6 +355,8 @@ artik_error test_lwm2m_default(void)
 	fprintf(stdout, "TEST: %s key=%s\n", __func__, config.tls_psk_key);
 
 	/* Fill up objects */
+	config.objects[ARTIK_LWM2M_OBJECT_FIRMWARE] =
+		lwm2m->create_firmware_object(true, "artik-sdk", "1.0");
 	config.objects[ARTIK_LWM2M_OBJECT_CONNECTIVITY_MONITORING] =
 		lwm2m->create_connectivity_monitoring_object(0, 0, 12, 1, 2,
 						(const char **)ips,

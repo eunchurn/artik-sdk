@@ -99,11 +99,15 @@ static void on_exec_factory_reset(void *user_data, void *extra)
 	 * from the same thread context
 	 */
 	if (node->callbacks[ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE]) {
+		artik_lwm2m_resource_t *res = malloc(sizeof(artik_lwm2m_resource_t));
+
+		memset(res, 0, sizeof(artik_lwm2m_resource_t));
 		lwm2m_idle_params *params = malloc(sizeof(lwm2m_idle_params));
 
 		params->node = node;
-		params->extra = (void *)strndup(LWM2M_URI_DEVICE_FACTORY_RESET,
+		res->uri = (void *)strndup(LWM2M_URI_DEVICE_FACTORY_RESET,
 				strlen(LWM2M_URI_DEVICE_FACTORY_RESET));
+		params->extra = (void *)res;
 		params->event = ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE;
 		node->loop_module->add_idle_callback(&params->id,
 					on_idle_callback, (void *)params);
@@ -123,11 +127,15 @@ static void on_exec_device_reboot(void *user_data, void *extra)
 	 * from the same thread context
 	 */
 	if (node->callbacks[ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE]) {
+		artik_lwm2m_resource_t *res = malloc(sizeof(artik_lwm2m_resource_t));
+
+		memset(res, 0, sizeof(artik_lwm2m_resource_t));
 		lwm2m_idle_params *params = malloc(sizeof(lwm2m_idle_params));
 
 		params->node = node;
-		params->extra = (void *)strndup(LWM2M_URI_DEVICE_REBOOT,
+		res->uri = (void *)strndup(LWM2M_URI_DEVICE_REBOOT,
 				strlen(LWM2M_URI_DEVICE_REBOOT));
+		params->extra = (void *)res;
 		params->event = ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE;
 		node->loop_module->add_idle_callback(&params->id,
 					on_idle_callback, (void *)params);
@@ -146,11 +154,15 @@ static void on_exec_firmware_update(void *user_data, void *extra)
 	 * from the same thread context
 	 */
 	if (node->callbacks[ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE]) {
+		artik_lwm2m_resource_t *res = malloc(sizeof(artik_lwm2m_resource_t));
+
+		memset(res, 0, sizeof(artik_lwm2m_resource_t));
 		lwm2m_idle_params *params = malloc(sizeof(lwm2m_idle_params));
 
 		params->node = node;
-		params->extra = (void *)strndup(LWM2M_URI_FIRMWARE_UPDATE,
+		res->uri = (void *)strndup(LWM2M_URI_FIRMWARE_UPDATE,
 				strlen(LWM2M_URI_FIRMWARE_UPDATE));
+		params->extra = (void *)res;
 		params->event = ARTIK_LWM2M_EVENT_RESOURCE_EXECUTE;
 		node->loop_module->add_idle_callback(&params->id,
 					on_idle_callback, (void *)params);
@@ -170,11 +182,22 @@ static void on_resource_changed(void *user_data, void *extra)
 	 * from the same thread context
 	 */
 	if (node->callbacks[ARTIK_LWM2M_EVENT_RESOURCE_CHANGED]) {
+		artik_lwm2m_resource_t *resource = malloc(sizeof(artik_lwm2m_resource_t));
+
+		memset(resource, 0, sizeof(artik_lwm2m_resource_t));
 		lwm2m_idle_params *params = malloc(sizeof(lwm2m_idle_params));
 
 		params->node = node;
-		params->extra = (void *)strndup(res->uri, strlen(res->uri));
+		resource->uri = (void *)strndup(res->uri, strlen(res->uri));
+		params->extra = (void *)resource;
 		params->event = ARTIK_LWM2M_EVENT_RESOURCE_CHANGED;
+
+		if (res->length) {
+			resource->buffer = malloc(res->length);
+			memcpy(resource->buffer, res->buffer, res->length);
+			resource->length = res->length;
+		}
+
 		node->loop_module->add_idle_callback(&params->id,
 					on_idle_callback, (void *)params);
 	}
