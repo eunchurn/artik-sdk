@@ -88,6 +88,12 @@ artik_lwm2m_object *artik::Lwm2m::create_connectivity_monitoring_object(
       routeaddr, linkutilization, apn, cellid, smnc, smcc);
 }
 
+artik_lwm2m_object *artik::Lwm2m::create_firmware_object(
+    bool supported, char *pkg_name, char *pkg_version) {
+    return this->m_module->create_firmware_object(supported,
+            pkg_name, pkg_version);
+}
+
 void artik::Lwm2m::free_object(artik_lwm2m_object* object) {
   return this->m_module->free_object(object);
 }

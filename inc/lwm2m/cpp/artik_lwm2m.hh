@@ -68,6 +68,9 @@ class Lwm2m {
       const char **ipaddr, int lenroute, const char **routeaddr,
       int linkutilization, const char *apn, int cellid, int smnc, int smcc);
 
+  artik_lwm2m_object *create_firmware_object(
+    bool supported, char *pkg_name, char *pkg_version);
+
   void free_object(artik_lwm2m_object* object);
   artik_error serialize_tlv_int(int *data, int size, unsigned char **buffer,
       int *bufferlen);

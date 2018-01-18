@@ -54,10 +54,9 @@ static int on_lwm2m_service_callback(void *user_data)
 	lwm2m_node *node = (lwm2m_node *)user_data;
 	int timeout;
 
-	log_dbg("");
-
 	timeout = lwm2m_client_service(node->client, 1000);
 	if (timeout < LWM2M_CLIENT_OK) {
+		log_dbg("");
 		if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
 			artik_error err = (timeout == LWM2M_CLIENT_QUIT) ?
 						E_INTERRUPTED : E_LWM2M_ERROR;
