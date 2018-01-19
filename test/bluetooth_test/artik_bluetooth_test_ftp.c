@@ -39,7 +39,7 @@
 #define SCAN_TIME_MILLISECONDS	(20*1000)
 #define BUFFER_LEN				128
 
-static artik_loop_module *loop_main;
+static artik_loop_module *loop;
 static artik_bluetooth_module *bt;
 static int watch_id;
 static int signal_id;
@@ -47,7 +47,7 @@ static int signal_id;
 static int uninit(void *user_data)
 {
 	fprintf(stdout, "<FTP>: Process cancel\n");
-	loop_main->quit();
+	loop->quit();
 
 	return true;
 }
@@ -65,27 +65,31 @@ static void prop_callback(artik_bt_event event, void *data, void *user_data)
 static void prv_list(char *buffer, void *user_data)
 {
 	artik_error ret;
-	artik_bt_ftp_file *file_list;
+	artik_bt_ftp_file *file_list = NULL, *current_list = NULL;
 	artik_bluetooth_module *bt = (artik_bluetooth_module *)
 		artik_request_api_module("bluetooth");
 
 	fprintf(stdout, "Start testing list file\n");
 	ret = bt->ftp_list_folder(&file_list);
-	if (ret != S_OK) {
+	if (ret != S_OK || !file_list) {
 		fprintf(stdout, "ftp list file failed !\n");
+		artik_release_api_module(bt);
 		return;
 	}
 	fprintf(stdout, "ftp list file succeeded !\n");
-	while (file_list != NULL) {
-		fprintf(stdout, "Type: %s\t", file_list->file_type);
-		fprintf(stdout, "Permission: %s\t", file_list->file_permission);
-		if (file_list->size < 10)
-			fprintf(stdout, "Size: %llu\t\t", file_list->size);
+
+	current_list = file_list;
+	while (current_list != NULL) {
+		fprintf(stdout, "Type: %s\t", current_list->file_type);
+		fprintf(stdout, "Permission: %s\t", current_list->file_permission);
+		if (current_list->size < 10)
+			fprintf(stdout, "Size: %llu\t\t", current_list->size);
 		else
-			fprintf(stdout, "Size: %llu\t", file_list->size);
-		fprintf(stdout, "Name: %s\n", file_list->file_name);
-		file_list = file_list->next_file;
+			fprintf(stdout, "Size: %llu\t", current_list->size);
+		fprintf(stdout, "Name: %s\n", current_list->file_name);
+		current_list = current_list->next_file;
 	}
+	bt->ftp_free_list(&file_list);
 	artik_release_api_module(bt);
 }
 
@@ -216,9 +220,10 @@ static void prv_quit(char *buffer, void *user_data)
 	ret = artik_release_api_module(bt);
 	if (ret != S_OK)
 		fprintf(stdout, "<FTP>: release bt module error!\n");
-	loop_main->remove_fd_watch(watch_id);
-	loop_main->remove_signal_watch(signal_id);
-	loop_main->quit();
+	if (watch_id)
+		loop->remove_fd_watch(watch_id);
+	loop->remove_signal_watch(signal_id);
+	loop->quit();
 }
 
 static void prv_resume(char *buffer, void *user_data)
@@ -279,11 +284,13 @@ static int on_keyboard_received(int fd, enum watch_io id, void *user_data)
 {
 	char buffer[BUFFER_LEN];
 
-	if (fgets(buffer, BUFFER_LEN, stdin) == NULL)
+	if (fgets(buffer, BUFFER_LEN, stdin) != NULL) {
+		handle_command(commands, (char *) buffer);
+		fprintf(stdout, "\r\n");
 		return 1;
-	handle_command(commands, (char *) buffer);
-	fprintf(stdout, "\r\n");
-	return 1;
+	}
+	watch_id = 0;
+	return 0;
 }
 
 static void print_devices(artik_bt_device *devices, int num)
@@ -327,18 +334,18 @@ static void on_bond(void *data, void *user_data)
 		fprintf(stdout, "<FTP>: %s - %s\n", __func__, "Paired");
 
 		if (bt->ftp_create_session(remote_address) == S_OK) {
-			loop_main->add_fd_watch(STDIN_FILENO,
+			loop->add_fd_watch(STDIN_FILENO,
 				(WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP
 				| WATCH_IO_NVAL),
 				on_keyboard_received, NULL, &watch_id);
 			fprintf(stdout, "<FTP>: call creat session success!\n");
 		} else {
 			fprintf(stdout, "<FTP>: call creat session error!\n");
-			loop_main->quit();
+			loop->quit();
 		}
 	} else {
 		fprintf(stdout, "<FTP>: %s - %s\n", __func__, "Unpaired");
-		loop_main->quit();
+		loop->quit();
 	}
 	artik_release_api_module(bt);
 }
@@ -359,8 +366,6 @@ static void user_callback(artik_bt_event event, void *data, void *user_data)
 
 static void scan_timeout_callback(void *user_data)
 {
-	artik_loop_module *loop = (artik_loop_module *) user_data;
-
 	fprintf(stdout, "<FTP>: %s - stop scan\n", __func__);
 	loop->quit();
 }
@@ -369,8 +374,6 @@ artik_error bluetooth_scan(void)
 {
 	artik_error ret;
 	int timeout_id = 0;
-	artik_loop_module *loop = (artik_loop_module *)
-		artik_request_api_module("loop");
 
 	fprintf(stdout, "<FTP>: %s - starting\n", __func__);
 
@@ -388,14 +391,12 @@ artik_error bluetooth_scan(void)
 
 	loop->add_timeout_callback(&timeout_id,
 		SCAN_TIME_MILLISECONDS, scan_timeout_callback,
-		(void *)loop);
+		NULL);
 	loop->run();
 
 exit:
 	bt->stop_scan();
 	bt->unset_callback(BT_EVENT_SCAN);
-
-	artik_release_api_module(loop);
 
 	return ret;
 }
@@ -425,8 +426,6 @@ static artik_error set_callback(char *remote_addr)
 		return ret;
 
 	ret = bt->set_callback(BT_EVENT_FTP, prop_callback, NULL);
-	if (ret != S_OK)
-		return ret;
 
 	return ret;
 }
@@ -439,18 +438,18 @@ int main(int argc, char *argv[])
 	if (!artik_is_module_available(ARTIK_MODULE_BLUETOOTH)) {
 		fprintf(stdout,
 			"<FTP>:Bluetooth is not available\n");
-		goto loop_quit;
+		return -1;
 	}
 
 	if (!artik_is_module_available(ARTIK_MODULE_LOOP)) {
 		fprintf(stdout,
 			"<FTP>:Loop module is not available\n");
-		goto loop_quit;
+		return -1;
 	}
 	bt = (artik_bluetooth_module *) artik_request_api_module("bluetooth");
-	loop_main = (artik_loop_module *) artik_request_api_module("loop");
-	if (!bt || !loop_main)
-		goto loop_quit;
+	loop = (artik_loop_module *) artik_request_api_module("loop");
+	if (!bt || !loop)
+		goto quit;
 
 	bt->init();
 
@@ -477,16 +476,16 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "<FTP>: Pair remote server error!\n");
 		goto loop_quit;
 	}
-	loop_main->add_signal_watch(SIGINT, uninit, NULL, &signal_id);
-	loop_main->run();
-
+	loop->add_signal_watch(SIGINT, uninit, NULL, &signal_id);
+	loop->run();
 loop_quit:
-	if (bt) {
-		bt->deinit();
+	bt->deinit();
+quit:
+	if (bt)
 		artik_release_api_module(bt);
-	}
-	if (loop_main)
-		artik_release_api_module(loop_main);
+
+	if (loop)
+		artik_release_api_module(loop);
 
 	fprintf(stdout, "<FTP>: Quit FTP session ...!\n");
 

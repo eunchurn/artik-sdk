@@ -37,6 +37,8 @@ artik_error bt_ftp_create_folder(char *folder);
 
 artik_error bt_ftp_delete_file(char *file);
 
+artik_error bt_ftp_free_list(artik_bt_ftp_file **file_list);
+
 artik_error bt_ftp_list_folder(artik_bt_ftp_file **file_list);
 
 artik_error bt_ftp_get_file(char *target_file, char *source_file);

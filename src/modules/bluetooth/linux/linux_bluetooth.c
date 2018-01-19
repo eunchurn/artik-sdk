@@ -574,6 +574,11 @@ artik_error os_bt_ftp_list_folder(artik_bt_ftp_file **file_list)
 	return bt_ftp_list_folder(file_list);
 }
 
+artik_error os_bt_ftp_free_list(artik_bt_ftp_file **file_list)
+{
+	return bt_ftp_free_list(file_list);
+}
+
 artik_error os_bt_ftp_get_file(char *target_file, char *source_file)
 {
 	return bt_ftp_get_file(target_file, source_file);

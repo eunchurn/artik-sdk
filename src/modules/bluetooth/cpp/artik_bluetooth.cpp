@@ -501,6 +501,10 @@ artik_error artik::Bluetooth::ftp_list_folder(artik_bt_ftp_file **file_list) {
   return m_module->ftp_list_folder(file_list);
 }
 
+artik_error artik::Bluetooth::ftp_free_list(artik_bt_ftp_file **file_list) {
+  return m_module->ftp_free_list(file_list);
+}
+
 artik_error artik::Bluetooth::ftp_get_file(char *target_file,
     char *source_file) {
   return m_module->ftp_get_file(target_file, source_file);

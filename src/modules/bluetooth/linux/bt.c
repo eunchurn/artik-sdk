@@ -65,6 +65,8 @@ artik_error bt_init(void)
 	g_hash_table_insert(hci.subscribe_ids,
 		"PropertiesChanged", GUINT_TO_POINTER(subscribe_id));
 
+	_bt_init_session();
+
 	return S_OK;
 }
 
@@ -104,6 +106,8 @@ artik_error bt_deinit(void)
 		g_error_free(e);
 		return E_BT_ERROR;
 	}
+
+	_bt_deinit_session();
 
 	return S_OK;
 }

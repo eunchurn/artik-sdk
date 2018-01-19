@@ -158,6 +158,7 @@ artik_error os_bt_ftp_change_folder(char *folder);
 artik_error os_bt_ftp_create_folder(char *folder);
 artik_error os_bt_ftp_delete_file(char *file);
 artik_error os_bt_ftp_list_folder(artik_bt_ftp_file **file_list);
+artik_error os_bt_ftp_free_list(artik_bt_ftp_file **file_list);
 artik_error os_bt_ftp_get_file(char *target_file, char *source_file);
 artik_error os_bt_ftp_put_file(char *source_file, char *target_file);
 artik_error os_bt_ftp_cancel_transfer(void);

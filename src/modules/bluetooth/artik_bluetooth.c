@@ -171,6 +171,8 @@ static artik_error artik_bluetooth_ftp_create_folder(char *folder);
 static artik_error artik_bluetooth_ftp_delete_file(char *file);
 static artik_error artik_bluetooth_ftp_list_folder(
 		artik_bt_ftp_file * *file_list);
+static artik_error artik_bluetooth_ftp_free_list(
+		artik_bt_ftp_file * *file_list);
 static artik_error artik_bluetooth_ftp_get_file(char *target_file,
 		char *source_file);
 static artik_error artik_bluetooth_ftp_put_file(char *source_file,
@@ -291,6 +293,7 @@ const artik_bluetooth_module bluetooth_module = {
 	artik_bluetooth_ftp_create_folder,
 	artik_bluetooth_ftp_delete_file,
 	artik_bluetooth_ftp_list_folder,
+	artik_bluetooth_ftp_free_list,
 	artik_bluetooth_ftp_get_file,
 	artik_bluetooth_ftp_put_file,
 	artik_bluetooth_ftp_resume_transfer,
@@ -972,6 +975,11 @@ artik_error artik_bluetooth_ftp_delete_file(char *file)
 artik_error artik_bluetooth_ftp_list_folder(artik_bt_ftp_file **file_list)
 {
 	return os_bt_ftp_list_folder(file_list);
+}
+
+artik_error artik_bluetooth_ftp_free_list(artik_bt_ftp_file **file_list)
+{
+	return os_bt_ftp_free_list(file_list);
 }
 
 artik_error artik_bluetooth_ftp_get_file(char *target_file, char *source_file)

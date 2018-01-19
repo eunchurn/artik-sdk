@@ -40,7 +40,7 @@
 #define OBEXD_WATI_TIME 2
 #define OBEXD_BUF_SIZE  100
 static FILE *obexd_start_stream;
-static bool obexed_is_used = FALSE;
+static bool obexed_is_used = false;
 static bt_ftp_transport_state ftp_state = BT_FTP_STATE_END;
 static bt_ftp_req_type ftp_req = BT_FTP_REQ_END;
 
@@ -60,7 +60,9 @@ static artik_error _call_exe(const char *cmd)
 	char obexd_buf[OBEXD_BUF_SIZE];
 	int obexd_buf_len = 0;
 
-	obexd_start_stream = NULL;
+	if (obexd_start_stream)
+		pclose(obexd_start_stream);
+
 	memset(obexd_buf, '\0', sizeof(obexd_buf));
 	obexd_check_stream = popen(OBEXD_CHECK_CMD, "r");
 
@@ -75,10 +77,12 @@ static artik_error _call_exe(const char *cmd)
 		log_dbg("get obexd check stream failed!\n");
 
 	if (_obexd_start_check(obexd_buf, OBEXD_CMD) == S_OK) {
-		obexed_is_used = TRUE;
+		obexed_is_used = true;
 		log_dbg("obexd is already started!\n");
 	} else
-		obexed_is_used = FALSE;
+		obexed_is_used = false;
+
+	pclose(obexd_check_stream);
 
 	if (!obexed_is_used) {
 		obexd_start_stream = popen(cmd, "r");
@@ -89,8 +93,6 @@ static artik_error _call_exe(const char *cmd)
 			err = S_OK;
 	} else
 		err = S_OK;
-
-	pclose(obexd_check_stream);
 
 	return err;
 }
@@ -111,6 +113,7 @@ static artik_error _destroy_exe(const char *cmd)
 		log_dbg("close call_exe process faield!\n");
 		return E_BT_ERROR;
 	}
+	obexd_start_stream = NULL;
 
 	return S_OK;
 }
@@ -177,8 +180,6 @@ artik_error bt_ftp_create_session(char *dest_addr)
 		return E_BT_ERROR;
 	}
 
-	_bt_init_session();
-
 	args = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 	g_variant_builder_add(args, "{sv}", "Target", g_variant_new_string("ftp"));
 
@@ -197,6 +198,8 @@ artik_error bt_ftp_create_session(char *dest_addr)
 		g_variant_get(result, "(o)", &path);
 		strncpy(session_path, path, BT_TRANSPORT_PATH_LEN);
 		internal_callback[BT_EVENT_FTP].fn = _ftp_internal_callback;
+		g_free(path);
+		g_variant_unref(result);
 		return S_OK;
 	}
 
@@ -237,8 +240,6 @@ artik_error bt_ftp_remove_session(void)
 		return E_BT_ERROR;
 	}
 	memset(session_path, 0, BT_TRANSPORT_PATH_LEN);
-
-	_bt_deinit_session();
 
 	return S_OK;
 }
@@ -372,11 +373,13 @@ static artik_bt_ftp_file *_parse_list(GVariant *result)
 					file_item->file_type = (char *) malloc(strlen(type) + 1);
 					if (file_item->file_type)
 						strncpy(file_item->file_type, type, strlen(type) + 1);
+					g_free(type);
 				} else if (g_strcmp0(key, "Name") == 0) {
 					g_variant_get(value, "s", &name);
 					file_item->file_name = (char *) malloc(strlen(name) + 1);
 					if (file_item->file_name)
 						strncpy(file_item->file_name, name, strlen(name) + 1);
+					g_free(name);
 				} else if (g_strcmp0(key, "Size") == 0) {
 					g_variant_get(value, "t", &size);
 					file_item->size = size;
@@ -389,6 +392,7 @@ static artik_bt_ftp_file *_parse_list(GVariant *result)
 						strncpy(file_item->file_permission, permission,
 								strlen(permission));
 					}
+					g_free(permission);
 				} else if (g_strcmp0(key, "Modified") == 0) {
 					g_variant_get(value, "s", &modified);
 					file_item->modified = (char *) malloc(strlen(modified) + 1);
@@ -397,10 +401,13 @@ static artik_bt_ftp_file *_parse_list(GVariant *result)
 						strncpy(file_item->modified, modified,
 								strlen(file_item->modified));
 					}
+					g_free(modified);
 				} else if (g_strcmp0(key, "Accessed") == 0) {
 					g_variant_get(value, "s", &accessed);
+					g_free(accessed);
 				} else if (g_strcmp0(key, "Created") == 0) {
 					g_variant_get(value, "s", &created);
+					g_free(created);
 				}
 				/* do not call g_variant_unref(value) here */
 			}
@@ -414,6 +421,10 @@ static artik_bt_ftp_file *_parse_list(GVariant *result)
 		} else {
 			log_err("No memory\n");
 			g_variant_iter_free(iter2);
+			g_variant_unref(ar);
+			g_variant_iter_free(iter);
+			if (head_item)
+				bt_ftp_free_list(&head_item);
 			return NULL;
 		}
 		g_variant_iter_free(iter2);
@@ -455,6 +466,28 @@ artik_error bt_ftp_list_folder(artik_bt_ftp_file **file_list)
 	g_variant_unref(result);
 
 	return S_OK;
+}
+
+artik_error bt_ftp_free_list(artik_bt_ftp_file **file_list)
+{
+	if (file_list && *file_list) {
+		artik_bt_ftp_file *current_item = NULL;
+		artik_bt_ftp_file *head_item = NULL;
+
+		head_item = *file_list;
+		while (head_item) {
+			current_item = head_item;
+			head_item = current_item->next_file;
+			g_free(current_item->file_name);
+			g_free(current_item->file_type);
+			g_free(current_item->modified);
+			g_free(current_item->file_permission);
+			g_free(current_item);
+		}
+		*file_list = NULL;
+		return S_OK;
+	}
+	return E_INVALID_VALUE;
 }
 
 static void _parse_transfer_property(GVariant *result)

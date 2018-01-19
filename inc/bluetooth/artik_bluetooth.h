@@ -1958,12 +1958,23 @@ extern "C" {
 		 */
 		artik_error(*ftp_delete_file)(char *file);
 		/*!
-		 * \brief ftp list the files.
+		 * \brief ftp list the folders/files.
+		 *
+		 * \param[out] file_list The list of folders/files.
 		 *
 		 * \return S_OK on success, otherwise a negative error value.
 		 *
 		 */
 		artik_error(*ftp_list_folder)(artik_bt_ftp_file * *file_list);
+		/*!
+		 * \brief free the memory of ftp list.
+		 *
+		 * \param[in] file_list The list of folders/files.
+		 *
+		 * \return S_OK on success, otherwise a negative error value.
+		 *
+		 */
+		artik_error(*ftp_free_list)(artik_bt_ftp_file * *file_list);
 		/*!
 		 * \brief ftp download file.
 		 *

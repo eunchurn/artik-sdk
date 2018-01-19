@@ -83,22 +83,8 @@ artik_error _ftp_object_search(const char *object_name,
 	ret = E_BT_ERROR;
 
 quit:
-	if (file_list) {
-		while (file_list != NULL) {
-			list = file_list;
-			if (list->file_type)
-				free(list->file_type);
-			if (list->file_name)
-				free(list->file_name);
-			if (list->modified)
-				free(list->modified);
-			if (list->file_permission)
-				free(list->file_permission);
-
-			file_list = file_list->next_file;
-			free(list);
-		}
-	}
+	if (file_list)
+		bt->ftp_free_list(&file_list);
 
 	return ret;
 }
@@ -347,6 +333,9 @@ static void ftp_list_foler_test(void)
 	CU_ASSERT(ret == E_BAD_ARGS);
 
 	ret = bt->ftp_list_folder(&file_list);
+	CU_ASSERT(ret == S_OK);
+
+	ret = bt->ftp_free_list(&file_list);
 	CU_ASSERT(ret == S_OK);
 
 	ret = bt->ftp_remove_session();
