@@ -34,36 +34,71 @@
 #define SCAN_TIME_MILLISECONDS (20*1000)
 
 static artik_bluetooth_module *bt;
-static artik_loop_module *loop_main;
+static artik_loop_module *loop;
+static int timeout_id;
+static int input_watch_id;
+static int spp_watch_id;
+static int spp_fd;
 
 static int uninit(void *user_data)
 {
 	fprintf(stdout, "<SPP>: Process cancel\n");
-	loop_main->quit();
+	close(spp_fd);
+	if (input_watch_id)
+		loop->remove_fd_watch(input_watch_id);
+	if (spp_watch_id)
+		loop->remove_fd_watch(spp_watch_id);
+	loop->quit();
 	return true;
 }
 
 static void scan_timeout_callback(void *user_data)
 {
-	artik_loop_module *loop = (artik_loop_module *)user_data;
-
 	fprintf(stdout, "<SPP>: %s - stop scan\n", __func__);
+	bt->stop_scan();
+	bt->unset_callback(BT_EVENT_SCAN);
 	loop->quit();
+	loop->remove_timeout_callback(timeout_id);
+}
+
+static int on_socket(int fd, enum watch_io io, void *user_data)
+{
+	if (io & WATCH_IO_IN) {
+		uint8_t buffer[MAX_PACKET_SIZE];
+		int num_bytes = 0;
+
+		num_bytes = recv(fd, buffer, MAX_PACKET_SIZE, 0);
+		if (num_bytes == -1) {
+			printf("Error in recvfrom()\n");
+		} else {
+			printf("<SPP>: Received %d bytes\n", num_bytes);
+			buffer[num_bytes] = '\0';
+			printf("%s\n", buffer);
+		}
+	} else if (io & WATCH_IO_HUP || io & WATCH_IO_ERR || io & WATCH_IO_NVAL) {
+		printf("Socket error occured.\n");
+		close(fd);
+		spp_watch_id = 0;
+		return 0;
+	}
+	return 1;
 }
 
 static int on_keyboard_received(int fd, enum watch_io id, void *user_data)
 {
 	char buffer[MAX_PACKET_SIZE];
-	intptr_t socket_fd = (intptr_t) user_data;
 
-	if (fgets(buffer, MAX_PACKET_SIZE, stdin) == NULL)
-		return 1;
+	if (fgets(buffer, MAX_PACKET_SIZE, stdin) == NULL) {
+		input_watch_id = 0;
+		return 0;
+	}
 	fprintf(stdout, "<SPP>: Input: %s\n", buffer);
 
-	if (send(socket_fd, buffer, strlen(buffer), 0) < 0)
-		return -1;
-	else
-		return 1;
+	if (send(spp_fd, buffer, strlen(buffer), 0) < 0) {
+		input_watch_id = 0;
+		return 0;
+	}
+	return 1;
 }
 
 void callback_on_spp_connect(artik_bt_event event,
@@ -74,11 +109,16 @@ void callback_on_spp_connect(artik_bt_event event,
 	artik_bt_spp_connect_property *spp_property =
 		(artik_bt_spp_connect_property *)data;
 
-	loop_main->add_fd_watch(STDIN_FILENO,
+	spp_fd = spp_property->fd;
+
+	loop->add_fd_watch(STDIN_FILENO,
 			(WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP
 			| WATCH_IO_NVAL),
-			on_keyboard_received, (void *)(intptr_t)spp_property->fd, NULL);
-	fprintf(stdout, "<SPP>: Key board start success\n");
+			on_keyboard_received, NULL, &input_watch_id);
+	loop->add_fd_watch(spp_fd,
+			WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP | WATCH_IO_NVAL,
+			on_socket, NULL, &spp_watch_id);
+	fprintf(stdout, "<SPP>: Please Input test message:\n");
 }
 
 void callback_on_spp_release(artik_bt_event event,
@@ -133,10 +173,7 @@ static artik_error set_callback(void)
 
 artik_error bluetooth_scan(void)
 {
-	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
 	artik_error ret = S_OK;
-	int timeout_id = 0;
 
 	fprintf(stdout, "<SPP>: %s - starting\n", __func__);
 
@@ -150,22 +187,18 @@ artik_error bluetooth_scan(void)
 
 	loop->add_timeout_callback(&timeout_id,
 			SCAN_TIME_MILLISECONDS, scan_timeout_callback,
-			(void *)loop);
+			NULL);
 	loop->run();
 
 exit:
-	ret = bt->stop_scan();
 	fprintf(stdout, "<SPP>: %s - %s\n", __func__,
 		(ret == S_OK) ? "succeeded" : "failed");
-
-	artik_release_api_module(loop);
 
 	return ret;
 }
 
 artik_error get_addr(char *remote_addr)
 {
-	char mac_other[2] = "";
 	artik_error ret = S_OK;
 
 	fprintf(stdout, "\n<SPP>: Input SPP Server MAC address:\n");
@@ -174,11 +207,6 @@ artik_error get_addr(char *remote_addr)
 		fprintf(stdout, "<SPP>: get addr failed! fgets error\n");
 		return E_BT_ERROR;
 	}
-	if (fgets(mac_other, 2, stdin) == NULL) {
-		fprintf(stdout, "<SPP>: get addr failed! fgets error\n");
-		return E_BT_ERROR;
-	}
-
 	if (strlen(remote_addr) != MAX_BDADDR_LEN)
 		ret =  E_BT_ERROR;
 
@@ -196,6 +224,7 @@ static artik_error spp_profile_register(void)
 	profile_option.channel = 22;
 	profile_option.PSM = 3;
 	profile_option.require_authentication = 1;
+	profile_option.require_authorization = 0;
 	profile_option.auto_connect = 1;
 	profile_option.version = 10;
 	profile_option.features = 20;
@@ -216,18 +245,11 @@ int main(void)
 	}
 
 	bt = (artik_bluetooth_module *)artik_request_api_module("bluetooth");
-	loop_main = (artik_loop_module *)artik_request_api_module("loop");
-	if (!bt || !loop_main)
+	loop = (artik_loop_module *)artik_request_api_module("loop");
+	if (!bt || !loop)
 		goto loop_quit;
 
 	bt->init();
-
-	ret = spp_profile_register();
-	if (ret != S_OK) {
-		fprintf(stdout, "<SPP>: SPP register error!\n");
-		goto spp_quit;
-	}
-	fprintf(stdout, "<SPP>: SPP register profile success!\n");
 
 	ret = set_callback();
 	if (ret != S_OK) {
@@ -235,6 +257,13 @@ int main(void)
 		goto spp_quit;
 	}
 	fprintf(stdout, "<SPP>: SPP set callback success!\n");
+
+	ret = spp_profile_register();
+	if (ret != S_OK) {
+		fprintf(stdout, "<SPP>: SPP register error!\n");
+		goto spp_quit;
+	}
+	fprintf(stdout, "<SPP>: SPP register profile success!\n");
 
 	ret = bluetooth_scan();
 	if (ret != S_OK) {
@@ -258,26 +287,25 @@ int main(void)
 	if (ret != S_OK)
 		goto spp_quit;
 
-	loop_main->add_signal_watch(SIGINT, uninit, NULL, NULL);
-	loop_main->run();
+	loop->add_signal_watch(SIGINT, uninit, NULL, NULL);
+	loop->run();
 
+	bt->disconnect(remote_address);
 spp_quit:
 	bt->spp_unregister_profile();
-	bt->unset_callback(BT_EVENT_SCAN);
 	bt->unset_callback(BT_EVENT_SPP_CONNECT);
 	bt->unset_callback(BT_EVENT_SPP_RELEASE);
 	bt->unset_callback(BT_EVENT_SPP_DISCONNECT);
 
-	bt->disconnect(remote_address);
 	fprintf(stdout, "<SPP>: SPP quit!\n");
+	bt->deinit();
 
 loop_quit:
-	if (bt) {
-		bt->deinit();
+	if (bt)
 		artik_release_api_module(bt);
-	}
-	if (loop_main)
-		artik_release_api_module(loop_main);
+
+	if (loop)
+		artik_release_api_module(loop);
 
 	fprintf(stdout, "<SPP>: Loop quit!\n");
 	return S_OK;

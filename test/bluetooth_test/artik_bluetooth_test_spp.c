@@ -41,11 +41,15 @@ static artik_bluetooth_module *bt;
 static artik_loop_module *loop;
 static char buffer[MAX_PACKET_SIZE];
 static int watch_id;
+static int spp_fd;
 
 static int uninit(void *user_data)
 {
 	fprintf(stdout, "SPP loop quit\n");
-	loop->remove_fd_watch(watch_id);
+	if (watch_id) {
+		close(spp_fd);
+		loop->remove_fd_watch(watch_id);
+	}
 	loop->quit();
 	return true;
 }
@@ -67,12 +71,17 @@ static int on_socket(int fd, enum watch_io io, void *user_data)
 		if (num_bytes == -1) {
 			printf("Error in recvfrom()\n");
 		} else {
-			printf("Buffer received %d bytes\n", num_bytes);
+			printf("<SPP>: Received %d bytes\n", num_bytes);
 			buffer[num_bytes] = '\0';
 			printf("%s\n", buffer);
-			if (send(fd, "Hello\n", 7, 0) != 7)
+			if (send(fd, "Hello\n", 6, 0) != 6)
 				printf("Failed to send data\n");
 		}
+	} else if (io & WATCH_IO_HUP || io & WATCH_IO_ERR || io & WATCH_IO_NVAL) {
+		printf("Socket error occured.\n");
+		close(fd);
+		watch_id = 0;
+		return 0;
 	}
 	return 1;
 }
@@ -85,7 +94,8 @@ static void callback_on_spp_connect(artik_bt_event event,
 	artik_bt_spp_connect_property *spp_property =
 		(artik_bt_spp_connect_property *)data;
 
-	loop->add_fd_watch(spp_property->fd,
+	spp_fd = spp_property->fd;
+	loop->add_fd_watch(spp_fd,
 			WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP | WATCH_IO_NVAL,
 			on_socket, NULL, &watch_id);
 }
@@ -254,6 +264,7 @@ static artik_error spp_profile_register(void)
 	profile_option.channel = 22;
 	profile_option.PSM = 3;
 	profile_option.require_authentication = true;
+	profile_option.require_authorization = true;
 	profile_option.auto_connect = true;
 	profile_option.version = 10;
 	profile_option.features = 20;
@@ -314,12 +325,11 @@ spp_quit:
 	ret = bt->agent_unregister();
 	if (ret != S_OK)
 		fprintf(stdout, "<SPP>: Unregister agent error!\n");
+	bt->deinit();
 
 loop_quit:
-	if (bt) {
-		bt->deinit();
+	if (bt)
 		artik_release_api_module(bt);
-	}
 	if (loop)
 		artik_release_api_module(loop);
 	fprintf(stdout, "<SPP>: SPP profile quit!\n");

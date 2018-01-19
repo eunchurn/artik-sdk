@@ -86,18 +86,19 @@ static void _handle_new_connection(GVariant *parameters,
 				g_variant_get(value, "q", &version);
 			if (g_strcmp0(key, "Features") == 0)
 				g_variant_get(value, "q", &features);
+			g_variant_unref(value);
 			g_variant_unref(g_property_dic);
 		}
 	}
+	g_variant_unref(g_property);
+
 	message = g_dbus_method_invocation_get_message(invocation);
 	fd_list = g_dbus_message_get_unix_fd_list(message);
 	fd = g_unix_fd_list_get(fd_list, fd_handler, &error);
-	if (g_property)
-		g_variant_unref(g_property);
-	if (value)
-		g_variant_unref(value);
 
 	_get_device_address(device_path, &address);
+
+	g_free(device_path);
 
 	spp_property.device_addr = address;
 	spp_property.fd = fd;
@@ -107,7 +108,6 @@ static void _handle_new_connection(GVariant *parameters,
 	_user_callback(BT_EVENT_SPP_CONNECT, (void *)(&spp_property));
 
 	g_free(address);
-	g_free(device_path);
 }
 
 static void _handle_request_disconnection(GVariant *parameters,
@@ -216,7 +216,9 @@ artik_error bt_spp_register_profile(artik_bt_spp_profile_option *opt)
 		DBUS_BLUEZ_SPP_PROFILE,
 		BT_SPP_SHORT_UUID, option),
 		NULL, G_DBUS_CALL_FLAGS_NONE, G_MAXINT, NULL, &error);
-	g_variant_builder_unref(option);
+
+	if (option)
+		g_variant_builder_unref(option);
 
 	if (error) {
 		log_dbg("Register profile option failed :%s\n", error->message);
@@ -255,6 +257,8 @@ artik_error bt_spp_unregister_profile(void)
 
 	status = g_dbus_connection_unregister_object(
 		hci.conn, registration_id);
+
+	g_dbus_node_info_unref(_introspection_data);
 	if (status != TRUE)
 		return E_BT_ERROR;
 
