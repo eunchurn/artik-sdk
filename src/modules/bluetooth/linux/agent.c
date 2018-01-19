@@ -335,6 +335,7 @@ static void _handle_authorize_service(GVariant *parameters,
 
 	g_free(device);
 	g_free(path);
+	g_free(uuid);
 }
 
 static void _handle_cancel(void)

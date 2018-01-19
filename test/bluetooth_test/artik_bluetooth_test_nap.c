@@ -290,34 +290,34 @@ int main(int argc, char *argv[])
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("config network bridge failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "ip addr add %s dev %s", nap_ip, bridge);
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("config %s address failed\r\n", bridge);
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "ip link set %s up", bridge);
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("up %s failed\r\n", bridge);
-		goto out;
+		goto exit;
 	}
 
 	status = system("echo 1 > /proc/sys/net/ipv4/ip_forward");
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("enable ip forward failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "ifconfig %s netmask %s up", bridge, nap_netmask);
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("up %s failed\r\n", bridge);
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "iptables -t nat -A POSTROUTING -s %s/%s "
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("configure the iptable failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "iptables -t filter -A FORWARD -i %s -j ACCEPT",
@@ -333,7 +333,7 @@ int main(int argc, char *argv[])
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("configure the iptable failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "iptables -t filter -A FORWARD -o %s -j ACCEPT",
@@ -341,7 +341,7 @@ int main(int argc, char *argv[])
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("configure the iptable failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH, "iptables -t filter -A FORWARD -i %s -j ACCEPT",
@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
 		printf("configure the iptable failed\r\n");
-		goto out;
+		goto exit;
 	}
 
 	snprintf(buf, CMD_LENGTH,
@@ -360,15 +360,15 @@ int main(int argc, char *argv[])
 		nap_dhcp_end, bridge, nap_ip);
 	status = system(buf);
 	if ((status == -1) || !WIFEXITED(status) || WEXITSTATUS(status)) {
-		printf("configure the iptable failed\r\n");
-		goto out;
+		printf("configure the iptable dnsmasq failed\r\n");
+		goto exit;
 	}
 
 	bt = (artik_bluetooth_module *) artik_request_api_module("bluetooth");
 	loop = (artik_loop_module *)
 			artik_request_api_module("loop");
 	if (!bt || !loop)
-		goto out;
+		goto exit;
 
 	bt->init();
 
@@ -384,41 +384,35 @@ int main(int argc, char *argv[])
 		printf("Register return with error: %d!\r\n", err);
 		printf("Invoke pan unregister...\n");
 		err = bt->pan_unregister("nap");
-		return -1;
+		goto out;
 	}
 	printf("<NAP> Rgister return is OK:%d!\r\n", err);
 	loop->add_signal_watch(SIGINT, uninit, NULL, &signal_id);
-	sleep(1);
 
 	loop->run();
 out:
+	bt->deinit();
 
-	if (bt) {
-		bt->deinit();
+exit:
+	if (bt)
 		artik_release_api_module(bt);
-	}
 	if (loop)
 		artik_release_api_module(loop);
 	snprintf(buf, CMD_LENGTH, "ifconfig %s down", bridge);
-	if (system(buf) < 0) {
+	if (system(buf) < 0)
 		printf("cmd system error\n");
-		return -1;
-	}
+
 	snprintf(buf, CMD_LENGTH, "brctl delbr %s", bridge);
-	if (system(buf) < 0) {
+	if (system(buf) < 0)
 		printf("cmd system error\n");
-		return -1;
-	}
-	if (system("pkill -9 dnsmasq") < 0) {
+
+	if (system("pkill -9 dnsmasq") < 0)
 		printf("cmd system error\n");
-		return -1;
-	}
-	strncpy(buf, "iptables -t nat -D POSTROUTING -s 10.0.0.1/255.255.255.0 "
-		"-j MASQUERADE", CMD_LENGTH);
-	if (system(buf) < 0) {
+
+	snprintf(buf, CMD_LENGTH, "iptables -t nat -D POSTROUTING -s %s/%s "
+				   "-j MASQUERADE", nap_ip, nap_netmask);
+	if (system(buf) < 0)
 		printf("cmd system error\n");
-		return -1;
-	}
 
 	return 0;
 }

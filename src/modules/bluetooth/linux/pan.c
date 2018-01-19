@@ -275,7 +275,7 @@ bool bt_pan_is_connected(void)
 
 	e = _get_pan_property("Connected", &v);
 	if (e == S_OK && v) {
-		g_variant_get(v, "b", connected);
+		connected = g_variant_get_boolean(v);
 		g_variant_unref(v);
 	}
 	return connected;
