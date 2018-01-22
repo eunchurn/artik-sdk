@@ -185,9 +185,10 @@ artik_error os_serial_release(artik_serial_config *config)
 	os_serial_data *data_user = config->data_user;
 
 	if (data_user != NULL) {
-		FD_CLR(data_user->fd, &data_user->rdfs);
-		if (data_user->fd >= 0)
+		if (data_user->fd >= 0) {
+			FD_CLR(data_user->fd, &data_user->rdfs);
 			close(data_user->fd);
+		}
 		free(data_user);
 	}
 	return S_OK;
