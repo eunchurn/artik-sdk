@@ -61,7 +61,7 @@ typedef struct {
 	int loop_process_id;
 	char *url;
 	artik_http_headers *headers;
-	const char *body;
+	char *body;
 	char *response;
 	int status;
 	artik_ssl_config *ssl;
@@ -357,6 +357,9 @@ static int os_http_process_post(void *user_data)
 	if (interface->headers)
 		free(interface->headers);
 
+	if (interface->body)
+		free(interface->body);
+
 	free(interface);
 
 	return 0;
@@ -386,6 +389,9 @@ static int os_http_process_put(void *user_data)
 
 	if (interface->headers)
 		free(interface->headers);
+
+	if (interface->body)
+		free(interface->body);
 
 	free(interface);
 
@@ -539,7 +545,10 @@ artik_error os_http_get_stream(const char *url, artik_http_headers *headers,
 							ssl_ctx_callback);
 		curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, ssl);
 	}
-	// curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+#ifndef NDEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
 
 	/* Perform request */
 	res = curl_easy_perform(curl);
@@ -744,7 +753,10 @@ artik_error os_http_get(const char *url, artik_http_headers *headers,
 							ssl_ctx_callback);
 		curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, ssl);
 	}
-	// curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+#ifndef NDEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
 
 	/* Perform request */
 	res = curl_easy_perform(curl);
@@ -945,7 +957,9 @@ artik_error os_http_post(const char *url, artik_http_headers *headers,
 	if (body)
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (void *)body);
 
-	// curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#ifndef NDEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
 
 	/* Perform request */
 	res = curl_easy_perform(curl);
@@ -1015,7 +1029,7 @@ artik_error os_http_post_async(const char *url, artik_http_headers *headers,
 		}
 	}
 
-	interface->body = body;
+	interface->body = body ? strdup(body) : NULL;
 	interface->response_cb_params.callback = callback;
 	interface->response_cb_params.user_data = user_data;
 	interface->ssl = copy_ssl_config(ssl);
@@ -1145,7 +1159,10 @@ artik_error os_http_put(const char *url, artik_http_headers *headers,
 
 	if (body)
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (void *)body);
-	/* curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); */
+
+#ifndef NDEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
 
 	/* Perform request */
 	res = curl_easy_perform(curl);
@@ -1213,7 +1230,8 @@ artik_error os_http_put_async(const char *url, artik_http_headers *headers,
 			return E_NO_MEM;
 		}
 	}
-	interface->body = body;
+
+	interface->body = body ? strdup(body) : NULL;
 	interface->response_cb_params.callback = callback;
 	interface->response_cb_params.user_data = user_data;
 	interface->ssl = copy_ssl_config(ssl);
@@ -1340,7 +1358,10 @@ artik_error os_http_delete(const char *url, artik_http_headers *headers,
 							ssl_ctx_callback);
 		curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, ssl);
 	}
-	/* curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); */
+
+#ifndef NDEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
 
 	/* Perform request */
 	res = curl_easy_perform(curl);
