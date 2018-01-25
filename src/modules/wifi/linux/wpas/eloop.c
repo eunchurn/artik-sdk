@@ -758,7 +758,7 @@ int eloop_cancel_timeout_one(eloop_timeout_handler handler,
 
 	dl_list_for_each_safe(timeout, prev, &eloop.timeout,
 			      struct eloop_timeout, list) {
-		if (timeout->handler == handler &&
+		if (timeout && timeout->handler == handler &&
 		    (timeout->eloop_data == eloop_data) &&
 		    (timeout->user_data == user_data)) {
 			removed = 1;

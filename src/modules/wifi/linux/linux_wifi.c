@@ -99,7 +99,8 @@ artik_error os_wifi_deinit(void)
 	if (!wifi_initialized)
 		return E_NOT_INITIALIZED;
 
-	wifi_deinitialize();
+	if (wifi_mode != ARTIK_WIFI_MODE_AP)
+		wifi_deinitialize();
 
 	wifi_initialized = false;
 
