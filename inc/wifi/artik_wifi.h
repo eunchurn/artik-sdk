@@ -244,8 +244,9 @@ typedef struct {
 	 *            (min length = 8 & max = 64 bytes) Can be NULL for the open
 	 *            mode.
 	 * \param[in] channel Channel onto which the AP must broadcast.
-	 * \param[in] openmode Pass into open mode when is 1, else enable wpa2
-	 *            authentification mode.
+	 * \param[in] encryption_flags Flags specifying the Encryption/Authentication
+	 *            method to be exposed by the Access Point. Only Open and WPA2 modes
+	 *            are supported.
 	 *
 	 * \return S_OK on success, otherwise a negative error value.
 	 */
