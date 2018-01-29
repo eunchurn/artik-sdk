@@ -59,3 +59,33 @@ EXPORT_API char *artik_get_device_info(void)
 {
 	return os_get_device_info();
 }
+
+EXPORT_API artik_error artik_get_bt_mac_address(char *addr)
+{
+	return os_get_bt_mac_address(addr);
+}
+
+EXPORT_API artik_error artik_get_wifi_mac_address(char *addr)
+{
+	return os_get_wifi_mac_address(addr);
+}
+
+EXPORT_API artik_error artik_get_platform_serial_number(char *sn)
+{
+	return os_get_platform_serial_number(sn);
+}
+
+EXPORT_API artik_error artik_get_platform_manufacturer(char *manu)
+{
+	return os_get_platform_manufacturer(manu);
+}
+
+EXPORT_API artik_error artik_get_platform_uptime(int64_t *uptime)
+{
+	return os_get_platform_uptime(uptime);
+}
+
+EXPORT_API artik_error artik_get_platform_model_number(char *modelnum)
+{
+	return os_get_platform_model_number(modelnum);
+}

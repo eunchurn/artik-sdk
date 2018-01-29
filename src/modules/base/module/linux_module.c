@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <pthread.h>
@@ -339,7 +340,10 @@ char *os_get_device_info(void)
 {
 	char *entry = NULL;
 	char *json = NULL;
-	int max_plat_name_len = 0, max_module_len = 0, max_json_len = 0;
+	int max_plat_name_len = 0, max_module_len = 0, max_json_len = 0,
+	max_bt_mac_addr_len = 0, max_wifi_mac_addr_len = 0,
+	max_plat_sn_len = 0, max_plat_manu_len = 0,
+	max_plat_uptime_len = 0, max_plat_modelnum_len = 0;
 
 	artik_api_module *modules = NULL;
 	int num_modules = 0;
@@ -350,18 +354,51 @@ char *os_get_device_info(void)
 
 	char platform_info[] = "\t\"name\": \"%s\",\n";
 	char modules_headher[] = "\t\"modules\":[\n";
-	char modules_tail[] = "\t]\n";
+	char modules_tail[] = "\t],\n";
 	char modules_info[] = "\t\"%s\",\n";
+
+	char bt_text_info[] = "\t\"bt_mac_addr\": \"%s\",\n";
+	char bt_mac_addr[MAX_BT_ADDR+1] = {0};
+
+	char wifi_text_info[] = "\t\"wifi_mac_addr\": \"%s\",\n";
+	char wifi_mac_addr[MAX_WIFI_ADDR+1] = {0};
+
+	char sn_text_info[] = "\t\"serial_number\": \"%s\",\n";
+	char platform_sn[MAX_PLATFORM_SN+1] = {0};
+
+	char manu_text_info[] = "\t\"manufacturer\": \"%s\",\n";
+	char platform_manu[MAX_PLATFORM_MANUFACT+1] = {0};
+
+	char uptime_text_info[] = "\t\"uptime\": \"%lld\",\n";
+	int64_t platform_uptime = 0;
+
+	char modelnum_text_info[] = "\t\"model_number\": \"%s\",\n";
+	char platform_modelnum[MAX_PLATFORM_MODELNUM+1] = {0};
 
 	int platid = artik_get_platform();
 
 	artik_get_available_modules(&modules, &num_modules);
 
-	max_plat_name_len = strlen(platform_info) + 10; /* Platform name */
+	max_plat_name_len = strlen(platform_info) + MAX_PLATFORM_NAME; /* Platform name */
 
-	max_module_len = strlen(modules_info) + 10; /* module name */
+	max_module_len = strlen(modules_info) + MAX_MODULE_NAME; /* module name */
+
+	max_bt_mac_addr_len = strlen(bt_text_info) + MAX_BT_ADDR; /* Bluetooth MAC Addr */
+
+	max_wifi_mac_addr_len = strlen(wifi_text_info) + MAX_WIFI_ADDR; /* Wifi MAC Addr */
+
+	max_plat_sn_len =  strlen(sn_text_info) + MAX_PLATFORM_SN; /* Serial number */
+
+	max_plat_manu_len =  strlen(manu_text_info) + MAX_PLATFORM_MANUFACT; /* Platform manufacturer */
+
+	max_plat_uptime_len =  strlen(uptime_text_info) + sizeof(platform_uptime); /* Platform uptime */
+
+	max_plat_modelnum_len =  strlen(modelnum_text_info) + MAX_PLATFORM_MODELNUM; /* Platform model number */
 
 	max_json_len = max_plat_name_len + (max_module_len * num_modules) +
+					max_bt_mac_addr_len + max_wifi_mac_addr_len +
+					max_plat_sn_len + max_plat_manu_len +
+					max_plat_uptime_len + max_plat_modelnum_len +
 					strlen(header) + strlen(tail) +
 					strlen(modules_headher) +
 					strlen(modules_tail) + 1;
@@ -413,7 +450,182 @@ char *os_get_device_info(void)
 	json[strlen(json) - 1] = '\0';
 
 	strncat(json, modules_tail, strlen(modules_tail));
+
+	/* Copy available bt mac addr */
+	entry = (char *)malloc(max_bt_mac_addr_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_bt_mac_address(bt_mac_addr);
+
+	snprintf(entry, max_bt_mac_addr_len, bt_text_info, bt_mac_addr);
+	strncat(json, entry, max_bt_mac_addr_len);
+	free(entry);
+
+	/* Copy available wifi mac addr */
+	entry = (char *)malloc(max_wifi_mac_addr_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_wifi_mac_address(wifi_mac_addr);
+
+	snprintf(entry, max_wifi_mac_addr_len, wifi_text_info, wifi_mac_addr);
+	strncat(json, entry, max_wifi_mac_addr_len);
+	free(entry);
+
+	/* Copy available platform serial number */
+	entry = (char *)malloc(max_plat_sn_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_platform_serial_number(platform_sn);
+
+	snprintf(entry, max_plat_sn_len, sn_text_info, platform_sn);
+	strncat(json, entry, max_plat_sn_len);
+	free(entry);
+
+	/* Copy available platform manufacturer */
+	entry = (char *)malloc(max_plat_manu_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_platform_manufacturer(platform_manu);
+
+	snprintf(entry, max_plat_manu_len, manu_text_info, platform_manu);
+	strncat(json, entry, max_plat_manu_len);
+	free(entry);
+
+
+	/* Copy available platform uptime */
+	entry = (char *)malloc(max_plat_uptime_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_platform_uptime(&platform_uptime);
+
+	snprintf(entry, max_plat_uptime_len, uptime_text_info, platform_uptime);
+	strncat(json, entry, max_plat_uptime_len);
+	free(entry);
+
+	/* Copy available platform model number */
+	entry = (char *)malloc(max_plat_modelnum_len);
+	if (!entry) {
+		free(json);
+		return NULL;
+	}
+	os_get_platform_model_number(platform_modelnum);
+
+	snprintf(entry, max_plat_modelnum_len, modelnum_text_info, platform_modelnum);
+	strncat(json, entry, max_plat_modelnum_len);
+	free(entry);
+
+	/* Remove last comma */
+	json[strlen(json) - 2] = '\n';
+	json[strlen(json) - 1] = '\0';
+
 	strncat(json, tail, strlen(tail));
 
 	return json;
+}
+
+artik_error os_get_bt_mac_address(char *addr)
+{
+	FILE *f = NULL;
+
+	f = fopen("/sys/devices/virtual/bluetooth/hci0/address", "re");
+	if (f == NULL)
+		return E_ACCESS_DENIED;
+
+	if (fgets(addr, MAX_BT_ADDR, f) == NULL)
+		return E_ACCESS_DENIED;
+
+	fclose(f);
+
+	return S_OK;
+}
+
+artik_error os_get_wifi_mac_address(char *addr)
+{
+	FILE *f = NULL;
+
+	f = fopen("/sys/class/net/wlan0/address", "re");
+	if (f == NULL)
+		return E_ACCESS_DENIED;
+
+	if (fgets(addr, MAX_WIFI_ADDR, f) == NULL)
+		return E_ACCESS_DENIED;
+
+	fclose(f);
+
+	return S_OK;
+}
+
+artik_error os_get_platform_serial_number(char *sn)
+{
+	FILE *f = NULL;
+
+	f = fopen("/proc/device-tree/serial-number", "re");
+	if (f == NULL)
+		return E_ACCESS_DENIED;
+
+	if (fgets(sn, MAX_PLATFORM_SN, f) == NULL)
+		return E_ACCESS_DENIED;
+
+	fclose(f);
+
+	return S_OK;
+}
+
+artik_error os_get_platform_manufacturer(char *manu)
+{
+	strcpy(manu, "SAMSUNG");
+	return S_OK;
+}
+
+artik_error os_get_platform_uptime(int64_t *uptime)
+{
+	FILE *f = NULL;
+	double uptime_seconds = 0;
+
+	/* first get the uptime */
+	f = fopen("/proc/uptime", "re");
+	if (f == NULL)
+		return E_ACCESS_DENIED;
+
+	/* read uptime in second*/
+	fscanf(f, "%lf", &uptime_seconds);
+	*uptime = (int64_t)uptime_seconds;
+
+	fclose(f);
+
+	return S_OK;
+}
+
+artik_error os_get_platform_model_number(char *modelnum)
+{
+	FILE *f = NULL;
+	char line[256];
+
+	f = fopen("/etc/artik_release", "re");
+	if (f == NULL)
+		return E_ACCESS_DENIED;
+
+	do {
+		if (fgets(line, sizeof(line), f) == NULL)
+			return E_ACCESS_DENIED;
+	} while (strstr(line, "MODEL=") == NULL);
+
+	/* In /etc/artik_release file... delete the "MODEL=" string */
+	strncpy(modelnum, line+strlen("MODEL="), strlen(line)-strlen("MODEL=\n"));
+
+	fclose(f);
+
+	return S_OK;
+
+
 }

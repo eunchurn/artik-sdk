@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <artik_module.h>
 #include <artik_platform.h>
@@ -39,12 +40,106 @@ artik_error test_platform_name(void)
 {
 	int platid = -1;
 	char platname[MAX_PLATFORM_NAME];
+	artik_error ret = S_OK;
 
 	fprintf(stdout, "TEST: %s\n", __func__);
 	platid = artik_get_platform();
-	artik_get_platform_name(platname);
+	ret = artik_get_platform_name(platname);
+	if (ret != S_OK)
+		return ret;
+
 	fprintf(stdout, "Platform ID:%d\n", platid);
 	fprintf(stdout, "Platform name:%s\n", platname);
+
+	return S_OK;
+}
+
+artik_error test_bt_address(void)
+{
+	char btaddr[MAX_BT_ADDR+1] = {0};
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_bt_mac_address(btaddr);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform Bluetooth MAC address: %s\n", btaddr);
+
+	return S_OK;
+}
+
+artik_error test_wifi_address(void)
+{
+	char wifiaddr[MAX_WIFI_ADDR+1] = {0};
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_wifi_mac_address(wifiaddr);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform Wifi MAC address: %s\n", wifiaddr);
+
+	return S_OK;
+}
+
+artik_error test_serial_number(void)
+{
+	char sn[MAX_PLATFORM_SN+1] = {0};
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_platform_serial_number(sn);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform Serial Number: %s\n", sn);
+
+	return S_OK;
+}
+
+artik_error test_platform_manufacturer(void)
+{
+	char manu[MAX_PLATFORM_MANUFACT+1] = {0};
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_platform_manufacturer(manu);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform Manufacturer: %s\n", manu);
+
+	return S_OK;
+}
+
+artik_error test_platform_uptime(void)
+{
+	int64_t uptime = 0;
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_platform_uptime(&uptime);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform uptime time: %" PRId64 "\n", uptime);
+
+	return S_OK;
+}
+
+artik_error test_platform_model_number(void)
+{
+	char modelnum[MAX_PLATFORM_MODELNUM+1] = {0};
+	artik_error ret = S_OK;
+
+	fprintf(stdout, "TEST: %s\n", __func__);
+	ret = artik_get_platform_model_number(modelnum);
+	if (ret != S_OK)
+		return ret;
+
+	fprintf(stdout, "Platform model number: %s\n", modelnum);
 
 	return S_OK;
 }
@@ -116,7 +211,33 @@ int main(void)
 	if (ret != S_OK)
 		goto exit;
 
+	ret = test_bt_address();
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_wifi_address();
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_serial_number();
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_platform_manufacturer();
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_platform_uptime();
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_platform_model_number();
+	if (ret != S_OK)
+		goto exit;
+
 	ret = test_device_information();
+	if (ret != S_OK)
+		goto exit;
 
 exit:
 	return (ret == S_OK) ? 0 : -1;

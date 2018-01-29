@@ -31,4 +31,10 @@ artik_error os_get_available_modules(artik_api_module **modules,
 bool os_is_module_available(artik_module_id_t id);
 char *os_get_device_info(void);
 
+artik_error os_get_bt_mac_address(char *addr);
+artik_error os_get_wifi_mac_address(char *addr);
+artik_error os_get_platform_serial_number(char *sn);
+artik_error os_get_platform_manufacturer(char *manu);
+artik_error os_get_platform_uptime(int64_t *uptime);
+artik_error os_get_platform_model_number(char *modelnum);
 #endif /* _OS_MODULE_H_ */

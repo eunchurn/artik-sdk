@@ -39,17 +39,42 @@ extern "C" {
 	/*!
 	 *  \brief Maximum length of version string
 	 */
-#define MAX_VERSION_STRING		16
+#define MAX_VERSION_STRING      16
 
 	/*!
 	 *  \brief Maximum length of module names string
 	 */
-#define MAX_MODULE_NAME			32
+#define MAX_MODULE_NAME         32
 
 	/*!
 	 *  \brief Maximum length of platform names string
 	 */
-#define MAX_PLATFORM_NAME		64
+#define MAX_PLATFORM_NAME       64
+
+	/*!
+	 *  \brief Maximum length of bluetooth mac address string
+	 */
+#define MAX_BT_ADDR             17
+
+	/*!
+	 *  \brief Maximum length of wifi mac address string
+	 */
+#define MAX_WIFI_ADDR           17
+
+	/*!
+	 *  \brief Maximum length of platform serial number string
+	 */
+#define MAX_PLATFORM_SN         17
+
+	/*!
+	 *  \brief Maximum length of platform manufacturer string
+	 */
+#define MAX_PLATFORM_MANUFACT   7
+
+	/*!
+	 *  \brief Maximum length of platform model number string
+	 */
+#define MAX_PLATFORM_MODELNUM   17
 
 	/*!
 	 *  \brief Type for module operations
@@ -169,7 +194,7 @@ extern "C" {
 	 *              preallocated for a size at least MAX_PLATFORM_NAME
 	 *              bytes long.
 	 *
-	 *  \return S_OK always
+	 *  \return on success, error code otherwise
 	 */
 	artik_error artik_get_platform_name(char *name);
 
@@ -184,7 +209,7 @@ extern "C" {
 	 *              array. This value shall be used to browse through the
 	 *              modules array.
 	 *
-	 *  \return S_OK always
+	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error artik_get_available_modules(artik_api_module **modules,
 						int *num);
@@ -207,6 +232,76 @@ extern "C" {
 	 *
 	 */
 	char *artik_get_device_info(void);
+
+	/*!
+	 *  \brief Get platform Bluetooth MAC address
+	 *
+	 *  \param[out] String returned by the function with the bluetooth
+	 *				mac address of the platform the API has been built for.
+	 *				Must be preallocated for a size at least MAX_BT_ADDR+1
+	 *				bytes long.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_bt_mac_address(char *addr);
+
+	/*!
+	 *  \brief Get platform Wifi MAC address
+	 *
+	 *  \param[out] String returned by the function with the wifi
+	 *				mac address of the platform the API has been built for.
+	 *				Must be preallocated for a size at least MAX_WIFI_ADDR+1
+	 *				bytes long.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_wifi_mac_address(char *addr);
+
+	/*!
+	 *  \brief Get platform serial number
+	 *
+	 *  \param[out] String returned by the function with the sn of
+	 *				the platform the API has been built for. Must be
+	 *				preallocated for a size at least MAX_PLATFORM_SN+1
+	 *				bytes long.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_platform_serial_number(char *sn);
+
+	/*!
+	 *  \brief Get platform manufacturer
+	 *
+	 *  \param[out] String returned by the function with the manu of
+	 *				the platform the API has been built for. Must be
+	 *				preallocated for a size at least MAX_PLATFORM_MANUFACT+1
+	 *				bytes long.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_platform_manufacturer(char *manu);
+
+	/*!
+	 *  \brief Get platform uptime
+	 *
+	 *  \param[out] Integer (64 bits) Number of seconds elapsed since
+	 *				the board was powered up.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_platform_uptime(int64_t *uptime);
+
+	/*!
+	 *  \brief Get platform model number
+	 *
+	 *  \param[out] String returned by the function with
+	 *				the model number of the platform the API has
+	 *				been built for. Must be preallocated for a size at
+	 *				least MAX_PLATFORM_MODELNUM+1 bytes long.
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error artik_get_platform_model_number(char *modelnum);
 
 #ifdef __cplusplus
 }
