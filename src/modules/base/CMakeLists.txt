@@ -26,6 +26,7 @@ SET ( SRC_BASE_CPP
 					time/cpp/artik_time.cpp
 					loop/cpp/artik_loop.cpp
 					security/cpp/artik_security.cpp
+					module/cpp/artik_module.cpp
 )
 
 ADD_LIBRARY ( ${LIB_BASE}_c OBJECT ${SRC_BASE} )
