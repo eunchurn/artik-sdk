@@ -23,6 +23,7 @@ artik::Security::Security() {
       artik_request_api_module("security"));
   if (!m_module || m_module->request(&m_handle) != S_OK)
     artik_throw(artik::ArtikInitException());
+  m_sig_handle = NULL;
 }
 
 artik::Security::~Security() {
@@ -73,4 +74,31 @@ artik_error artik::Security::get_ec_pubkey_from_cert(const char *cert,
 artik_error artik::Security::convert_pem_to_der(const char *pem_data,
     unsigned char **der_data) {
   return m_module->convert_pem_to_der(pem_data, der_data);
+}
+
+artik_error artik::Security::verify_signature_init(
+  const char *signature_pem, const char *root_ca,
+  const artik_time *signing_time_in, artik_time *signing_time_out) {
+  if (m_sig_handle)
+    return E_BUSY;
+  return m_module->verify_signature_init(&m_sig_handle, signature_pem,
+    root_ca, signing_time_in, signing_time_out);
+}
+
+artik_error artik::Security::verify_signature_update(
+  unsigned char *data, unsigned int data_len) {
+  if (!m_sig_handle)
+    return E_NOT_INITIALIZED;
+  return m_module->verify_signature_update(m_sig_handle, data, data_len);
+}
+
+artik_error artik::Security::verify_signature_final(void) {
+  artik_error ret = S_OK;
+  if (!m_sig_handle)
+    return E_NOT_INITIALIZED;
+
+  ret = m_module->verify_signature_final(m_sig_handle);
+  m_sig_handle = NULL;
+
+  return ret;
 }

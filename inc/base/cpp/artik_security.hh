@@ -38,6 +38,7 @@ class Security {
  private:
   artik_security_module *m_module;
   artik_security_handle m_handle;
+  artik_security_handle m_sig_handle;
 
  public:
   Security();
@@ -51,6 +52,11 @@ class Security {
       unsigned char*, unsigned int *);
   artik_error get_ec_pubkey_from_cert(const char*, char **);
   artik_error convert_pem_to_der(const char *, unsigned char **);
+  artik_error verify_signature_init(const char *, const char *,
+    const artik_time *, artik_time *);
+  artik_error verify_signature_update(
+    unsigned char *, unsigned int);
+  artik_error verify_signature_final(void);
 };
 
 }  // namespace artik
