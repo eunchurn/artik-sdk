@@ -44,7 +44,6 @@ class Websocket {
   artik_websocket_handle m_handle;
 
  public:
-  Websocket();
   Websocket(const char* uri, artik_ssl_config *ssl_config);
   ~Websocket();
 
@@ -56,6 +55,11 @@ class Websocket {
   artik_error set_receive_callback(artik_websocket_callback callback,
       void *user_data);
   artik_error close_stream();
+
+ private:
+  // Disable copy constructor and assignement operator
+  Websocket(Websocket const&);
+  Websocket& operator=(Websocket const&);
 };
 
 }  // namespace artik
