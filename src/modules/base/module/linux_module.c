@@ -77,7 +77,8 @@ static const artik_api_module *artik_api_modules[] = {
 	artik_api_a710_modules,
 	artik_api_a530_modules,
 	NULL,
-	artik_api_a305_modules
+	artik_api_a305_modules,
+	artik_api_evergreeen_modules
 };
 
 artik_error os_get_api_version(artik_api_version *version)
@@ -266,6 +267,8 @@ int os_get_platform(void)
 			artik_platform_id = ARTIK1020;
 		else if (strstr(line, "artik710"))
 			artik_platform_id = ARTIK710;
+		else if (strstr(line, "compy"))
+			artik_platform_id = EVERGREEEN;
 		else if (strstr(line, "artik530"))
 			artik_platform_id = ARTIK530;
 		else if (strstr(line, "artik305"))
@@ -424,6 +427,8 @@ char *os_get_device_info(void)
 		snprintf(entry, max_plat_name_len, platform_info, "ARTIK710");
 	else if (platid == ARTIK530)
 		snprintf(entry, max_plat_name_len, platform_info, "ARTIK530");
+	else if (platid == EVERGREEEN)
+		snprintf(entry, max_plat_name_len, platform_info, "EVERGREEEN");
 	else
 		snprintf(entry, max_plat_name_len, platform_info, "GENERIC");
 
