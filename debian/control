@@ -22,7 +22,7 @@ Package: libartik-sdk-base
 Architecture: any-arm arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 	libglib2.0-0,
-	artiksee (>= 0.6), artiksee(<< 0.7)
+	artiksee (>= 0.7), artiksee(<< 0.8)
 Description: Base package needed by all the other packages of the SDK
 
 Package: libartik-sdk-base-dev
