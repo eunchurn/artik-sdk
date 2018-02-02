@@ -398,6 +398,9 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 	artik_msecond curr_in_sec = 0;
 	int res = 0;
 
+	if (!alarm_data)
+		return E_BAD_ARGS;
+
 	memset(&curr_usr, 1, sizeof(curr_usr));
 
 	artik_error ret = os_time_get_sys(&curr_usr, alarm_data->gmt);
