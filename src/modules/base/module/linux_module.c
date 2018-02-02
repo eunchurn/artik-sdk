@@ -609,8 +609,10 @@ artik_error os_get_platform_uptime(int64_t *uptime)
 		return E_ACCESS_DENIED;
 
 	/* read uptime in second*/
-	if (fscanf(f, "%lf", &uptime_seconds) < 1)
+	if (fscanf(f, "%lf", &uptime_seconds) < 1) {
 		fclose(f);
+		return E_ACCESS_DENIED;
+	}
 
 	*uptime = (int64_t)uptime_seconds;
 
