@@ -546,8 +546,10 @@ artik_error os_get_bt_mac_address(char *addr)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(addr, MAX_BT_ADDR, f) == NULL)
+	if (fgets(addr, MAX_BT_ADDR, f) == NULL) {
+		fclose(f);
 		return E_ACCESS_DENIED;
+	}
 
 	fclose(f);
 
@@ -562,8 +564,10 @@ artik_error os_get_wifi_mac_address(char *addr)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(addr, MAX_WIFI_ADDR, f) == NULL)
+	if (fgets(addr, MAX_WIFI_ADDR, f) == NULL) {
+		fclose(f);
 		return E_ACCESS_DENIED;
+	}
 
 	fclose(f);
 
@@ -578,8 +582,10 @@ artik_error os_get_platform_serial_number(char *sn)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(sn, MAX_PLATFORM_SN, f) == NULL)
+	if (fgets(sn, MAX_PLATFORM_SN, f) == NULL) {
+		fclose(f);
 		return E_ACCESS_DENIED;
+	}
 
 	fclose(f);
 
@@ -588,7 +594,7 @@ artik_error os_get_platform_serial_number(char *sn)
 
 artik_error os_get_platform_manufacturer(char *manu)
 {
-	strcpy(manu, "SAMSUNG");
+	strncpy(manu, "SAMSUNG", strlen("SAMSUNG"));
 	return S_OK;
 }
 
@@ -603,7 +609,9 @@ artik_error os_get_platform_uptime(int64_t *uptime)
 		return E_ACCESS_DENIED;
 
 	/* read uptime in second*/
-	fscanf(f, "%lf", &uptime_seconds);
+	if (fscanf(f, "%lf", &uptime_seconds) < 1)
+		fclose(f);
+
 	*uptime = (int64_t)uptime_seconds;
 
 	fclose(f);
@@ -621,8 +629,10 @@ artik_error os_get_platform_model_number(char *modelnum)
 		return E_ACCESS_DENIED;
 
 	do {
-		if (fgets(line, sizeof(line), f) == NULL)
+		if (fgets(line, sizeof(line), f) == NULL) {
+			fclose(f);
 			return E_ACCESS_DENIED;
+		}
 	} while (strstr(line, "MODEL=") == NULL);
 
 	/* In /etc/artik_release file... delete the "MODEL=" string */

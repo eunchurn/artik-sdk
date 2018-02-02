@@ -332,7 +332,7 @@ artik_error os_add_signal_watch(int signum, signal_callback func,
 {
 	struct _signal *signal;
 
-	if (signum != SIGHUP ||  signum != SIGINT || signum != SIGTERM)
+	if ((signum != SIGHUP) && (signum != SIGINT) && (signum != SIGTERM))
 		return E_BAD_ARGS;
 
 	signal = g_try_new0(struct _signal, 1);

@@ -45,7 +45,8 @@ static artik_sensor_config *artik_api_sensors[] = {
 	artik_api_a710_sensors,
 	artik_api_a530_sensors,
 	NULL,
-	artik_api_a305_sensors
+	artik_api_a305_sensors,
+	NULL
 };
 
 #endif /* ARTIK_PLATFORM_SENSORS_H_ */
