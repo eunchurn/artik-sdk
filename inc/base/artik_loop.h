@@ -170,7 +170,7 @@ typedef struct {
 	/*!
 	 * \brief	  Add signal to watch
 	 *
-	 * \param[in] signum Signal to watch
+	 * \param[in] signum Signal to watch (Only SIGHUP, SIGINT, SIGTERM are supported)
 	 * \param[in] func The callback function to register
 	 * \param[in] user_data The user data to be passed to the callback
 	 *            function
