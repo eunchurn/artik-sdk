@@ -72,9 +72,13 @@ static artik_error test_rgb_led(int platid)
 		leds[1].config.id = ARTIK_A530_GPIO2;
 		leds[2].config.id = ARTIK_A530_GPIO3;
 	} else if (platid == ARTIK305) {
-		leds[0].config.id = ARTIK_A530_GPIO0;
-		leds[1].config.id = ARTIK_A530_GPIO2;
-		leds[2].config.id = ARTIK_A530_GPIO3;
+		leds[0].config.id = ARTIK_A305_GPIO0;
+		leds[1].config.id = ARTIK_A305_GPIO2;
+		leds[2].config.id = ARTIK_A305_GPIO3;
+	} else if (platid == EVERGREEEN) {
+		leds[0].config.id = ARTIK_EVERGREEEN_GPIO0;
+		leds[1].config.id = ARTIK_EVERGREEEN_GPIO1;
+		leds[2].config.id = ARTIK_EVERGREEEN_GPIO2;
 	}
 
 	fprintf(stdout, "TEST: %s\n", __func__);
@@ -161,8 +165,12 @@ static artik_error test_button_interrupt(int platid)
 		config.id = ARTIK_A1020_GPIO_XEINT3;
 	else if (platid == ARTIK710)
 		config.id = ARTIK_A710_GPIO4;
-	else
+	else if (platid == ARTIK530)
 		config.id = ARTIK_A530_GPIO4;
+	else if (platid == ARTIK305)
+		config.id = ARTIK_A305_GPIO4;
+	else if (platid == EVERGREEEN)
+		config.id = ARTIK_EVERGREEEN_GPIO4;
 
 	config.name = "button";
 	config.dir = GPIO_IN;
@@ -205,7 +213,8 @@ int main(void)
 	int platid = artik_get_platform();
 
 	if ((platid == ARTIK520) || (platid == ARTIK1020) ||
-			(platid == ARTIK710) || (platid == ARTIK530) || (platid == ARTIK305)) {
+			(platid == ARTIK710) || (platid == ARTIK530) ||
+			(platid == ARTIK305) || (platid == EVERGREEEN)) {
 		ret = test_button_interrupt(platid);
 		if (ret != S_OK)
 			goto exit;
