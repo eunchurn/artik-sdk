@@ -218,7 +218,7 @@ artik_error os_spi_read_write(artik_spi_config *config, char *tx_buf,
 	artik_error ret = S_OK;
 	struct spi_ioc_transfer data;
 
-	log_err("");
+	log_dbg("");
 
 	if (!config)
 		return E_BAD_ARGS;
