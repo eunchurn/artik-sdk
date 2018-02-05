@@ -51,6 +51,8 @@ static artik_error pwm_test_frequency(int platid)
 		config.pin_num = ARTIK_A530_PWM0;
 	else if (platid == ARTIK305)
 		config.pin_num = ARTIK_A305_PWM0;
+	else if (platid == EVERGREEEN)
+		config.pin_num = ARTIK_EVERGREEEN_PWM0;
 
 	fprintf(stdout, "TEST: %s\n", __func__);
 
@@ -75,12 +77,15 @@ static artik_error pwm_test_frequency(int platid)
 
 int main(void)
 {
-	artik_error ret = S_OK;
+	artik_error ret = E_NOT_SUPPORTED;
 	int platid = artik_get_platform();
 
 	if ((platid == ARTIK520) || (platid == ARTIK1020)  ||
-		(platid == ARTIK710) || (platid == ARTIK530) || (platid == ARTIK305))
+		(platid == ARTIK710) || (platid == ARTIK530) || (platid == ARTIK305) ||
+		(platid == EVERGREEEN))
 		ret = pwm_test_frequency(platid);
+	else
+		fprintf(stdout, "Cannot run test - Unsupported platform\n");
 
 	return (ret == S_OK) ? 0 : -1;
 }

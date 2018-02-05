@@ -43,20 +43,14 @@ static void signal_handler(int signum)
 
 int main(void)
 {
-	artik_sensor_module *sensor              =
-		(artik_sensor_module *)artik_request_api_module("sensor");
-	artik_sensor_config *config_acce         =
-		sensor->get_accelerometer_sensor(0);
-	artik_sensor_config *config_humid        =
-		sensor->get_humidity_sensor(0);
-	artik_sensor_config *config_photolight   =
-		sensor->get_light_sensor(0);
-	artik_sensor_config *config_envtemp      =
-		sensor->get_temperature_sensor(0);
-	artik_sensor_config *config_pressure     =
-		sensor->get_pressure_sensor(0);
-	artik_sensor_config *config_gyro         = sensor->get_gyro_sensor(0);
-	artik_sensor_config *config_hall         = sensor->get_hall_sensor(0);
+	artik_sensor_module *sensor              = NULL;
+	artik_sensor_config *config_acce         = NULL;
+	artik_sensor_config *config_humid        = NULL;
+	artik_sensor_config *config_photolight   = NULL;
+	artik_sensor_config *config_envtemp      = NULL;
+	artik_sensor_config *config_pressure     = NULL;
+	artik_sensor_config *config_gyro         = NULL;
+	artik_sensor_config *config_hall         = NULL;
 	artik_sensor_handle handle_acce          = NULL;
 	artik_sensor_handle handle_humid         = NULL;
 	artik_sensor_handle handle_photolight    = NULL;
@@ -71,11 +65,26 @@ int main(void)
 	artik_sensor_pressure *sensor_pressure   = NULL;
 	artik_sensor_gyro *sensor_gyro           = NULL;
 	artik_sensor_hall *sensor_hall           = NULL;
-	artik_sensor_config *all_conf            = sensor->list();
+	artik_sensor_config *all_conf            = NULL;
 
 	int k = 5;
 	int i   = 0;
 	int res = 0;
+
+	sensor = (artik_sensor_module *)artik_request_api_module("sensor");
+	if (!sensor) {
+		printf("Test failed - Unsupported platform\n");
+		return -1;
+	}
+
+	config_gyro = sensor->get_gyro_sensor(0);
+	config_hall = sensor->get_hall_sensor(0);
+	config_pressure = sensor->get_pressure_sensor(0);
+	config_envtemp = sensor->get_temperature_sensor(0);
+	config_photolight = sensor->get_light_sensor(0);
+	config_humid = sensor->get_humidity_sensor(0);
+	config_acce = sensor->get_accelerometer_sensor(0);
+	all_conf = sensor->list();
 
 	signal(SIGINT, signal_handler);
 	while (all_conf && all_conf[i].type) {
