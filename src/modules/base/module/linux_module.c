@@ -546,7 +546,7 @@ artik_error os_get_bt_mac_address(char *addr)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(addr, MAX_BT_ADDR, f) == NULL) {
+	if (fgets(addr, MAX_BT_ADDR+1, f) == NULL) {
 		fclose(f);
 		return E_ACCESS_DENIED;
 	}
@@ -564,7 +564,7 @@ artik_error os_get_wifi_mac_address(char *addr)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(addr, MAX_WIFI_ADDR, f) == NULL) {
+	if (fgets(addr, MAX_WIFI_ADDR+1, f) == NULL) {
 		fclose(f);
 		return E_ACCESS_DENIED;
 	}
@@ -582,7 +582,7 @@ artik_error os_get_platform_serial_number(char *sn)
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
-	if (fgets(sn, MAX_PLATFORM_SN, f) == NULL) {
+	if (fgets(sn, MAX_PLATFORM_SN+1, f) == NULL) {
 		fclose(f);
 		return E_ACCESS_DENIED;
 	}
