@@ -542,7 +542,7 @@ artik_error os_get_bt_mac_address(char *addr)
 {
 	FILE *f = NULL;
 
-	f = fopen("/sys/devices/virtual/bluetooth/hci0/address", "re");
+	f = fopen("/sys/class/bluetooth/hci0/address", "re");
 	if (f == NULL)
 		return E_ACCESS_DENIED;
 
