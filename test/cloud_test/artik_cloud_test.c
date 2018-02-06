@@ -1003,6 +1003,7 @@ int main(int argc, char *argv[])
 				ret = E_NO_MEM;
 				goto exit;
 			}
+			memset(root_ca, 0, st.st_size + 1);
 			if (!fread(root_ca, st.st_size, 1, f)) {
 				printf("Failed to read root CA file\n");
 				fclose(f);
