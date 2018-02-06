@@ -157,6 +157,7 @@ typedef int artik_error;
 #define E_WIFI_ERROR_AUTHENTICATION	(-5001)
 #define E_WIFI_ERROR_ASSOCIATION	(-5002)
 #define E_WIFI_ERROR_BAD_PARAMS     (-5003)
+#define E_WIFI_ERROR_SCAN_BUSY     (-5004)
 
 /*!
  *  \brief An error occurred with the LWM2M service

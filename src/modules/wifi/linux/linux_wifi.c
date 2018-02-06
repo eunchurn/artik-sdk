@@ -30,7 +30,6 @@
 #include "artik_types.h"
 #include "artik_wifi.h"
 #include "../os_wifi.h"
-//#include "softap/softap_ctl.h"
 #include "wpas/wpa_ctrl.h"
 #include "wifi.h"
 
@@ -65,7 +64,8 @@ artik_error os_wifi_scan_request(void)
 
 	ret = wifi_scan_request();
 	if (ret != WIFI_SUCCESS)
-		return E_WIFI_ERROR;
+		return (ret == WIFI_ERROR_SCAN_FAIL_BUSY ?
+				E_WIFI_ERROR_SCAN_BUSY : E_WIFI_ERROR);
 
 	return S_OK;
 }
@@ -78,7 +78,7 @@ artik_error os_wifi_init(artik_wifi_mode_t mode)
 		return E_BUSY;
 
 	if (mode != ARTIK_WIFI_MODE_STATION &&
-	    mode != ARTIK_WIFI_MODE_AP)
+			mode != ARTIK_WIFI_MODE_AP)
 		return E_BAD_ARGS;
 
 	if (mode != ARTIK_WIFI_MODE_AP) {
@@ -103,7 +103,6 @@ artik_error os_wifi_deinit(void)
 		wifi_deinitialize();
 
 	wifi_initialized = false;
-
 	wifi_mode = ARTIK_WIFI_MODE_NONE;
 
 	return S_OK;
