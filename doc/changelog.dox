@@ -3,6 +3,83 @@
  * This page details the changes operated on the SDK API between consecutive
  * releases.
  *
+ * \section one_seven_to_one_eight Version 1.7 to 1.8
+ *
+ * \subsection one_seven_to_one_eight_evergreeen_platform Seeed Evergreeen Platform
+ *
+ * Add support for new Seeed Evergreeen board.
+ *
+ * \subsection one_seven_to_one_eight_module Module
+ *
+ * Add new APIs:
+ * - \ref artik_get_bt_mac_address
+ * - \ref artik_get_wifi_mac_address
+ * - \ref artik_get_platform_serial_number
+ * - \ref artik_get_platform_manufacturer
+ * - \ref artik_get_platform_uptime
+ * - \ref artik_get_platform_model_number
+ *
+ * Modify the JSON object returned by \ref artik_get_device_info to include
+ * the information provided by the new APIs above.
+ *
+ * \subsection one_seven_to_one_eight_security Security
+ *
+ * Add new APIs:
+ * - \ref artik_security_module::get_ec_pubkey_from_cert
+ * - \ref artik_security_module::convert_pem_to_der
+ *
+ * Add C++ wrapper for following APIs:
+ * - \ref artik_security_module::verify_signature_init
+ * - \ref artik_security_module::verify_signature_update
+ * - \ref artik_security_module::verify_signature_final
+ *
+ * \subsection one_seven_to_one_eight_bluetooth Bluetooth
+ *
+ * Add new APIs:
+ * - \ref artik_bluetooth_module::avrcp_controller_free_items
+ * - \ref artik_bluetooth_module::ftp_free_list
+ * - \ref artik_bluetooth_module::a2dp_source_get_state
+ *
+ * \subsection one_seven_to_one_eight_cloud Cloud
+ *
+ * Add new APIs to perform HTTP calls to the cloud in an asynchronous way:
+ * - \ref artik_cloud_module::send_message_async
+ * - \ref artik_cloud_module::send_action_async
+ * - \ref artik_cloud_module::get_current_user_profile_async
+ * - \ref artik_cloud_module::get_user_devices_async
+ * - \ref artik_cloud_module::get_user_device_types_async
+ * - \ref artik_cloud_module::get_user_application_properties_async
+ * - \ref artik_cloud_module::get_device_async
+ * - \ref artik_cloud_module::get_device_token_async
+ * - \ref artik_cloud_module::add_device_async
+ * - \ref artik_cloud_module::update_device_token_async
+ * - \ref artik_cloud_module::delete_device_token_async
+ * - \ref artik_cloud_module::delete_device_async
+ * - \ref artik_cloud_module::get_device_properties_async
+ * - \ref artik_cloud_module::set_device_server_properties_async
+ * - \ref artik_cloud_module::sdr_start_registration_async
+ * - \ref artik_cloud_module::sdr_registration_status_async
+ * - \ref artik_cloud_module::sdr_complete_registration_async
+ *
+ * \subsection one_seven_to_one_eight_websocket Websocket
+ *
+ * Removed default and copy constructors in C++ layer. These constructors should
+ * not be called anymore since it does not initialize mandatory member variables
+ * that are required for subsequent calls to the other websocket functions.
+ *
+ * It is now required to use constructor
+ * <b>artik::Websocket::Websocket(const char *, artik_ssl_config *)</b> in all
+ * cases.
+ *
+ * \subsection one_seven_to_one_eight_lwm2m LWM2M
+ *
+ * Add new \ref artik_lwm2m_config::connect_timeout to the
+ * \ref artik_lwm2m_config configuration structure. This parameter specifies
+ * the number of milliseconds after which the connection should be considered
+ * timed out when opening a socket to the LWM2M server over TCP.
+ *
+ * Add C++ wrapper to function \ref artik_lwm2m_module::create_firmware_object
+ *
  * \section one_six_to_one_seven Version 1.6 to 1.7
  *
  * \subsection one_six_to_one_seven_a305_platform A305 Platform
