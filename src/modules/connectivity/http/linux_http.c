@@ -440,6 +440,7 @@ artik_error os_http_get_stream(const char *url, artik_http_headers *headers,
 	SSL_CTX_PARAMS params = { 0 };
 	stream_callback_params cb_params = { 0 };
 	int i;
+	long lstatus;
 	artik_security_module *security = NULL;
 
 	log_dbg("");
@@ -558,8 +559,10 @@ artik_error os_http_get_stream(const char *url, artik_http_headers *headers,
 	}
 
 exit:
-	if (status)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, status);
+	if (status) {
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &lstatus);
+		*status = (int)lstatus;
+	}
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
@@ -649,6 +652,7 @@ artik_error os_http_get(const char *url, artik_http_headers *headers,
 	artik_error ret = S_OK;
 	SSL_CTX_PARAMS params = { 0 };
 	int i;
+	long lstatus;
 	artik_security_module *security = NULL;
 
 	log_dbg("");
@@ -766,8 +770,10 @@ artik_error os_http_get(const char *url, artik_http_headers *headers,
 	}
 
 exit:
-	if (status)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, status);
+	if (status) {
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &lstatus);
+		*status = (int)lstatus;
+	}
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
@@ -844,6 +850,7 @@ artik_error os_http_post(const char *url, artik_http_headers *headers,
 	struct curl_slist *h_list = NULL;
 	artik_error ret = S_OK;
 	int i;
+	long lstatus;
 	SSL_CTX_PARAMS params = { 0 };
 	artik_security_handle sec_handle = NULL;
 	artik_security_module *security = NULL;
@@ -970,8 +977,10 @@ artik_error os_http_post(const char *url, artik_http_headers *headers,
 	}
 
 exit:
-	if (status)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, status);
+	if (status) {
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &lstatus);
+		*status = (int)lstatus;
+	}
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
@@ -1049,6 +1058,7 @@ artik_error os_http_put(const char *url, artik_http_headers *headers,
 	struct curl_slist *h_list = NULL;
 	artik_error ret = S_OK;
 	int i;
+	long lstatus;
 	SSL_CTX_PARAMS params = { 0 };
 	artik_security_handle sec_handle = NULL;
 	artik_security_module *security = NULL;
@@ -1172,8 +1182,10 @@ artik_error os_http_put(const char *url, artik_http_headers *headers,
 	}
 
 exit:
-	if (status)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, status);
+	if (status) {
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &lstatus);
+		*status = (int)lstatus;
+	}
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
@@ -1251,6 +1263,7 @@ artik_error os_http_delete(const char *url, artik_http_headers *headers,
 	struct curl_slist *h_list = NULL;
 	artik_error ret = S_OK;
 	int i;
+	long lstatus;
 	SSL_CTX_PARAMS params = { 0 };
 	artik_security_handle sec_handle = NULL;
 	artik_security_module *security = NULL;
@@ -1371,8 +1384,10 @@ artik_error os_http_delete(const char *url, artik_http_headers *headers,
 	}
 
 exit:
-	if (status)
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, status);
+	if (status) {
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &lstatus);
+		*status = (int)lstatus;
+	}
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
