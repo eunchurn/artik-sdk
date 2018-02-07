@@ -70,7 +70,7 @@ static char *parse_json_object(const char *data, const char *obj)
 }
 
 static artik_error test_get_user_profile(const char *t,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -79,7 +79,7 @@ static artik_error test_get_user_profile(const char *t,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->get_current_user_profile(t, &response, &ssl_config);
+	ret = cloud->get_current_user_profile(t, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -98,7 +98,7 @@ static artik_error test_get_user_profile(const char *t,
 }
 
 static artik_error test_get_user_devices(const char *t, const char *uid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -108,7 +108,7 @@ static artik_error test_get_user_devices(const char *t, const char *uid,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_devices(t, 100, false, 0, uid, &response,
-								&ssl_config);
+								ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -129,7 +129,7 @@ static artik_error test_get_user_devices(const char *t, const char *uid,
 }
 
 static artik_error test_get_user_device_types(const char *t, const char *uid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -139,7 +139,7 @@ static artik_error test_get_user_device_types(const char *t, const char *uid,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_device_types(t, 100, false, 0, uid, &response,
-								&ssl_config);
+								ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -162,7 +162,7 @@ static artik_error test_get_user_device_types(const char *t, const char *uid,
 static artik_error test_get_user_application_properties(const char *t,
 						const char *uid,
 						const char *aid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -172,7 +172,7 @@ static artik_error test_get_user_application_properties(const char *t,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_application_properties(t, uid, aid, &response,
-								&ssl_config);
+								ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -193,7 +193,7 @@ static artik_error test_get_user_application_properties(const char *t,
 }
 
 static artik_error test_get_device(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -202,7 +202,7 @@ static artik_error test_get_device(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->get_device(t, did, true, &response, &ssl_config);
+	ret = cloud->get_device(t, did, true, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -223,7 +223,7 @@ static artik_error test_get_device(const char *t, const char *did,
 }
 
 static artik_error test_get_device_token(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -232,7 +232,7 @@ static artik_error test_get_device_token(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->get_device_token(t, did, &response, &ssl_config);
+	ret = cloud->get_device_token(t, did, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -253,7 +253,7 @@ static artik_error test_get_device_token(const char *t, const char *did,
 }
 
 static artik_error test_cloud_message(const char *t, const char *did,
-				const char *msg, artik_ssl_config ssl_config)
+				const char *msg, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -262,7 +262,7 @@ static artik_error test_cloud_message(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->send_message(t, did, msg, &response, &ssl_config);
+	ret = cloud->send_message(t, did, msg, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -283,7 +283,7 @@ static artik_error test_cloud_message(const char *t, const char *did,
 }
 
 static artik_error test_cloud_action(const char *t, const char *did,
-				const char *act, artik_ssl_config ssl_config)
+				const char *act, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -292,7 +292,7 @@ static artik_error test_cloud_action(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->send_action(t, did, act, &response, &ssl_config);
+	ret = cloud->send_action(t, did, act, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -312,7 +312,7 @@ static artik_error test_cloud_action(const char *t, const char *did,
 }
 
 static artik_error test_update_device_token(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -321,7 +321,7 @@ static artik_error test_update_device_token(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->update_device_token(t, did, &response, &ssl_config);
+	ret = cloud->update_device_token(t, did, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -342,7 +342,7 @@ static artik_error test_update_device_token(const char *t, const char *did,
 }
 
 static artik_error test_delete_device_token(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -351,7 +351,7 @@ static artik_error test_delete_device_token(const char *t, const char *did,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->delete_device_token(t, did, &response, &ssl_config);
+	ret = cloud->delete_device_token(t, did, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -372,7 +372,7 @@ static artik_error test_delete_device_token(const char *t, const char *did,
 }
 
 static artik_error test_add_delete_device(const char *t, const char *uid,
-				const char *dtid, artik_ssl_config ssl_config)
+				const char *dtid, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -384,7 +384,7 @@ static artik_error test_add_delete_device(const char *t, const char *uid,
 
 	/* Create a new device */
 	ret = cloud->add_device(t, uid, dtid, "Test Device", &response,
-								&ssl_config);
+								ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -411,7 +411,7 @@ static artik_error test_add_delete_device(const char *t, const char *uid,
 	}
 
 	/* Check if the device has been created */
-	ret = cloud->get_device(t, device_id, false, &response, &ssl_config);
+	ret = cloud->get_device(t, device_id, false, &response, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -430,7 +430,7 @@ static artik_error test_add_delete_device(const char *t, const char *uid,
 	}
 
 	/* Delete the device */
-	ret = cloud->delete_device(t, device_id, &response, &ssl_config);
+	ret = cloud->delete_device(t, device_id, &response, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -458,7 +458,7 @@ exit:
 }
 
 static artik_error test_get_device_properties(const char *t, const char *uid,
-					bool ts, artik_ssl_config ssl_config)
+					bool ts, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -467,7 +467,7 @@ static artik_error test_get_device_properties(const char *t, const char *uid,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->get_device_properties(t, uid, ts, &response, &ssl_config);
+	ret = cloud->get_device_properties(t, uid, ts, &response, ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -489,7 +489,7 @@ static artik_error test_get_device_properties(const char *t, const char *uid,
 
 static artik_error test_set_device_server_properties(const char *t,
 					const char *uid, const char *d,
-					artik_ssl_config ssl_config)
+					artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -499,7 +499,7 @@ static artik_error test_set_device_server_properties(const char *t,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->set_device_server_properties(t, uid, d, &response,
-								&ssl_config);
+								ssl_config);
 
 	if (response) {
 		fprintf(stdout, "TEST: %s response data: %s\n", __func__,
@@ -535,7 +535,7 @@ void http_response_callback(artik_error ret, char *response, void *user_data)
 }
 
 static artik_error test_get_user_profile_async(const char *t,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -543,7 +543,8 @@ static artik_error test_get_user_profile_async(const char *t,
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = cloud->get_current_user_profile_async(t, http_response_callback, (void *)__func__, &ssl_config);
+	ret = cloud->get_current_user_profile_async(t, http_response_callback,
+			(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -554,7 +555,7 @@ static artik_error test_get_user_profile_async(const char *t,
 }
 
 static artik_error test_get_user_devices_async(const char *t, const char *uid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -563,7 +564,7 @@ static artik_error test_get_user_devices_async(const char *t, const char *uid,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_devices_async(t, 100, false, 0, uid, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -576,7 +577,7 @@ static artik_error test_get_user_devices_async(const char *t, const char *uid,
 }
 
 static artik_error test_get_user_device_types_async(const char *t, const char *uid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -585,7 +586,7 @@ static artik_error test_get_user_device_types_async(const char *t, const char *u
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_device_types_async(t, 100, false, 0, uid, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -600,7 +601,7 @@ static artik_error test_get_user_device_types_async(const char *t, const char *u
 static artik_error test_get_user_application_properties_async(const char *t,
 						const char *uid,
 						const char *aid,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -609,7 +610,7 @@ static artik_error test_get_user_application_properties_async(const char *t,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_user_application_properties_async(t, uid, aid, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -622,7 +623,7 @@ static artik_error test_get_user_application_properties_async(const char *t,
 }
 
 static artik_error test_get_device_async(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -631,7 +632,7 @@ static artik_error test_get_device_async(const char *t, const char *did,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_device_async(t, did, true, http_response_callback,
-							(void *)__func__, &ssl_config);
+							(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -644,7 +645,7 @@ static artik_error test_get_device_async(const char *t, const char *did,
 }
 
 static artik_error test_get_device_token_async(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -653,7 +654,7 @@ static artik_error test_get_device_token_async(const char *t, const char *did,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_device_token_async(t, did, http_response_callback,
-									(void *)__func__, &ssl_config);
+									(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -666,7 +667,7 @@ static artik_error test_get_device_token_async(const char *t, const char *did,
 }
 
 static artik_error test_cloud_message_async(const char *t, const char *did,
-				const char *msg, artik_ssl_config ssl_config)
+				const char *msg, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -675,7 +676,7 @@ static artik_error test_cloud_message_async(const char *t, const char *did,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->send_message_async(t, did, msg, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -688,7 +689,7 @@ static artik_error test_cloud_message_async(const char *t, const char *did,
 }
 
 static artik_error test_cloud_action_async(const char *t, const char *did,
-				const char *act, artik_ssl_config ssl_config)
+				const char *act, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -697,7 +698,7 @@ static artik_error test_cloud_action_async(const char *t, const char *did,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->send_action_async(t, did, act, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -710,7 +711,7 @@ static artik_error test_cloud_action_async(const char *t, const char *did,
 }
 
 static artik_error test_update_device_token_async(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -719,7 +720,7 @@ static artik_error test_update_device_token_async(const char *t, const char *did
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->update_device_token_async(t, did, http_response_callback,
-										(void *)__func__, &ssl_config);
+										(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -732,7 +733,7 @@ static artik_error test_update_device_token_async(const char *t, const char *did
 }
 
 static artik_error test_delete_device_token_async(const char *t, const char *did,
-						artik_ssl_config ssl_config)
+						artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -741,7 +742,7 @@ static artik_error test_delete_device_token_async(const char *t, const char *did
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->delete_device_token_async(t, did, http_response_callback,
-										(void *)__func__, &ssl_config);
+										(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -876,7 +877,7 @@ exit:
 }
 
 static artik_error test_get_device_properties_async(const char *t, const char *uid,
-					bool ts, artik_ssl_config ssl_config)
+					bool ts, artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -885,7 +886,7 @@ static artik_error test_get_device_properties_async(const char *t, const char *u
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->get_device_properties_async(t, uid, ts, http_response_callback,
-										(void *)__func__, &ssl_config);
+										(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -899,7 +900,7 @@ static artik_error test_get_device_properties_async(const char *t, const char *u
 
 static artik_error test_set_device_server_properties_async(const char *t,
 					const char *uid, const char *d,
-					artik_ssl_config ssl_config)
+					artik_ssl_config *ssl_config)
 {
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
@@ -908,7 +909,7 @@ static artik_error test_set_device_server_properties_async(const char *t,
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
 	ret = cloud->set_device_server_properties_async(t, uid, d, http_response_callback,
-								(void *)__func__, &ssl_config);
+								(void *)__func__, ssl_config);
 
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
@@ -1031,100 +1032,100 @@ int main(int argc, char *argv[])
 		ssl_config.ca_cert.len = strlen(root_ca);
 	}
 
-	ret = test_get_user_profile(token, ssl_config);
+	ret = test_get_user_profile(token, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_user_devices(token, user_id, ssl_config);
+	ret = test_get_user_devices(token, user_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_user_device_types(token, user_id, ssl_config);
+	ret = test_get_user_device_types(token, user_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_get_user_application_properties(token, user_id, app_id,
-								ssl_config);
+								&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device(token, device_id, ssl_config);
+	ret = test_get_device(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device_token(token, device_id, ssl_config);
+	ret = test_get_device_token(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_cloud_message(token, device_id, message, ssl_config);
+	ret = test_cloud_message(token, device_id, message, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_cloud_action(token, device_id, action, ssl_config);
+	ret = test_cloud_action(token, device_id, action, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_update_device_token(token, device_id, ssl_config);
+	ret = test_update_device_token(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_delete_device_token(token, device_id, ssl_config);
+	ret = test_delete_device_token(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_add_delete_device(token, user_id, device_type_id,
-							ssl_config);
+							&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_set_device_server_properties(token, device_id, data,
-							ssl_config);
+							&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_get_device_properties(token, device_id, timestamp,
-							ssl_config);
+							&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_user_profile_async(token, ssl_config);
+	ret = test_get_user_profile_async(token, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_user_devices_async(token, user_id, ssl_config);
+	ret = test_get_user_devices_async(token, user_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_user_device_types_async(token, user_id, ssl_config);
+	ret = test_get_user_device_types_async(token, user_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_get_user_application_properties_async(token, user_id, app_id,
-								ssl_config);
+								&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device_async(token, device_id, ssl_config);
+	ret = test_get_device_async(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device_token_async(token, device_id, ssl_config);
+	ret = test_get_device_token_async(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_cloud_message_async(token, device_id, message, ssl_config);
+	ret = test_cloud_message_async(token, device_id, message, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_cloud_action_async(token, device_id, action, ssl_config);
+	ret = test_cloud_action_async(token, device_id, action, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_update_device_token_async(token, device_id, ssl_config);
+	ret = test_update_device_token_async(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_delete_device_token_async(token, device_id, ssl_config);
+	ret = test_delete_device_token_async(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
@@ -1134,12 +1135,12 @@ int main(int argc, char *argv[])
 		goto exit;
 
 	ret = test_set_device_server_properties_async(token, device_id, data,
-							ssl_config);
+							&ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
 	ret = test_get_device_properties_async(token, device_id, timestamp,
-							ssl_config);
+							&ssl_config);
 
 	signal(SIGINT, sig_handler);
 	loop->run();
