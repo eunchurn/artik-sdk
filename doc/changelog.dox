@@ -5,9 +5,9 @@
  *
  * \section one_seven_to_one_eight Version 1.7 to 1.8
  *
- * \subsection one_seven_to_one_eight_evergreeen_platform Seeed Evergreeen Platform
+ * \subsection one_seven_to_one_eight_platform Platform
  *
- * Add support for new Seeed Evergreeen board.
+ * Add support for new Seeed Eagleye530 board.
  *
  * \subsection one_seven_to_one_eight_module Module
  *

@@ -60,7 +60,7 @@ static artik_error spi_test(int platid)
 
     /* Do platform specific configuration */
 	if ((platid == ARTIK710) || (platid == ARTIK530) || (platid == ARTIK305) ||
-			(platid == EVERGREEEN))
+			(platid == EAGLEYE530))
 		config.bus = 2;
 
 	ret = spi->request(&handle, &config);

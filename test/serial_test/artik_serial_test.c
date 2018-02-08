@@ -118,8 +118,8 @@ static artik_error test_serial_loopback(int platid)
 	} else if (platid == ARTIK305) {
 		config.port_num = ARTIK_A305_UART0;
 		config.name = "UART4";
-	} else if (platid == EVERGREEEN) {
-		config.port_num = ARTIK_EVERGREEEN_UART0;
+	} else if (platid == EAGLEYE530) {
+		config.port_num = ARTIK_EAGLEYE530_UART0;
 		config.name = "UART0";
 	}
 
@@ -189,7 +189,7 @@ int main(void)
 
 	if ((platid == ARTIK520) || (platid == ARTIK1020) ||
 		(platid == ARTIK710) || (platid == ARTIK530) ||
-		(platid == ARTIK305) || (platid == EVERGREEEN)) {
+		(platid == ARTIK305) || (platid == EAGLEYE530)) {
 		ret = test_serial_loopback(platid);
 	} else {
 		fprintf(stdout, "Test failed - Unsupported platform\n");

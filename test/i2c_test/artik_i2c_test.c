@@ -36,7 +36,7 @@ const char *cmd_artik1020 = "echo 0-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
 const char *cmd_artik710  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
 const char *cmd_artik530  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
 const char *cmd_artik305  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_evergreeen = "echo 6-001a > /sys/bus/i2c/drivers/rt5659/unbind";
+const char *cmd_eagleye530 = "echo 6-001a > /sys/bus/i2c/drivers/rt5659/unbind";
 
 static artik_i2c_config config = {
 	1,
@@ -148,7 +148,7 @@ static artik_error i2c_test_rt5659(int platid)
 	config.address = 0x1a;
 	config.wordsize = I2C_16BIT;
 
-	if (platid == EVERGREEEN)
+	if (platid == EAGLEYE530)
 		config.id = 6;
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
@@ -246,8 +246,8 @@ int main(void)
 		cmd = cmd_artik530;
 	else if (platid == ARTIK305)
 		cmd = cmd_artik305;
-	else if (platid == EVERGREEEN)
-		cmd = cmd_evergreeen;
+	else if (platid == EAGLEYE530)
+		cmd = cmd_eagleye530;
 	else
 		cmd = cmd_artik1020;
 
@@ -259,7 +259,7 @@ int main(void)
 			(platid == ARTIK710) || (platid == ARTIK530) ||
 			(platid == ARTIK305)) {
 		ret = i2c_test_cw2015(platid);
-	} else if (platid == EVERGREEEN) {
+	} else if (platid == EAGLEYE530) {
 		ret = i2c_test_rt5659(platid);
 	} else {
 		fprintf(stdout, "Test failed - Unsupported platform\n");

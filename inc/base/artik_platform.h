@@ -58,9 +58,9 @@ enum {
 	 */
 	ARTIK305 = 6,
 	/*!
-	 * \brief Seeed's Evergreeen Development platform
+	 * \brief Seeed's Eagleye530 Development platform
 	 */
-	EVERGREEEN = 7
+	EAGLEYE530 = 7
 };
 
 #include "platform/artik_a520_platform.h"
@@ -69,7 +69,7 @@ enum {
 #include "platform/artik_a710_platform.h"
 #include "platform/artik_a05x_platform.h"
 #include "platform/artik_a305_platform.h"
-#include "platform/artik_evergreeen_platform.h"
+#include "platform/artik_eagleye530_platform.h"
 #include "platform/artik_generic_platform.h"
 
 /*!
@@ -83,7 +83,7 @@ static const char artik_platform_name[][MAX_PLATFORM_NAME] = {
 	"ARTIK 530",
 	"ARTIK 05x",
 	"ARTIK 305",
-	"Evergreeen"
+	"Eagleye530"
 };
 
 #endif /* INCLUDE_ARTIK_PLATFORM_H_ */

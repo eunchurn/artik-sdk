@@ -16,18 +16,18 @@
  *
  */
 
-#ifndef INCLUDE_ARTIK_EVERGREEEN_PLATFORM_H_
-#define INCLUDE_ARTIK_EVERGREEEN_PLATFORM_H_
+#ifndef INCLUDE_ARTIK_EAGLEYE530_PLATFORM_H_
+#define INCLUDE_ARTIK_EAGLEYE530_PLATFORM_H_
 
-/*! \file artik_evergreeen_platform.h
+/*! \file artik_eagleye530_platform.h
  *
- *  \brief Hardware specific definitions for the Seeed Evergreeen Development
+ *  \brief Hardware specific definitions for the Seeed Eagleye530 Development
  *  platform
  *
  */
 
 /* List of modules available for the platform */
-static const artik_api_module artik_api_evergreeen_modules[] = {
+static const artik_api_module artik_api_eagleye530_modules[] = {
 	{ARTIK_MODULE_LOG,       (char *)"log",       (char *)"base"},
 	{ARTIK_MODULE_LOOP,      (char *)"loop",      (char *)"base"},
 	{ARTIK_MODULE_GPIO,      (char *)"gpio",      (char *)"systemio"},
@@ -52,32 +52,32 @@ static const artik_api_module artik_api_evergreeen_modules[] = {
 };
 
 /* List of available GPIO IDs */
-#define ARTIK_EVERGREEEN_GPIO0      128
-#define ARTIK_EVERGREEEN_GPIO1      129
-#define ARTIK_EVERGREEEN_GPIO2      130
-#define ARTIK_EVERGREEEN_GPIO3      46
-#define ARTIK_EVERGREEEN_GPIO4      14
-#define ARTIK_EVERGREEEN_GPIO6      25
-#define ARTIK_EVERGREEEN_GPIO7      0
-#define ARTIK_EVERGREEEN_GPIO8      26
-#define ARTIK_EVERGREEEN_GPIO9      27
-#define ARTIK_EVERGREEEN_AGPIO0     161
+#define ARTIK_EAGLEYE530_GPIO0      128
+#define ARTIK_EAGLEYE530_GPIO1      129
+#define ARTIK_EAGLEYE530_GPIO2      130
+#define ARTIK_EAGLEYE530_GPIO3      46
+#define ARTIK_EAGLEYE530_GPIO4      14
+#define ARTIK_EAGLEYE530_GPIO6      25
+#define ARTIK_EAGLEYE530_GPIO7      0
+#define ARTIK_EAGLEYE530_GPIO8      26
+#define ARTIK_EAGLEYE530_GPIO9      27
+#define ARTIK_EAGLEYE530_AGPIO0     161
 
 /* List of available UART IDs */
-#define ARTIK_EVERGREEEN_UART0      4
+#define ARTIK_EAGLEYE530_UART0      4
 
 /* List of available PWMIO IDs */
-#define ARTIK_EVERGREEEN_PWM0       ((0 << 8) | 0)
-#define ARTIK_EVERGREEEN_PWM2       ((0 << 8) | 2)
+#define ARTIK_EAGLEYE530_PWM0       ((0 << 8) | 0)
+#define ARTIK_EAGLEYE530_PWM2       ((0 << 8) | 2)
 
 /* List of available Analog Input IDs */
-#define ARTIK_EVERGREEEN_ADC0       0
-#define ARTIK_EVERGREEEN_ADC1       1
+#define ARTIK_EAGLEYE530_ADC0       0
+#define ARTIK_EAGLEYE530_ADC1       1
 
 /* List of available I2C controllers  */
-#define ARTIK_EVERGREEEN_I2C0       0
+#define ARTIK_EAGLEYE530_I2C0       0
 
 /* List of available SPI controllers  */
-#define ARTIK_EVERGREEEN_SPI0       0
+#define ARTIK_EAGLEYE530_SPI0       0
 
-#endif /* INCLUDE_ARTIK_EVERGREEEN_PLATFORM_H_ */
+#endif /* INCLUDE_ARTIK_EAGLEYE530_PLATFORM_H_ */
