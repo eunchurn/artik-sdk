@@ -16,7 +16,7 @@ static void usage(void)
 	printf("signature - PKCS7 signature in PEM format\n");
 	printf("root CA - X509 root CA certificate in PEM format\n");
 	printf("signed data - file containing the signed data\n");
-	printf("signing date (optional) - current signing date for rollback detction\n");
+	printf("signing date (optional) - current signing date for rollback detection\n");
 	printf("\tFormat is \"%s\"\n", INPUT_TIME_FORMAT);
 	printf("\tIf not provided, rollback detection is not performed\n");
 	printf("\nA JSON formatted string with verification result and error information is output on stdout\n");
