@@ -69,12 +69,12 @@ static artik_error test_rgb_led(int platid)
 		leds[2].config.id = ARTIK_A710_GPIO2;
 	} else if (platid == ARTIK530) {
 		leds[0].config.id = ARTIK_A530_GPIO0;
-		leds[1].config.id = ARTIK_A530_GPIO2;
-		leds[2].config.id = ARTIK_A530_GPIO3;
+		leds[1].config.id = ARTIK_A530_GPIO1;
+		leds[2].config.id = ARTIK_A530_GPIO2;
 	} else if (platid == ARTIK305) {
 		leds[0].config.id = ARTIK_A305_GPIO0;
-		leds[1].config.id = ARTIK_A305_GPIO2;
-		leds[2].config.id = ARTIK_A305_GPIO3;
+		leds[1].config.id = ARTIK_A305_GPIO1;
+		leds[2].config.id = ARTIK_A305_GPIO2;
 	} else if (platid == EAGLEYE530) {
 		leds[0].config.id = ARTIK_EAGLEYE530_GPIO0;
 		leds[1].config.id = ARTIK_EAGLEYE530_GPIO1;
