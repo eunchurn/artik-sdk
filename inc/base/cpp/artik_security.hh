@@ -51,7 +51,8 @@ class Security {
   artik_error get_certificate_sn(artik_security_certificate_id,
       unsigned char*, unsigned int *);
   artik_error get_ec_pubkey_from_cert(const char*, char **);
-  artik_error convert_pem_to_der(const char *, unsigned char **);
+  artik_error convert_pem_to_der(const char *, unsigned char **,
+      int *);
   artik_error verify_signature_init(const char *, const char *,
     const artik_time *, artik_time *);
   artik_error verify_signature_update(

@@ -283,12 +283,13 @@ typedef struct {
 	 *  supported.
 	 *
 	 *  \param[in] pem_data Data in PEM format
-	 *  \param[in] der_data Data from the conversion into DER format
+	 *  \param[out] der_data Data from the conversion into DER format
+	 *  \param[out] length Length of the data
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error(*convert_pem_to_der) (const char *pem_data,
-			unsigned char **der_data);
+			unsigned char **der_data, int *length);
 
 } artik_security_module;
 

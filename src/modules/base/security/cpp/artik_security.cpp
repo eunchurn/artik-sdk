@@ -72,8 +72,8 @@ artik_error artik::Security::get_ec_pubkey_from_cert(const char *cert,
 }
 
 artik_error artik::Security::convert_pem_to_der(const char *pem_data,
-    unsigned char **der_data) {
-  return m_module->convert_pem_to_der(pem_data, der_data);
+    unsigned char **der_data, int *length) {
+  return m_module->convert_pem_to_der(pem_data, der_data, length);
 }
 
 artik_error artik::Security::verify_signature_init(

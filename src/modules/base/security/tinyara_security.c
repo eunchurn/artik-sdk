@@ -46,8 +46,12 @@ typedef struct {
 static artik_list *requested_nodes = NULL;
 static artik_list *verify_nodes = NULL;
 
-#define PEM_BEGIN_CRT	"-----BEGIN CERTIFICATE-----\n"
-#define PEM_END_CRT	"-----END CERTIFICATE-----\n"
+#define PEM_BEGIN_CRT		"-----BEGIN CERTIFICATE-----\n"
+#define PEM_END_CRT		"-----END CERTIFICATE-----\n"
+#define PEM_BEGIN_PUBKEY	"-----BEGIN PUBLIC KEY-----"
+#define PEM_END_PUBKEY		"-----END PUBLIC KEY-----"
+#define PEM_BEGIN_EC_PRIV_KEY	"-----BEGIN EC PRIVATE KEY-----"
+#define PEM_END_EC_PRIV_KEY	"-----END EC PRIVATE KEY-----"
 
 artik_error os_security_request(artik_security_handle *handle)
 {
@@ -454,7 +458,55 @@ artik_error os_get_certificate_sn(artik_security_handle handle,
 
 artik_error os_get_ec_pubkey_from_cert(const char *cert, char **key)
 {
-	return E_NOT_SUPPORTED;
+	int ret = 0;
+	mbedtls_x509_crt x509_cert;
+	unsigned char buf[2048];
+	size_t key_len = 0;
+
+	if (!cert || !key || *key)
+		return E_BAD_ARGS;
+
+	mbedtls_x509_crt_init(&x509_cert);
+
+	ret = mbedtls_x509_crt_parse(&x509_cert, (unsigned char *)cert,
+			strlen(cert) + 1);
+
+	if (ret) {
+		log_err("Failed to parse certificate (err=%d)", ret);
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_ACCESS_DENIED;
+	}
+
+	memset(&buf, 0, sizeof(buf));
+
+	ret = mbedtls_pk_write_pubkey_pem(&x509_cert.pk, buf, 2048);
+
+	if (ret) {
+		log_err("Failed to write pubkey PEM (err=%d)", ret);
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_ACCESS_DENIED;
+	}
+
+	key_len = strlen((char *)buf) + 1;
+
+	if (key_len <= 0) {
+		log_err("Wrong size of key");
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_SECURITY_ERROR;
+	}
+
+	*key = malloc(key_len);
+
+	if (!*key) {
+		log_err("Not enough memory to allocate key");
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_NO_MEM;
+	}
+
+	memcpy(*key, buf, key_len);
+
+	mbedtls_x509_crt_free(&x509_cert);
+	return S_OK;
 }
 
 /*
@@ -775,7 +827,61 @@ cleanup:
 }
 
 artik_error os_convert_pem_to_der(const char *pem_data,
-		unsigned char **der_data)
+		unsigned char **der_data,
+		size_t *length)
 {
-	return E_NOT_SUPPORTED;
+	int ret = 0;
+	char *begin_tag = NULL;
+	char *end_tag = NULL;
+	mbedtls_pem_context pem;
+	size_t len;
+
+	if (!pem_data || !der_data || *der_data || !length)
+		return E_BAD_ARGS;
+
+	if (strstr(pem_data, PEM_BEGIN_CRT)) {
+		log_dbg("The PEM is a certificate");
+		begin_tag = PEM_BEGIN_CERT;
+		end_tag = PEM_END_CERT;
+	} else if (strstr(pem_data, PEM_BEGIN_PUBKEY)) {
+		log_dbg("The PEM is a public key");
+		begin_tag = PEM_BEGIN_PUBKEY;
+		end_tag = PEM_END_PUBKEY;
+
+	} else if (strstr(pem_data, PEM_BEGIN_EC_PRIV_KEY)) {
+		log_dbg("The PEM is an EC private key");
+		begin_tag = PEM_BEGIN_EC_PRIV_KEY;
+		end_tag = PEM_END_EC_PRIV_KEY;
+	} else {
+		log_err("Unknown PEM or wrong format");
+		return E_SECURITY_ERROR;
+	}
+
+	mbedtls_pem_init(&pem);
+	ret = mbedtls_pem_read_buffer(&pem, begin_tag, end_tag, (const unsigned char*)pem_data, NULL, 0, &len);
+	if (ret) {
+		log_err("Failed to convert PEM to DER (err = %X)", ret);
+		mbedtls_pem_free(&pem);
+		return E_SECURITY_ERROR;
+	}
+
+	if (pem.buflen <= 0) {
+		log_err("Wrong size of pem");
+		mbedtls_pem_free(&pem);
+		return E_SECURITY_ERROR;
+	}
+
+	*der_data = malloc(pem.buflen);
+
+	if (!*der_data) {
+		log_err("Not enough memory to allocate der_data");
+		mbedtls_pem_free(&pem);
+		return E_NO_MEM;
+	}
+
+	memcpy(*der_data, pem.buf, pem.buflen);
+	*length = pem.buflen;
+	mbedtls_pem_free(&pem);
+
+	return S_OK;
 }

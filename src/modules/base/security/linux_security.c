@@ -930,7 +930,7 @@ exit:
 }
 
 artik_error os_convert_pem_to_der(const char *pem_data,
-		unsigned char **der_data)
+		unsigned char **der_data, int *length)
 {
 	artik_error ret = S_OK;
 	X509 *x509 = NULL;
@@ -940,8 +940,9 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 	const char *p;
 	int i;
 	enum PemType pemType;
+	size_t len;
 
-	if (!pem_data || !der_data || *der_data)
+	if (!pem_data || !der_data || *der_data || !length)
 		return E_BAD_ARGS;
 
 	p = pem_data;
@@ -990,7 +991,8 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 			goto exit;
 		}
 
-		if (i2d_X509(x509, der_data) < 0) {
+		len = i2d_X509(x509, der_data);
+		if (len < 0) {
 			log_err("Fail to convert certificate");
 			ret = E_SECURITY_ERROR;
 			goto exit;
@@ -1006,7 +1008,8 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 			goto exit;
 		}
 
-		if (i2d_EC_PUBKEY(ec_key, der_data) < 0) {
+		len = i2d_EC_PUBKEY(ec_key, der_data);
+		if (len < 0) {
 			log_err("Fail to convert EC public key");
 			ret = E_SECURITY_ERROR;
 			goto exit;
@@ -1022,12 +1025,15 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 			goto exit;
 		}
 
-		if (i2d_ECPrivateKey(ec_key, der_data) < 0) {
+		len = i2d_ECPrivateKey(ec_key, der_data);
+		if (len < 0) {
 			log_err("Fail to convert EC private key");
 			ret = E_SECURITY_ERROR;
 			goto exit;
 		}
 	}
+
+	*length = len;
 
 
 exit:

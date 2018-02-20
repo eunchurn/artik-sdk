@@ -42,6 +42,6 @@ artik_error os_verify_signature_update(artik_security_handle handle,
 		unsigned char *data, unsigned int data_len);
 artik_error os_verify_signature_final(artik_security_handle handle);
 artik_error os_convert_pem_to_der(const char *pem_data,
-		unsigned char **der_data);
+		unsigned char **der_data, int *length);
 
 #endif  /* __OS_SECURITY_H__ */

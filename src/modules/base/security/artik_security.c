@@ -39,7 +39,7 @@ static artik_error verify_signature_update(artik_security_handle handle,
 		unsigned char *data, unsigned int data_len);
 static artik_error verify_signature_final(artik_security_handle handle);
 static artik_error convert_pem_to_der(const char *pem_data,
-		unsigned char **der_data);
+		unsigned char **der_data, int *length);
 
 EXPORT_API const artik_security_module security_module = {
 	request,
@@ -120,7 +120,7 @@ artik_error verify_signature_final(artik_security_handle handle)
 	return os_verify_signature_final(handle);
 }
 
-artik_error convert_pem_to_der(const char *pem_data, unsigned char **der_data)
+artik_error convert_pem_to_der(const char *pem_data, unsigned char **der_data, int *length)
 {
-	return os_convert_pem_to_der(pem_data, der_data);
+	return os_convert_pem_to_der(pem_data, der_data, length);
 }
