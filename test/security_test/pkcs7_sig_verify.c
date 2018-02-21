@@ -1,10 +1,15 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <linux/limits.h>
 
+#include <artik_log.h>
 #include <artik_module.h>
 #include <artik_security.h>
 
+#define MAX_SE_ID            12
+#define BEGIN_CERT           "-----BEGIN CERTIFICATE-----\n"
+#define END_CERT             "-----END CERTIFICATE-----\n"
 #define INPUT_TIME_FORMAT    "MM/DD/YYYY HH:mm:SS"
 #define JSON_RET_TPL         "{\"error\":%s,\"reason\":\"%s\",\"error_code\":%d}\n"
 #define JSON_RET_TPL_TIME    "{\"error\":%s,\"reason\":\"%s\",\"error_code\":%d,\"signingTime\":\"%s\"}\n"
@@ -12,11 +17,13 @@
 
 static void usage(void)
 {
-	printf("Usage: pkcs7-sig-verify <signature> <root CA> <signed data> [signing date]\n\n");
-	printf("signature - PKCS7 signature in PEM format\n");
-	printf("root CA - X509 root CA certificate in PEM format\n");
-	printf("signed data - file containing the signed data\n");
-	printf("signing date (optional) - current signing date for rollback detection\n");
+	printf("Usage: pkcs7-sig-verify -s <signature> -r <root CA> -b <signed data> ");
+	printf("-d [signing date] -u [artik/manufacturer]\n\n");
+	printf("-s: signature - PKCS7 signature in PEM format\n");
+	printf("-r: root CA - X509 root CA certificate in PEM format\n");
+	printf("-b: signed data - file containing the signed data\n");
+	printf("-d: signing date (optional) - current signing date for rollback detection\n");
+	printf("-u: use secure element artik/manufacturer\n");
 	printf("\tFormat is \"%s\"\n", INPUT_TIME_FORMAT);
 	printf("\tIf not provided, rollback detection is not performed\n");
 	printf("\nA JSON formatted string with verification result and error information is output on stdout\n");
@@ -29,6 +36,7 @@ static void usage(void)
 	printf("\t-5: computed digest mismatch\n");
 	printf("\t-6: signature verification failed\n");
 	printf("\t-7: signing time rollback detected\n");
+	printf("-h: give this help list\n");
 }
 
 static int convert_err_code(artik_error err)
@@ -133,133 +141,160 @@ static int parse_int(unsigned char **p, unsigned int n, unsigned int *res)
 int main(int argc, char **argv)
 {
 	int ret = -1;
+	int opt = -1;
 	artik_error err = S_OK;
 	artik_security_module *security = NULL;
 	artik_security_handle handle;
 	FILE *data_fp = NULL;
 	char *ca_pem = NULL;
 	char *sig_pem = NULL;
+	char *chain = NULL;
+	char *begin_cert = NULL;
+	char *end_cert = NULL;
+	artik_security_certificate_id cert_id = -1;
 	artik_time *current_signing_time = NULL;
 	artik_time pkcs7_signing_time;
 	char json_ret[JSON_RET_MAX_LEN];
 	char signing_time_str[20];
+	char se_id[MAX_SE_ID] = {0};
+	unsigned char *date = NULL;
 
 	memset(json_ret, 0, sizeof(json_ret));
 	memset(signing_time_str, 0, sizeof(signing_time_str));
 
-	if (argc < 4) {
+	while ((opt = getopt(argc, argv, "r:s:b:d:u:h")) != -1) {
+		switch (opt) {
+		case 's':
+			if (!read_pem_file(optarg, &sig_pem)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Cannot read PKCS7 signature file", E_BAD_ARGS);
+				usage();
+				ret = convert_err_code(E_BAD_ARGS);
+				goto exit;
+			}
+			break;
+		case 'r':
+			if (!read_pem_file(optarg, &ca_pem)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Cannot read root CA file", E_BAD_ARGS);
+				usage();
+				ret = convert_err_code(E_BAD_ARGS);
+				goto exit;
+			}
+			break;
+		case 'b':
+			if (strlen(optarg) > PATH_MAX) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Invalid size for signed data file", E_BAD_ARGS);
+				usage();
+				ret = convert_err_code(E_BAD_ARGS);
+				goto exit;
+			}
+
+			data_fp = fopen(optarg, "rb");
+			if (!data_fp) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Cannot read signed data file", E_BAD_ARGS);
+				usage();
+				ret = convert_err_code(E_BAD_ARGS);
+				goto exit;
+			}
+			break;
+		case 'd':
+			/* Parse signing time if provided */
+			date = (unsigned char *)optarg;
+
+			if (strlen((const char *)date) < strlen(INPUT_TIME_FORMAT)) {
+				fprintf(stderr, "Invalid signing time\n");
+				usage();
+				return -1;
+			}
+
+			current_signing_time = malloc(sizeof(artik_time));
+			if (!current_signing_time) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to allocate memory", E_NO_MEM);
+				fprintf(stdout, "%s", json_ret);
+				return -1;
+			}
+
+			if (parse_int(&date, 2, &current_signing_time->month)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse month", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+
+			date++;
+
+			if (parse_int(&date, 2, &current_signing_time->day)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse day", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+
+			date++;
+
+			if (parse_int(&date, 4, &current_signing_time->year)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse year", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+
+			date++;
+
+			if (parse_int(&date, 2, &current_signing_time->hour)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse hour", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+
+			date++;
+
+			if (parse_int(&date, 2, &current_signing_time->minute)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse minutes", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+
+			date++;
+
+			if (parse_int(&date, 2, &current_signing_time->second)) {
+				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+						"Failed to parse seconds", E_BAD_ARGS);
+				fprintf(stdout, "%s", json_ret);
+				free(current_signing_time);
+				return -1;
+			}
+			break;
+		case 'u':
+			strncpy(se_id, optarg, MAX_SE_ID);
+			if (strcmp(se_id, "artik") == 0)
+				cert_id = CERT_ID_ARTIK;
+			else
+				cert_id = CERT_ID_MANUFACTURER;
+			break;
+		case 'h':
+			usage();
+			return 0;
+		default:
+			usage();
+			return 0;
+		}
+	}
+
+	if (optind < 7) {
 		usage();
 		return -1;
-	}
-
-	/* Parse signing time if provided */
-	if (argc > 4) {
-		unsigned char *date = (unsigned char *)argv[4];
-
-		if (strlen((const char *)date) < strlen(INPUT_TIME_FORMAT)) {
-			fprintf(stderr, "Invalid signing time\n");
-			usage();
-			return -1;
-		}
-
-		current_signing_time = malloc(sizeof(artik_time));
-		if (!current_signing_time) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to allocate memory", E_NO_MEM);
-			fprintf(stdout, "%s", json_ret);
-			return -1;
-		}
-
-		if (parse_int(&date, 2, &current_signing_time->month)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse month", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-
-		date++;
-
-		if (parse_int(&date, 2, &current_signing_time->day)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse day", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-
-		date++;
-
-		if (parse_int(&date, 4, &current_signing_time->year)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse year", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-
-		date++;
-
-		if (parse_int(&date, 2, &current_signing_time->hour)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse hour", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-
-		date++;
-
-		if (parse_int(&date, 2, &current_signing_time->minute)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse minutes", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-
-		date++;
-
-		if (parse_int(&date, 2, &current_signing_time->second)) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-					"Failed to parse seconds", E_BAD_ARGS);
-			fprintf(stdout, "%s", json_ret);
-			free(current_signing_time);
-			return -1;
-		}
-	}
-
-	if (!read_pem_file(argv[1], &sig_pem)) {
-		snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-				"Cannot read PKCS7 signature file", E_BAD_ARGS);
-		usage();
-		ret = convert_err_code(E_BAD_ARGS);
-		goto exit;
-	}
-
-	if (!read_pem_file(argv[2], &ca_pem)) {
-		snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-				"Cannot read root CA file", E_BAD_ARGS);
-		usage();
-		ret = convert_err_code(E_BAD_ARGS);
-		goto exit;
-	}
-
-	if (strlen(argv[3]) > PATH_MAX) {
-		snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-				"Invalid size for signed data file", E_BAD_ARGS);
-		usage();
-		ret = convert_err_code(E_BAD_ARGS);
-		goto exit;
-	}
-
-	data_fp = fopen(argv[3], "r");
-	if (!data_fp) {
-		snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-				"Cannot read signed data file", E_BAD_ARGS);
-		usage();
-		ret = convert_err_code(E_BAD_ARGS);
-		goto exit;
 	}
 
 	security = (artik_security_module *)artik_request_api_module("security");
@@ -268,6 +303,46 @@ int main(int argc, char **argv)
 				"Security module is not available", E_NOT_SUPPORTED);
 		ret = convert_err_code(E_NOT_SUPPORTED);
 		goto exit;
+	}
+
+	if (strcmp(se_id, "")) {
+		ret = security->request(&handle);
+		if (ret != S_OK) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Failed to request security module", convert_err_code(ret));
+			goto exit;
+		}
+		ret = security->get_ca_chain(handle, cert_id, &chain);
+		if (ret != S_OK) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Failed to get CA chain from Secure Element", convert_err_code(ret));
+			goto exit;
+		}
+
+		ca_pem = (char *)malloc(strlen(strstr(chain, BEGIN_CERT)) -
+		(strlen(strstr(chain, END_CERT)) - strlen(END_CERT)));
+		if (!ca_pem) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Failed to allocate memory for CA chain", E_NO_MEM);
+			return -1;
+		}
+
+		begin_cert = strstr(chain, BEGIN_CERT);
+		if (!begin_cert) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Malformed PEM certificate", E_BAD_ARGS);
+			goto exit;
+		}
+
+		end_cert = strstr(chain, END_CERT);
+		if (!end_cert) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Malformed PEM certificate", E_BAD_ARGS);
+			goto exit;
+		}
+
+		strncpy(ca_pem, chain, strlen(begin_cert) - (strlen(end_cert) -
+			strlen(END_CERT)));
 	}
 
 	err = security->verify_signature_init(&handle, sig_pem, ca_pem,
@@ -339,7 +414,8 @@ exit:
 		free(sig_pem);
 	if (data_fp)
 		fclose(data_fp);
-	artik_release_api_module(security);
+	if (security)
+		artik_release_api_module(security);
 
 	return ret;
 }
