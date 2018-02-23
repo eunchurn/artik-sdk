@@ -21,8 +21,15 @@
 
 #include <artik_types.h>
 #include <artik_module.h>
+#include <artik_network.h>
 #include <artik_platform.h>
+
 #include "os_module.h"
+
+#include <net/if.h>
+#include <netlib.h>
+#include <tinyara/clock.h>
+#include <cJSON.h>
 
 typedef struct {
 
@@ -71,13 +78,13 @@ artik_module_ops os_request_api_module(const char *name)
 	while (artik_api_modules[plat].modules) {
 		if (artik_api_modules[plat].id == os_get_platform()) {
 			artik_api_module *p_target = (artik_api_module *)
-						artik_api_modules[plat].modules;
+				artik_api_modules[plat].modules;
 
 			for (; p_target->name; p_target++, i++) {
 				if (strncmp(p_target->name, name,
-							MAX_MODULE_NAME) == 0) {
+					MAX_MODULE_NAME) == 0) {
 					ops = (artik_module_ops)
-							p_target->object;
+					      p_target->object;
 					break;
 				}
 			}
@@ -99,7 +106,7 @@ artik_error os_release_api_module(const artik_module_ops module)
 	while (artik_api_modules[plat].modules) {
 		if (artik_api_modules[plat].id == os_get_platform()) {
 			artik_api_module *p_target = (artik_api_module *)
-						artik_api_modules[plat].modules;
+				artik_api_modules[plat].modules;
 
 			for (; p_target->name; p_target++, i++) {
 				if (p_target->object == module) {
@@ -141,14 +148,12 @@ artik_error os_get_platform_name(char *name)
 	if (os_get_platform() == -1)
 		return E_NOT_SUPPORTED;
 
-	strncpy(name, artik_platform_name[os_get_platform()],
-							MAX_PLATFORM_NAME);
+	strncpy(name, artik_platform_name[os_get_platform()], MAX_PLATFORM_NAME);
 
 	return S_OK;
 }
 
-artik_error os_get_available_modules(artik_api_module **modules,
-							int *num_modules)
+artik_error os_get_available_modules(artik_api_module **modules, int *num_modules)
 {
 	unsigned int i = 0;
 	int plat = 0;
@@ -162,7 +167,7 @@ artik_error os_get_available_modules(artik_api_module **modules,
 	while (artik_api_modules[plat].modules) {
 		if (artik_api_modules[plat].id == os_get_platform()) {
 			*modules = (artik_api_module *)
-						artik_api_modules[plat].modules;
+				artik_api_modules[plat].modules;
 
 			/* Count number of entries in the modules array */
 			while ((*modules)[i].name != NULL)
@@ -186,7 +191,7 @@ bool os_is_module_available(artik_module_id_t id)
 	while (artik_api_modules[plat].modules) {
 		if (artik_api_modules[plat].id == os_get_platform()) {
 			artik_api_module *p_module = (artik_api_module *)
-						artik_api_modules[plat].modules;
+				artik_api_modules[plat].modules;
 
 			for (; p_module->id >= 0; p_module++) {
 				if (p_module->id == id)
@@ -201,71 +206,116 @@ bool os_is_module_available(artik_module_id_t id)
 
 char *os_get_device_info(void)
 {
-	char *entry = NULL;
-	char *json = NULL;
-	int max_plat_name_len = 0, max_module_len = 0, max_json_len = 0;
 	artik_api_module *modules = NULL;
 	int num_modules = 0;
 	int i = 0;
-	char header[] = "{\n";
-	char platform_info[] = "\t\"name\": \"%s\",\n";
-	char modules_headher[] = "\t\"modules\":[\n";
-	char modules_tail[] = "\t]\n}";
-	char modules_info[] = "\t\t\"%s\",\n";
+	char bt_mac_addr[MAX_BT_ADDR + 1] = {0};
+	char wifi_mac_addr[MAX_WIFI_ADDR + 1] = {0};
+	char platform_sn[MAX_PLATFORM_SN + 1] = {0};
+	char platform_manu[MAX_PLATFORM_MANUFACT + 1] = {0};
+	char platform_modelnum[MAX_PLATFORM_MODELNUM + 1] = {0};
+	int64_t platform_uptime = 0;
+	cJSON *resp = cJSON_CreateObject();
+	cJSON *array = cJSON_CreateArray();
 	int platid = os_get_platform();
+	char *body = NULL;
 
+	/* Copy platform info */
 	if (platid == -1)
 		return NULL;
 
-	artik_get_available_modules(&modules, &num_modules);
-
-	max_plat_name_len = strlen(platform_info) + 10; /* Platform name */
-
-	max_module_len = strlen(modules_info) + 10; /* module name */
-
-	max_json_len = max_plat_name_len + (max_module_len * num_modules) +
-				strlen(header) + strlen(modules_headher) +
-						strlen(modules_tail) + 1;
-	json = (char *)malloc(max_json_len);
-	if (!json)
-		return json;
-
-	/* Start building the JSON string */
-	memset(json, 0, max_json_len);
-	strncat(json, header, strlen(header));
-
-	entry = (char *)malloc(max_plat_name_len);
-	if (!entry) {
-		free(json);
-		return NULL;
-	}
-
-	snprintf(entry, max_plat_name_len, platform_info,
-						artik_platform_name[platid]);
-
-	/* Copy platform info */
-	strncat(json, entry, max_plat_name_len);
-	free(entry);
+	cJSON_AddStringToObject(resp, "name", artik_platform_name[platid]);
 
 	/* Copy available modules */
-	strncat(json, modules_headher, strlen(modules_headher));
+	if (os_get_available_modules(&modules, &num_modules) == S_OK) {
+		for (i = 0; i < num_modules; i++)
+			cJSON_AddStringToObject(array, "", modules[i].name);
 
-	for (i = 0; i < num_modules; i++) {
-		entry = (char *)malloc(max_module_len);
-		if (!entry) {
-			free(json);
-			return NULL;
-		}
-		snprintf(entry, max_module_len, modules_info, modules[i].name);
-		strncat(json, entry, max_module_len);
-		free(entry);
+		cJSON_AddItemToObject(resp, "modules", array);
 	}
 
-	/* Remove last comma */
-	json[strlen(json) - 2] = '\n';
-	json[strlen(json) - 1] = '\0';
+	/* Copy available bt mac addr */
+	if (os_get_bt_mac_address(bt_mac_addr) == S_OK)
+		cJSON_AddStringToObject(resp, "bt_mac_addr", bt_mac_addr);
 
-	strncat(json, modules_tail, strlen(modules_tail));
+	/* Copy available wifi mac addr */
+	if (os_get_wifi_mac_address(wifi_mac_addr) == S_OK)
+		cJSON_AddStringToObject(resp, "wifi_mac_addr", wifi_mac_addr);
 
-	return json;
+	/* Copy available platform serial number */
+	if (os_get_platform_serial_number(platform_sn) == S_OK)
+		cJSON_AddStringToObject(resp, "serial_number", platform_sn);
+
+	/* Copy available platform manufacturer */
+	if (os_get_platform_manufacturer(platform_manu) == S_OK)
+		cJSON_AddStringToObject(resp, "manufacturer", platform_manu);
+
+	/* Copy available platform uptime */
+	if (os_get_platform_uptime(&platform_uptime) == S_OK)
+		cJSON_AddNumberToObject(resp, "uptime", platform_uptime);
+
+	/* Copy available platform modelnum */
+	if (os_get_platform_model_number(platform_modelnum) == S_OK)
+		cJSON_AddStringToObject(resp, "model_number", platform_modelnum);
+
+	body = cJSON_Print(resp);
+
+	cJSON_Delete(resp);
+
+	return body;
+}
+
+artik_error os_get_bt_mac_address(char *addr)
+{
+	return E_NOT_SUPPORTED;
+}
+
+artik_error os_get_wifi_mac_address(char *addr)
+{
+	uint8_t macaddr[IFHWADDRLEN];
+
+	if (netlib_getmacaddr("wl1", macaddr) != OK)
+		return E_NETWORK_ERROR;
+
+	snprintf(addr, MAX_WIFI_ADDR+1, "%02x:%02x:%02x:%02x:%02x:%02x",
+	macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
+
+	return S_OK;
+}
+
+artik_error os_get_platform_manufacturer(char *manu)
+{
+	strncpy(manu, "SAMSUNG", strlen("SAMSUNG"));
+	return S_OK;
+}
+
+artik_error os_get_platform_serial_number(char *addr)
+{
+	return E_NOT_SUPPORTED;
+}
+
+artik_error os_get_platform_model_number(char *modelnum)
+{
+#ifdef CONFIG_ARCH_BOARD_ARTIK053
+	strncpy(modelnum, "ARTIK053", strlen("ARTIK053"));
+#endif
+#ifdef CONFIG_ARCH_BOARD_ARTIK053S
+	strncpy(modelnum, "ARTIK053S", strlen("ARTIK053S"));
+#endif
+#ifdef CONFIG_ARCH_BOARD_ARTIK055S
+	strncpy(modelnum, "ARTIK055S", strlen("ARTIK055S"));
+#endif
+	return S_OK;
+}
+
+artik_error os_get_platform_uptime(int64_t *uptime)
+{
+	systime_t ticktime;
+
+	ticktime = clock_systimer();
+
+	/* Convert the system up time to seconds */
+	*uptime = (int64_t)(ticktime / CLOCKS_PER_SEC);
+
+	return S_OK;
 }
