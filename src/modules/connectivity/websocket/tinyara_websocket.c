@@ -117,15 +117,23 @@ retry:
 		if (!ret) {
 			websocket_set_error(info->data,
 						WEBSOCKET_ERR_CALLBACK_FAILURE);
-		} else if (ret > 0) {
-			if ((errno == EAGAIN) || (errno == EBUSY)) {
-				if (!retry_cnt) {
+		} else if (ret < 0) {
+			switch (errno) {
+				case EAGAIN:
+				case EBUSY:
+					if (!retry_cnt) {
+						websocket_set_error(info->data,
+								WEBSOCKET_ERR_CALLBACK_FAILURE);
+						return ret;
+					}
+					retry_cnt--;
+					goto retry;
+
+				default:
+					log_dbg("recv error (%d)", errno);
 					websocket_set_error(info->data,
-						WEBSOCKET_ERR_CALLBACK_FAILURE);
+							WEBSOCKET_ERR_CALLBACK_FAILURE);
 					return ret;
-				}
-				retry_cnt--;
-				goto retry;
 			}
 		}
 	}
@@ -162,14 +170,22 @@ retry:
 	} else {
 		ret = send(fd, buf, len, flags);
 		if (ret < 0) {
-			if ((errno == EAGAIN) || (errno == EBUSY)) {
-				if (!retry_cnt) {
+			switch (errno) {
+				case EAGAIN:
+				case EBUSY:
+					if (!retry_cnt) {
+						websocket_set_error(info->data,
+								WEBSOCKET_ERR_CALLBACK_FAILURE);
+						return ret;
+					}
+					retry_cnt--;
+					goto retry;
+
+				default:
+					log_dbg("send error (%d)", errno);
 					websocket_set_error(info->data,
-						WEBSOCKET_ERR_CALLBACK_FAILURE);
+							WEBSOCKET_ERR_CALLBACK_FAILURE);
 					return ret;
-				}
-				retry_cnt--;
-				goto retry;
 			}
 		}
 	}
