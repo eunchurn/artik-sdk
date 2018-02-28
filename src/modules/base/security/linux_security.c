@@ -940,7 +940,7 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 	const char *p;
 	int i;
 	enum PemType pemType;
-	size_t len;
+	int len;
 
 	if (!pem_data || !der_data || *der_data || !length)
 		return E_BAD_ARGS;

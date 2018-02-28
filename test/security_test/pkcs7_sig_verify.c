@@ -191,6 +191,9 @@ int main(int argc, char **argv)
 				goto exit;
 			}
 
+			if (data_fp)
+				free(data_fp);
+
 			data_fp = fopen(optarg, "rb");
 			if (!data_fp) {
 				snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
@@ -209,6 +212,9 @@ int main(int argc, char **argv)
 				usage();
 				return -1;
 			}
+
+			if (current_signing_time)
+				free(current_signing_time);
 
 			current_signing_time = malloc(sizeof(artik_time));
 			if (!current_signing_time) {
@@ -292,7 +298,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (optind < 7) {
+	if (optind < 7 || !data_fp) {
 		usage();
 		return -1;
 	}
@@ -319,14 +325,6 @@ int main(int argc, char **argv)
 			goto exit;
 		}
 
-		ca_pem = (char *)malloc(strlen(strstr(chain, BEGIN_CERT)) -
-		(strlen(strstr(chain, END_CERT)) - strlen(END_CERT)));
-		if (!ca_pem) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-			"Failed to allocate memory for CA chain", E_NO_MEM);
-			return -1;
-		}
-
 		begin_cert = strstr(chain, BEGIN_CERT);
 		if (!begin_cert) {
 			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
@@ -339,6 +337,17 @@ int main(int argc, char **argv)
 			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
 			"Malformed PEM certificate", E_BAD_ARGS);
 			goto exit;
+		}
+
+		if (ca_pem)
+			free(ca_pem);
+
+		ca_pem = (char *)malloc(strlen(begin_cert) - (strlen(end_cert) -
+			strlen(END_CERT)));
+		if (!ca_pem) {
+			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
+			"Failed to allocate memory for CA chain", E_NO_MEM);
+			return -1;
 		}
 
 		strncpy(ca_pem, chain, strlen(begin_cert) - (strlen(end_cert) -
