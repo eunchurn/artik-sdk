@@ -124,7 +124,7 @@ static artik_error test_websocket_read(int timeout_ms,
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 			ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = cloud->websocket_set_connection_callback(handle,
@@ -132,7 +132,7 @@ static artik_error test_websocket_read(int timeout_ms,
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 			ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = cloud->websocket_set_receive_callback(handle,
@@ -140,7 +140,7 @@ static artik_error test_websocket_read(int timeout_ms,
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 			ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = loop->add_timeout_callback(&timeout_id, timeout_ms,
@@ -153,6 +153,7 @@ static artik_error test_websocket_read(int timeout_ms,
 
 	fprintf(stdout, "TEST: %s finished\n", __func__);
 
+exit:
 	artik_release_api_module(cloud);
 	artik_release_api_module(loop);
 
