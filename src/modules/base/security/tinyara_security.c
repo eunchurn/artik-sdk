@@ -40,7 +40,9 @@ typedef struct {
 	mbedtls_asn1_buf signed_digest;
 	mbedtls_asn1_buf message_data;
 	mbedtls_md_type_t digest_alg_id;
+
 	mbedtls_x509_crt *chain;
+	mbedtls_x509_crt *cert;
 } verify_node;
 
 static artik_list *requested_nodes = NULL;
@@ -552,36 +554,58 @@ static int x509_name_cmp(const mbedtls_x509_name *a, const mbedtls_x509_name *b)
 
 static artik_error check_pkcs7_validity(signed_data *sig_data)
 {
-	if (x509_name_cmp(&sig_data->signer.issuer, &sig_data->chain->issuer) != 0) {
-		log_dbg("Issuer distinguished name does not match.");
-		return E_SECURITY_INVALID_PKCS7;
+	mbedtls_x509_crt *cert = sig_data->chain;
+
+	while (cert != NULL) {
+		if (x509_name_cmp(&sig_data->signer.issuer, &cert->issuer) != 0) {
+			char info[1024];
+
+			mbedtls_x509_dn_gets(info, 1024, &cert->issuer);
+			log_dbg("Issuer is: %s", info);
+
+			mbedtls_x509_dn_gets(info, 1024, &sig_data->signer.issuer);
+			log_dbg("Expected issuer is: %s", info);
+			cert = cert->next;
+			continue;
+		}
+
+		if (sig_data->signer.serial.len == cert->issuer_id.len
+			&& memcmp(sig_data->signer.serial.p,
+					  cert->issuer_id.p, cert->issuer_id.len) == 0) {
+			log_dbg("Issuer serial number does not match.");
+			cert = cert->next;
+			continue;
+		}
+
+		if ((cert->ext_types & MBEDTLS_X509_EXT_EXTENDED_KEY_USAGE) == 0) {
+			log_dbg("Extended key usage extension not found.");
+			cert = cert->next;
+			continue;;
+		}
+
+		if (mbedtls_x509_crt_check_extended_key_usage(
+				cert,
+				MBEDTLS_OID_CODE_SIGNING,
+				MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING)) != 0) {
+			log_dbg("Signer certificate verification failed: The purpose of the certificate is not digitalSignature.");
+			cert = cert->next;
+			continue;
+		}
+
+		break;
 	}
 
-	if (sig_data->signer.serial.len == sig_data->chain->issuer_id.len
-		&& memcmp(sig_data->signer.serial.p,
-				  sig_data->chain->issuer_id.p, sig_data->chain->issuer_id.len) == 0) {
-		log_dbg("Issuer serial number does not match.");
-		return E_SECURITY_INVALID_PKCS7;
-	}
-
-	if ((sig_data->chain->ext_types & MBEDTLS_X509_EXT_EXTENDED_KEY_USAGE) == 0) {
-		log_dbg("Extended key usage extension not found.");
-		return E_SECURITY_INVALID_PKCS7;
-	}
-
-	if (mbedtls_x509_crt_check_extended_key_usage(
-			sig_data->chain,
-			MBEDTLS_OID_CODE_SIGNING,
-			MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING)) != 0) {
-		log_dbg("Signer certificate verification failed: The purpose of the certificate is not digitalSignature.");
+	if (cert == NULL) {
+		log_err("Issuer certificate not found.");
 		return E_SECURITY_INVALID_PKCS7;
 	}
 
 	if (sig_data->signer.digest_alg_id != MBEDTLS_MD_SHA256) {
-		log_dbg("Only verification with SHA256 is supported.");
+		log_err("Only verification with SHA256 is supported.");
 		return E_NOT_SUPPORTED;
 	}
 
+	sig_data->cert = cert;
 	return S_OK;
 }
 
@@ -734,6 +758,7 @@ artik_error os_verify_signature_init(artik_security_handle *handle,
 	if (err != S_OK)
 		goto cleanup;
 
+	node->cert = sig_data.cert;
 	node->chain = sig_data.chain;
 	node->digest_alg_id = sig_data.signer.digest_alg_id;
 	node->node.handle = (ARTIK_LIST_HANDLE)node;
@@ -803,7 +828,7 @@ artik_error os_verify_signature_final(artik_security_handle handle)
 
 	/* Verify signature of the message*/
 	ret = mbedtls_pk_verify(
-		&node->chain->pk,
+		&node->cert->pk,
 		node->digest_alg_id, hash,
 		0,
 		node->signed_digest.p,

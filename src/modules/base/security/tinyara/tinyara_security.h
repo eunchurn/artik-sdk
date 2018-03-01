@@ -46,6 +46,7 @@ typedef struct {
 
 typedef struct {
 	mbedtls_x509_crt *chain;
+	mbedtls_x509_crt *cert;
 	signer_info signer;
 } signed_data;
 
