@@ -383,7 +383,8 @@ static void wget_callback(char **buffer, int offset, int datend, int *buflen, vo
 {
 	struct _http_param *param = (struct _http_param *) user_data;
 
-	param->stream_callback(*buffer + offset, datend - offset, param->user_data);
+	if (datend - offset > 0)
+		param->stream_callback(*buffer + offset, datend - offset, param->user_data);
 }
 
 static pthread_addr_t _http_method_stream(void *arg)
