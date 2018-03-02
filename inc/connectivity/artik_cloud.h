@@ -720,7 +720,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_start_registration)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *device_type_id,
 					const char *vendor_id,
 					char **response);
@@ -739,7 +739,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_start_registration_async)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *device_type_id,
 					const char *vendor_id,
 					artik_cloud_callback callback,
@@ -760,7 +760,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_registration_status)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *reg_id,
 					char **response);
 	/*!
@@ -777,7 +777,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_registration_status_async)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *reg_id,
 					artik_cloud_callback callback,
 					void *user_data);
@@ -797,7 +797,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_complete_registration)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *reg_id,
 					const char *reg_nonce,
 					char **response);
@@ -817,7 +817,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_complete_registration_async)(
-					artik_security_certificate_id cert_id,
+					const char *cert_name,
 					const char *reg_id,
 					const char *reg_nonce,
 					artik_cloud_callback callback,

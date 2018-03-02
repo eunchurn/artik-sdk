@@ -78,25 +78,6 @@ typedef struct {
 	unsigned int len;
 } artik_ssl_key;
 
-
-/*!
- * \brief Secure Element configuration
- *
- * Structure containing the Secure Element configuration.
- */
-typedef struct {
-	/*!
-	 *  \brief If true, use certificate and key stored in the Secure
-	 *         Element for SSL handshake.
-	 */
-	bool use_se;
-
-	/*!
-	 *  \brief The selected certificate for the SSL handshake.
-	 */
-	artik_security_certificate_id certificate_id;
-} artik_ssl_se_config;
-
 /*!
  *  \brief SSL configuration structure
  *
@@ -104,10 +85,7 @@ typedef struct {
  *  for secure requests
  */
 typedef struct {
-	/*!
-	 *  \brief Secure Element configuration
-	 */
-	artik_ssl_se_config se_config;
+	bool secure;
 	/*!
 	 *  \brief If certificate's data is non-null, use it as trusted root CA
 	 *         for verifying the server's certificate

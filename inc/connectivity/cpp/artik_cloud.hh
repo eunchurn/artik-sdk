@@ -110,22 +110,22 @@ class Cloud {
       artik_cloud_callback callback, void *user_data,
       artik_ssl_config *ssl_config);
     artik_error sdr_start_registration(
-      artik_security_certificate_id cert_id, const char* device_type_id,
+      const char *cert_name, const char* device_type_id,
       const char* vendor_id, char **response);
     artik_error sdr_start_registration_async(
-      artik_security_certificate_id cert_id, const char* device_type_id,
+      const char *cert_name, const char* device_type_id,
       const char* vendor_id, artik_cloud_callback callback, void *user_data);
     artik_error sdr_registration_status(
-      artik_security_certificate_id cert_id, const char* reg_id,
+      const char *cert_name, const char* reg_id,
       char **response);
     artik_error sdr_registration_status_async(
-      artik_security_certificate_id cert_id, const char* reg_id,
+      const char *cert_name, const char* reg_id,
       artik_cloud_callback callback, void *user_data);
     artik_error sdr_complete_registration(
-      artik_security_certificate_id cert_id, const char* reg_id,
+      const char *cert_name, const char* reg_id,
       const char* reg_nonce, char **response);
     artik_error sdr_complete_registration_async(
-      artik_security_certificate_id cert_id, const char* reg_id,
+      const char *cert_name, const char* reg_id,
       const char* reg_nonce, artik_cloud_callback callback, void *user_data);
   artik_error websocket_open_stream(const char *access_token,
       const char *device_id, unsigned int ping_period,

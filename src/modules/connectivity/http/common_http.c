@@ -12,7 +12,6 @@ artik_ssl_config *copy_ssl_config(artik_ssl_config *from)
 		return NULL;
 
 	memset(to, 0, sizeof(artik_ssl_config));
-	memcpy(&to->se_config, &from->se_config, sizeof(artik_ssl_se_config));
 
 	if (from->ca_cert.data) {
 		to->ca_cert.len = from->ca_cert.len;

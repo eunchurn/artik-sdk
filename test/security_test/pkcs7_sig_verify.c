@@ -1,3 +1,21 @@
+/*
+ *
+ * Copyright 2017 Samsung Electronics All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific
+ * language governing permissions and limitations under the License.
+ *
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -25,7 +43,7 @@ static void usage(void)
 	printf("-d: signing date (optional) - current signing date for rollback detection\n");
 	printf("\tFormat is \"%s\"\n", INPUT_TIME_FORMAT);
 	printf("\tIf not provided, rollback detection is not performed\n");
-	printf("-u: use secure element artik/manufacturer\n");
+	printf("-u [Certificate name]: use certificate from secure element\n");
 	printf("\nA JSON formatted string with verification result and error information is output on stdout\n");
 	printf("Return value contains an error code among the following ones\n");
 	printf("\t0: success\n");
@@ -148,10 +166,8 @@ int main(int argc, char **argv)
 	FILE *data_fp = NULL;
 	char *ca_pem = NULL;
 	char *sig_pem = NULL;
-	char *chain = NULL;
-	char *begin_cert = NULL;
-	char *end_cert = NULL;
-	artik_security_certificate_id cert_id = -1;
+	artik_list *chain = NULL;
+	char *chain_root_ca = NULL;
 	artik_time *current_signing_time = NULL;
 	artik_time pkcs7_signing_time;
 	char json_ret[JSON_RET_MAX_LEN];
@@ -284,10 +300,6 @@ int main(int argc, char **argv)
 			break;
 		case 'u':
 			strncpy(se_id, optarg, MAX_SE_ID);
-			if (strcmp(se_id, "artik") == 0)
-				cert_id = CERT_ID_ARTIK;
-			else
-				cert_id = CERT_ID_MANUFACTURER;
 			break;
 		case 'h':
 			usage();
@@ -318,40 +330,28 @@ int main(int argc, char **argv)
 			"Failed to request security module", convert_err_code(ret));
 			goto exit;
 		}
-		ret = security->get_ca_chain(handle, cert_id, &chain);
-		if (ret != S_OK) {
+		ret = security->get_certificate_pem_chain(handle, se_id, &chain);
+		if ((ret != S_OK) || !artik_list_size(chain)) {
 			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
 			"Failed to get CA chain from Secure Element", convert_err_code(ret));
 			goto exit;
 		}
 
-		begin_cert = strstr(chain, BEGIN_CERT);
-		if (!begin_cert) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-			"Malformed PEM certificate", E_BAD_ARGS);
-			goto exit;
-		}
-
-		end_cert = strstr(chain, END_CERT);
-		if (!end_cert) {
-			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
-			"Malformed PEM certificate", E_BAD_ARGS);
-			goto exit;
-		}
+		/* Root CA is expected to be the first cert in the chain */
+		chain_root_ca = (char *)artik_list_get_by_pos(chain, 0)->data;
 
 		if (ca_pem)
 			free(ca_pem);
 
-		ca_pem = (char *)malloc(strlen(begin_cert) - (strlen(end_cert) -
-			strlen(END_CERT)));
+		ca_pem = strdup(chain_root_ca);
 		if (!ca_pem) {
+			artik_list_delete_all(&chain);
 			snprintf(json_ret, JSON_RET_MAX_LEN, JSON_RET_TPL, "true",
 			"Failed to allocate memory for CA chain", E_NO_MEM);
 			return -1;
 		}
 
-		strncpy(ca_pem, chain, strlen(begin_cert) - (strlen(end_cert) -
-			strlen(END_CERT)));
+		artik_list_delete_all(&chain);
 	}
 
 	err = security->verify_signature_init(&handle, sig_pem, ca_pem,

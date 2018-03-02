@@ -44,19 +44,66 @@ class Security {
   Security();
   ~Security();
 
-  artik_error get_certificate(artik_security_certificate_id, char **);
-  artik_error get_ca_chain(artik_security_certificate_id, char **);
-  artik_error get_key_from_cert(const char *, char **);
-  artik_error get_random_bytes(unsigned char*, int);
-  artik_error get_certificate_sn(artik_security_certificate_id,
-      unsigned char*, unsigned int *);
+  artik_error get_random_bytes(unsigned int, unsigned char**);
+  artik_error get_certificate_sn(const char *, unsigned char*, unsigned int *);
   artik_error get_ec_pubkey_from_cert(const char*, char **);
+  artik_error get_certificate_pem_chain(const char *, artik_list**);
+  artik_error set_certificate(const char *, const unsigned char *,
+      unsigned int);
+  artik_error get_certificate(const char *, artik_security_cert_type_t,
+      unsigned char **, unsigned int *);
+  artik_error remove_certificate(const char *);
+  artik_error get_hash(see_hash_mode, const unsigned char *, unsigned int,
+      unsigned char **, unsigned int *);
+  artik_error get_hmac(see_hash_mode, const char *, const unsigned char *,
+      unsigned int, unsigned char **, unsigned int *);
+  artik_error get_rsa_signature(see_rsa_mode, const char *,
+      const unsigned char *, unsigned int, unsigned int, unsigned char **,
+      unsigned int *);
+  artik_error verify_rsa_signature(see_rsa_mode, const char *,
+      const unsigned char *, unsigned int, unsigned int, const unsigned char *,
+      unsigned int);
+  artik_error get_ecdsa_signature(see_algorithm, const char *,
+      const unsigned char *, unsigned int, unsigned char **, unsigned int *);
+  artik_error verify_ecdsa_signature(see_algorithm, const char *,
+      const unsigned char *, unsigned int, const unsigned char *, unsigned int);
+  artik_error generate_dhm_params(see_algorithm, const char *,
+      unsigned char **, unsigned int *);
+  artik_error set_dhm_params(const char *, const unsigned char *, unsigned int ,
+      unsigned char **, unsigned int *);
+  artik_error compute_dhm_params(const char *, const unsigned char *,
+      unsigned int, unsigned char **, unsigned int *);
+  artik_error generate_ecdh_params(see_algorithm , const char *,
+      unsigned char **, unsigned int *);
+  artik_error compute_ecdh_params(const char *, const unsigned char *,
+      unsigned int, unsigned char **, unsigned int *);
+  artik_error generate_key(see_algorithm, const char *, const void *);
+  artik_error set_key(see_algorithm, const char *, const unsigned char *,
+      unsigned int);
+  artik_error get_publickey(see_algorithm, const char *, unsigned char **,
+      unsigned int *);
+  artik_error remove_key(see_algorithm, const char *);
+  artik_error write_secure_storage(const char *, unsigned int,
+      const unsigned char *, unsigned int);
+  artik_error read_secure_storage(const char *, unsigned int, unsigned int,
+      unsigned char **, unsigned int *);
+  artik_error remove_secure_storage(const char *);
+  artik_error aes_encryption(see_aes_mode, const char *, const unsigned char *,
+      unsigned int, const unsigned char *, unsigned int, unsigned char **,
+      unsigned int *);
+  artik_error aes_decryption(see_aes_mode, const char *, const unsigned char *,
+      unsigned int, const unsigned char *, unsigned int, unsigned char **,
+      unsigned int *);
+  artik_error rsa_encryption(see_rsa_mode, const char *, const unsigned char *,
+      unsigned int , unsigned char **, unsigned int *);
+  artik_error rsa_decryption(see_rsa_mode, const char *, const unsigned char *,
+      unsigned int, unsigned char **, unsigned int *);
   artik_error convert_pem_to_der(const char *, unsigned char **,
-      int *);
+      unsigned int *);
   artik_error verify_signature_init(const char *, const char *,
-    const artik_time *, artik_time *);
+      const artik_time *, artik_time *);
   artik_error verify_signature_update(
-    unsigned char *, unsigned int);
+      const unsigned char *, unsigned int);
   artik_error verify_signature_final(void);
 };
 

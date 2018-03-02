@@ -44,6 +44,9 @@
 
 #define _HTTP_API_TIMEOUT	10
 
+#define PEM_BEGIN_CRT		"-----BEGIN CERTIFICATE-----\n"
+#define PEM_END_CRT		"-----END CERTIFICATE-----\n"
+
 struct _http_param {
 	char *url;
 	char *body;
@@ -61,15 +64,26 @@ static int see_generate_random_client(void *ctx, unsigned char *data, size_t len
 {
 	artik_security_module *security = NULL;
 	artik_security_handle handle;
+	unsigned char *rand = NULL;
+	int ret = 0;
 
 	if (!data || !len)
 		return -1;
 
 	security = (artik_security_module *)artik_request_api_module("security");
 	security->request(&handle);
-	security->get_random_bytes(handle, data, len);
+
+	ret = security->get_random_bytes(handle, len, &rand);
+	if(ret == 0) {
+		memcpy(data, rand, len);
+		if(rand) {
+			free(rand);
+		}
+	}
+
 	security->release(handle);
 	artik_release_api_module(security);
+
 
 	return 0;
 }
@@ -187,12 +201,13 @@ static artik_error init_client_ssl_config(
 //	mbedtls_debug_set_threshold(MBED_DEBUG_LEVEL);
 #endif
 
-	if (a_ssl_config->se_config.use_se) {
+	if (a_ssl_config->secure) {
 		artik_security_handle handle;
 		artik_error err = S_OK;
-		char *se_cert = NULL;
-		char *se_root_ca = NULL;
+		unsigned char *se_cert = NULL;
+		unsigned int se_cert_len = 0;
 		artik_security_module *security = NULL;
+		artik_list *pem_chain = NULL;
 
 		security = (artik_security_module *)
 				artik_request_api_module("security");
@@ -221,9 +236,9 @@ static artik_error init_client_ssl_config(
 			goto exit;
 		}
 
-		err = security->get_certificate(handle, CERT_ID_ARTIK, &se_cert);
-		if (err != S_OK || !se_cert) {
-			log_err("Failed to get certificate (err=%d)\n", err);
+		err = security->get_certificate_pem_chain(handle, "ARTIK", &pem_chain);
+		if (err != S_OK || !pem_chain || !artik_list_size(pem_chain)) {
+			log_err("Failed to get certificate chain (err=%d)\n", err);
 			ret = E_ACCESS_DENIED;
 			goto exit;
 		}
@@ -236,12 +251,14 @@ static artik_error init_client_ssl_config(
 		mbedtls_x509_crt_init(http_ssl_config->cert);
 		mbedtls_pk_init(http_ssl_config->pkey);
 
-		ret = mbedtls_x509_crt_parse(http_ssl_config->cert, (const unsigned char *)se_cert,
-				strlen(se_cert) + 1);
+		/* Use the first certificate in the chain, it must be the device cert */
+		se_cert = (unsigned char *)artik_list_get_by_pos(pem_chain, 0)->data;
+		se_cert_len = strlen((const char *)se_cert) + 1;
+		ret = mbedtls_x509_crt_parse(http_ssl_config->cert, se_cert,
+				se_cert_len);
+		artik_list_delete_all(&pem_chain);
 		if (ret) {
 			log_err("Failed to parse device certificate (err=%d)", ret);
-			free(se_cert);
-			free(se_root_ca);
 			ret = E_BAD_ARGS;
 			goto exit;
 		}
@@ -249,8 +266,6 @@ static artik_error init_client_ssl_config(
 		http_ssl_config->pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY);
 		if (!http_ssl_config->pk_info) {
 			log_err("Failed to get private key info");
-			free(se_cert);
-			free(se_root_ca);
 			ret = E_BAD_ARGS;
 			goto exit;
 		}
@@ -258,8 +273,6 @@ static artik_error init_client_ssl_config(
 		ret = mbedtls_pk_setup(http_ssl_config->pkey, http_ssl_config->pk_info);
 		if (ret) {
 			log_err("Failed to setup private key info");
-			free(se_cert);
-			free(se_root_ca);
 			ret = E_BAD_ARGS;
 			goto exit;
 		}
@@ -273,15 +286,9 @@ static artik_error init_client_ssl_config(
 			http_ssl_config->ssl->tls_conf, http_ssl_config->cert, http_ssl_config->pkey);
 		if (ret) {
 			log_err("Failed to configure device cert/key (err=%d)", ret);
-			free(se_cert);
-			free(se_root_ca);
 			ret = E_BAD_ARGS;
 			goto exit;
 		}
-
-		free(se_cert);
-		free(se_root_ca);
-
 	} else {
 		/* If not using SE, using optional client cert/key
 		 * passed as parameters

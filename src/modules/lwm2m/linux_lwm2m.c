@@ -20,7 +20,6 @@
 #include <artik_platform.h>
 #include <artik_loop.h>
 #include <artik_log.h>
-#include <artik_security.h>
 #include <artik_utils.h>
 
 #include <artik_lwm2m.h>
@@ -37,8 +36,6 @@ typedef struct {
 	void *callbacks_params[ARTIK_LWM2M_EVENT_COUNT];
 	int service_cbk_id;
 	artik_loop_module *loop_module;
-	artik_security_module *security_module;
-	artik_security_handle security_handle;
 	bool connected;
 } lwm2m_node;
 
@@ -260,8 +257,6 @@ static bool check_lwm2m_uri(const char *uri)
 artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 				artik_lwm2m_config *config)
 {
-	artik_security_module *security = NULL;
-	artik_security_handle sec_handle = NULL;
 	lwm2m_node *node = NULL;
 	object_container_t *objects;
 	object_security_server_t *server;
@@ -321,48 +316,10 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 
 		server->verifyCert = config->ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED;
 
-		if (!config->ssl_config->se_config.use_se
-			&& config->ssl_config->client_cert.data && config->ssl_config->client_cert.len
+		if (config->ssl_config->client_cert.data && config->ssl_config->client_cert.len
 			&& config->ssl_config->client_key.data && config->ssl_config->client_key.len) {
 			server->clientCertificateOrPskId = strdup(config->ssl_config->client_cert.data);
 			server->privateKey = strdup(config->ssl_config->client_key.data);
-			server->securityMode = LWM2M_SEC_MODE_CERT;
-		} else if (config->ssl_config->se_config.use_se) {
-			security = (artik_security_module *)artik_request_api_module("security");
-			if (!security) {
-				log_dbg("Unable to request security module");
-				ret = E_SECURITY_ERROR;
-				goto exit;
-			}
-
-			ret = security->request(&sec_handle);
-			if (ret != S_OK) {
-				log_dbg("Unable to request security handle");
-				artik_release_api_module(security);
-				goto exit;
-			}
-
-			ret = security->get_certificate(sec_handle,
-						config->ssl_config->se_config.certificate_id,
-						&server->clientCertificateOrPskId);
-			if (ret != S_OK) {
-				security->release(sec_handle);
-				artik_release_api_module(security);
-				log_dbg("Unable to get certificate (err %d)", ret);
-				goto exit;
-			}
-
-			ret = security->get_key_from_cert(sec_handle, server->clientCertificateOrPskId,
-											&server->privateKey);
-			if (ret != S_OK) {
-				security->release(sec_handle);
-				log_dbg("Unable to get private key");
-				artik_release_api_module(security);
-				goto exit;
-			}
-
-			node->security_module = security;
-			node->security_handle = sec_handle;
 			server->securityMode = LWM2M_SEC_MODE_CERT;
 		} else if (!config->ssl_config->client_cert.data && !config->ssl_config->client_cert.len
 				   && !config->ssl_config->client_key.data && !config->ssl_config->client_key.len) {
@@ -391,7 +348,6 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 							config->tls_psk_key);
 	}
 
-	server->connect_timeout = config->connect_timeout;
 	server->lifetime = config->lifetime;
 	server->serverId = config->server_id;
 
@@ -513,11 +469,6 @@ artik_error os_lwm2m_client_release(artik_lwm2m_handle handle)
 			free(node->container->monitoring);
 
 		free(node->container);
-	}
-
-	if (node->security_module) {
-		node->security_module->release(node->security_handle);
-		artik_release_api_module(node->security_module);
 	}
 
 	artik_release_api_module(node->loop_module);
@@ -764,7 +715,8 @@ artik_lwm2m_object *os_lwm2m_create_device_object(const char *manufacturer,
 }
 
 artik_lwm2m_object *os_lwm2m_create_firmware_object(bool supported,
-					char *pkg_name, char *pkg_version) {
+		char *pkg_name, char *pkg_version)
+{
 	artik_lwm2m_object *obj = NULL;
 	object_firmware_t *content = NULL;
 

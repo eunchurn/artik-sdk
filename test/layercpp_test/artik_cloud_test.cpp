@@ -95,6 +95,51 @@ static int on_write_periodic_callback(void *user_data) {
   return 1;
 }
 
+static artik_error fill_ssl_config(artik_ssl_config *ssl,
+    const char *cert_name) {
+  artik_security_module *security = NULL;
+  artik_security_handle sec_handle = NULL;
+
+  ssl->secure = true;
+  security = reinterpret_cast<artik_security_module*>(
+      artik_request_api_module("security"));
+  if (security->request(&sec_handle) != S_OK) {
+    fprintf(stderr, "Failed to request security module");
+    artik_release_api_module(security);
+    return E_SECURITY_ERROR;
+  }
+
+  if (security->get_certificate(sec_handle, cert_name,
+      ARTIK_SECURITY_CERT_TYPE_PEM,
+      (unsigned char **)&ssl->client_cert.data,
+      &ssl->client_cert.len) != S_OK) {
+    fprintf(stderr, "Failed to get certificate from the security module");
+    goto error;
+  }
+
+  /*Todo
+   * Set Key Algorithm
+   */
+  if (security->get_publickey(sec_handle, ECC_SEC_P256R1, cert_name,
+      (unsigned char **)&ssl->client_key.data, &ssl->client_key.len) != S_OK) {
+    fprintf(stderr, "Failed to get private key form the security module");
+    goto error;
+  }
+
+  security->release(&sec_handle);
+  artik_release_api_module(security);
+  return S_OK;
+
+error:
+  if (ssl->client_cert.data)
+    free(ssl->client_cert.data);
+  if (ssl->client_key.data)
+    free(ssl->client_key.data);
+  security->release(&sec_handle);
+  artik_release_api_module(security);
+  return E_SECURITY_ERROR;
+}
+
 int main(int argc, char *argv[]) {
   int opt;
   artik_error ret = S_OK;
@@ -107,10 +152,11 @@ int main(int argc, char *argv[]) {
   FILE *f;
   struct stat st;
   char *root_ca = NULL;
+  char *cert_name = NULL;
 
-  ssl_config.se_config.use_se = false;
+  ssl_config.secure = false;
 
-  while ((opt = getopt(argc, argv, "t:d:m:r:sv")) != -1) {
+  while ((opt = getopt(argc, argv, "t:d:m:r:s:v")) != -1) {
     switch (opt) {
     case 't':
       strncpy(access_token, optarg, MAX_PARAM_LEN);
@@ -122,8 +168,7 @@ int main(int argc, char *argv[]) {
       strncpy(test_message, optarg, MAX_MESSAGE_LEN);
       break;
     case 's':
-      ssl_config.se_config.use_se = true;
-      ssl_config.se_config.certificate_id = CERT_ID_ARTIK;
+      cert_name = optarg;
       break;
     case 'v':
       ssl_config.verify_cert = ARTIK_SSL_VERIFY_REQUIRED;
@@ -160,7 +205,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (root_ca) {
+  if (cert_name) {
+    fill_ssl_config(&ssl_config, cert_name);
+  } else if (root_ca) {
     ssl_config.ca_cert.data = strdup(root_ca);
     ssl_config.ca_cert.len = strlen(root_ca);
     free(root_ca);

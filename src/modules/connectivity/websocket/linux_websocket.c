@@ -28,7 +28,6 @@
 #include <artik_log.h>
 #include <artik_module.h>
 #include <artik_loop.h>
-#include <artik_security.h>
 #include <artik_websocket.h>
 #include <artik_utils.h>
 #include "os_websocket.h"
@@ -92,18 +91,12 @@ typedef struct {
 	artik_loop_module *loop;
 } os_websocket_data;
 
-typedef struct os_websocket_security_data_t {
-	artik_security_module *security;
-	artik_security_handle sec_handle;
-} os_websocket_security_data;
-
 typedef struct {
 	struct lws_context *context;
 	struct lws *wsi;
 	struct lws_protocols *protocols;
 	SSL_CTX *ssl_ctx;
 	int loop_process_id;
-	os_websocket_security_data *sec_data;
 	os_websocket_container container;
 	os_websocket_data data[NUM_FDS];
 	bool error_connect;
@@ -144,17 +137,6 @@ void lws_cleanup(artik_websocket_config *config)
 					ARTIK_WEBSOCKET_INTERFACE->wsi);
 
 	log_dbg("");
-
-	/* Release security data and OpenSSL Engine */
-	if (ARTIK_WEBSOCKET_INTERFACE->sec_data) {
-		artik_security_module *security = (artik_security_module *)
-			artik_request_api_module("security");
-		security->release(
-		  ARTIK_WEBSOCKET_INTERFACE->sec_data->sec_handle);
-		artik_release_api_module(security);
-
-		free(ARTIK_WEBSOCKET_INTERFACE->sec_data);
-	}
 
 	artik_loop_module *loop = (artik_loop_module *)
 		artik_request_api_module("loop");
@@ -399,15 +381,13 @@ void ssl_ctx_info_callback(const SSL *ssl, int where, int ret)
 		log_dbg("%s", SSL_state_string_long(ssl));
 }
 
-artik_error setup_ssl_ctx(SSL_CTX **pctx, os_websocket_security_data **security_data,
-			artik_ssl_config *ssl_config, char *host)
+artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
+		char *host)
 {
 	artik_error ret = S_OK;
 	SSL_CTX *ssl_ctx = NULL;
 
 	const SSL_METHOD *method;
-	char *raw_cert = NULL;
-	char *raw_key = NULL;
 	BIO *bio = NULL;
 	X509 *x509_cert = NULL;
 	EVP_PKEY *pk = NULL;
@@ -524,153 +504,76 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, os_websocket_security_data **security_
 		SSL_CTX_set_cert_store(ssl_ctx, keystore);
 	}
 
-	if (ssl_config->se_config.use_se == false) {
+	log_dbg("");
 
-		log_dbg("");
-
-		if (ssl_config->client_cert.data &&
-		    ssl_config->client_cert.len) {
-			/* Convert certificate string into a BIO */
-			bio = BIO_new(BIO_s_mem());
-			BIO_write(bio, ssl_config->client_cert.data,
+	if (ssl_config->client_cert.data &&
+					ssl_config->client_cert.len) {
+		/* Convert certificate string into a BIO */
+		bio = BIO_new(BIO_s_mem());
+		BIO_write(bio, ssl_config->client_cert.data,
 				ssl_config->client_cert.len);
 
-			/* Extract X509 cert from the BIO */
-			x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-			if (!x509_cert) {
-				BIO_free(bio);
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
-
-			log_dbg("");
-
+		/* Extract X509 cert from the BIO */
+		x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+		if (!x509_cert) {
 			BIO_free(bio);
-
-			/* Set certificate to context */
-			if (!SSL_CTX_use_certificate(ssl_ctx, x509_cert)) {
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
 		}
 
 		log_dbg("");
 
-		if (ssl_config->client_key.data && ssl_config->client_key.len) {
-			/* Convert key string into a BIO */
-			bio = BIO_new(BIO_s_mem());
-			if (!BIO_write(bio, ssl_config->client_key.data,
-				ssl_config->client_key.len)) {
-				BIO_free(bio);
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
+		BIO_free(bio);
 
-			log_dbg("");
-
-			/* Extract EVP key from the BIO */
-			pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
-			if (!pk) {
-				BIO_free(bio);
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
-
-			BIO_free(bio);
-
-			log_dbg("");
-
-			/* Set private key to context */
-			if (!SSL_CTX_use_PrivateKey(ssl_ctx, pk)) {
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
-
-			log_dbg("");
-
-			/* Check certificate/key pair validity */
-			if (!SSL_CTX_check_private_key(ssl_ctx)) {
-				ret = E_WEBSOCKET_ERROR;
-				goto exit;
-			}
+		/* Set certificate to context */
+		if (!SSL_CTX_use_certificate(ssl_ctx, x509_cert)) {
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
 		}
 
 		*pctx = ssl_ctx;
 		return ret;
 	}
 
-	*security_data = malloc(sizeof(os_websocket_security_data));
-	if (*security_data == NULL) {
-		log_err("Failed to allocate memory");
-		ret = E_NO_MEM;
-		goto exit;
-	}
-	/* Processes related with SE are below */
-	security_data[0]->security = (artik_security_module *)
-		artik_request_api_module("security");
+	log_dbg("");
 
-	/* Initialize ARTIK Security module */
-	ret = security_data[0]->security->request(&security_data[0]->sec_handle);
-	if (ret != S_OK) {
-		log_err("Failed to request security module (err=%d)\n", ret);
-		goto exit;
-	}
+	if (ssl_config->client_key.data && ssl_config->client_key.len) {
+		/* Convert key string into a BIO */
+		bio = BIO_new(BIO_s_mem());
+		if (!BIO_write(bio, ssl_config->client_key.data,
+				ssl_config->client_key.len)) {
+			BIO_free(bio);
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
+		}
 
-	/* Get a certificate in SE as a string */
-	ret = security_data[0]->security->get_certificate(
-		security_data[0]->sec_handle, ssl_config->se_config.certificate_id,
-		&raw_cert);
-	if (ret != S_OK) {
-		log_err("Failed to get certificate (err=%d)\n", ret);
-		goto exit;
-	}
+		log_dbg("");
 
-	/* Get a public key from cert as a string */
-	ret = security_data[0]->security->get_key_from_cert(
-		security_data[0]->sec_handle, raw_cert, &raw_key);
-	if (ret != S_OK) {
-		log_err("Failed to get key (err=%d)\n", ret);
-		goto exit;
-	}
+		/* Extract EVP key from the BIO */
+		pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
+		if (!pk) {
+			BIO_free(bio);
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
+		}
 
-	/* Convert a certificate into X509 format and put it on SSL Context */
-	bio = BIO_new(BIO_s_mem());
-	BIO_puts(bio, raw_cert);
-	BIO_write(bio, raw_cert, strlen(raw_cert));
-	x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-
-	BIO_free(bio);
-
-	SSL_CTX_use_certificate(ssl_ctx, x509_cert);
-
-	/* Convert key string into a BIO */
-	bio = BIO_new(BIO_s_mem());
-	if (!BIO_write(bio, raw_key, strlen(raw_key))) {
 		BIO_free(bio);
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
 
-	/* Extract EVP key from the BIO */
-	pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
-	if (pk == NULL) {
-		BIO_free(bio);
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
-	BIO_free(bio);
+		log_dbg("");
 
-	/* Set private key to context */
-	if (!SSL_CTX_use_PrivateKey(ssl_ctx, pk)) {
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
+		/* Set private key to context */
+		if (!SSL_CTX_use_PrivateKey(ssl_ctx, pk)) {
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
+		}
 
-	/* Check certificate/key pair validity */
-	if (!SSL_CTX_check_private_key(ssl_ctx)) {
-		log_err("certificate/key pair validation failed\n");
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
+		log_dbg("");
+
+		/* Check certificate/key pair validity */
+		if (!SSL_CTX_check_private_key(ssl_ctx)) {
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
+		}
 	}
 
 	*pctx = ssl_ctx;
@@ -681,10 +584,6 @@ exit:
 		EVP_PKEY_free(pk);
 	if (x509_cert)
 		X509_free(x509_cert);
-	if (raw_cert)
-		free(raw_cert);
-	if (raw_key)
-		free(raw_key);
 
 	if (ret != S_OK && ssl_ctx != NULL)
 		SSL_CTX_free(ssl_ctx);
@@ -811,7 +710,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	struct lws_context *context = NULL;
 	struct lws_context_creation_info info;
 	struct lws *wsi = NULL;
-	os_websocket_security_data *sec_data = NULL;
 	websocket_node *node = NULL;
 	char *host = NULL;
 	char *path = NULL;
@@ -873,7 +771,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	info.gid = -1;
 	info.uid = -1;
 
-	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &sec_data, &config->ssl_config, host);
+	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &config->ssl_config, host);
 	if (ret != S_OK)
 		goto exit;
 
@@ -976,7 +874,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	interface->wsi = (void *)wsi;
 	interface->container.fds = (void *)fds;
 	interface->ssl_ctx = info.provided_client_ssl_ctx;
-	interface->sec_data = sec_data;
 	interface->error_connect = false;
 	interface->container.periodic_id = -1;
 	interface->container.timeout_id = -1;
@@ -1003,8 +900,6 @@ exit:
 				free(interface->protocols);
 			free(interface);
 		}
-		if (sec_data)
-			free(sec_data);
 	}
 
 	if (host)

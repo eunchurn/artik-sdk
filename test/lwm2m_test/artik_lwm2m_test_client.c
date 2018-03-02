@@ -293,6 +293,46 @@ error:
 	return false;
 }
 
+static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
+{
+	artik_security_module *security = NULL;
+	artik_security_handle sec_handle = NULL;
+
+	ssl->secure = true;
+	security = (artik_security_module *)artik_request_api_module("security");
+	if (security->request(&sec_handle) != S_OK) {
+		fprintf(stderr, "Failed to request security module");
+		artik_release_api_module(security);
+		return E_SECURITY_ERROR;
+	}
+
+	if (security->get_certificate(sec_handle, cert_name,
+			ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&ssl->client_cert.data,
+			&ssl->client_cert.len) != S_OK) {
+		fprintf(stderr, "Failed to get certificate from the security module");
+		goto error;
+	}
+
+	if (security->get_publickey(sec_handle, 0, cert_name,
+			(unsigned char **)&ssl->client_key.data, &ssl->client_key.len) != S_OK) {
+		fprintf(stderr, "Failed to get private key form the security module");
+		goto error;
+	}
+
+	security->release(&sec_handle);
+	artik_release_api_module(security);
+	return S_OK;
+
+error:
+	if (ssl->client_cert.data)
+		free(ssl->client_cert.data);
+	if (ssl->client_key.data)
+		free(ssl->client_key.data);
+	security->release(&sec_handle);
+	artik_release_api_module(security);
+	return E_SECURITY_ERROR;
+}
+
 artik_error test_lwm2m_default(void)
 {
 	artik_error ret = S_OK;
@@ -331,8 +371,7 @@ artik_error test_lwm2m_default(void)
 	}
 
 	if (akc_use_se) {
-		ssl_config.se_config.use_se = true;
-		ssl_config.se_config.certificate_id = CERT_ID_ARTIK;
+		fill_ssl_config(&ssl_config, "ARTIK/0");
 		fprintf(stdout, "TEST: device certificate from SE\n");
 	} else if (strlen(akc_device_certificate_path) > 0 && strlen(akc_device_private_key_path) > 0) {
 		if (!fill_buffer_from_file(akc_device_certificate_path, &ssl_config.client_cert.data)) {

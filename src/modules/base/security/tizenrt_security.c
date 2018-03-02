@@ -16,18 +16,19 @@
  *
  */
 
-
+#include <string.h>
 #include <tls/see_api.h>
 #include <tls/x509_crt.h>
 #include <tls/pk.h>
 #include <tls/pem.h>
 #include <tls/oid.h>
-
 #include <artik_log.h>
 #include <artik_security.h>
-#include <artik_time.h>
 
 #include "tizenrt/tizenrt_security.h"
+#include "os_security.h"
+
+static see_dev * g_see_dev = NULL;
 
 typedef struct {
 	artik_list node;
@@ -48,404 +49,118 @@ typedef struct {
 static artik_list *requested_nodes = NULL;
 static artik_list *verify_nodes = NULL;
 
-#define PEM_BEGIN_CRT		"-----BEGIN CERTIFICATE-----\n"
-#define PEM_END_CRT		"-----END CERTIFICATE-----\n"
-#define PEM_BEGIN_PUBKEY	"-----BEGIN PUBLIC KEY-----"
-#define PEM_END_PUBKEY		"-----END PUBLIC KEY-----"
-#define PEM_BEGIN_EC_PRIV_KEY	"-----BEGIN EC PRIVATE KEY-----"
-#define PEM_END_EC_PRIV_KEY	"-----END EC PRIVATE KEY-----"
+#define PEM_BEGIN_CRT           "-----BEGIN CERTIFICATE-----\n"
+#define PEM_END_CRT             "-----END CERTIFICATE-----\n"
+#define PEM_BEGIN_PUBKEY        "-----BEGIN PUBLIC KEY-----"
+#define PEM_END_PUBKEY          "-----END PUBLIC KEY-----"
+#define PEM_BEGIN_EC_PRIV_KEY   "-----BEGIN EC PRIVATE KEY-----"
+#define PEM_END_EC_PRIV_KEY     "-----END EC PRIVATE KEY-----"
 
 artik_error os_security_request(artik_security_handle *handle)
 {
 	security_node *node = (security_node *) artik_list_add(&requested_nodes,
-						0, sizeof(security_node));
+			0, sizeof(security_node));
 
 	if (!node)
 		return E_NO_MEM;
 
-	node->node.handle = (ARTIK_LIST_HANDLE)node;
-	*handle = (artik_security_handle)node;
+	node->node.handle = (ARTIK_LIST_HANDLE) node;
+	*handle = (artik_security_handle) node;
 
-	if (artik_list_size(requested_nodes) == 1)
-		see_init();
+	if (g_see_dev == NULL && artik_list_size(requested_nodes) == 1) {
+		if (see_device_init("ARTIK SDK", "ARTIK SDK") != 0) {
+			delay(10);
+			log_dbg("failed to initialize device");
+			goto error;
+		}
 
+		see_set_debug_level(2);
+
+		g_see_dev = see_device_get();
+		if (!g_see_dev) {
+			log_dbg("failed to get device");
+			goto error;
+		}
+
+	}
 	return S_OK;
+
+error:
+	if (g_see_dev)
+		see_device_deinit();
+
+	g_see_dev = NULL;
+
+	return E_NOT_INITIALIZED;
 }
 
 artik_error os_security_release(artik_security_handle handle)
 {
 	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
 
-	if (!node)
-		return E_BAD_ARGS;
+	artik_list_delete_node(&requested_nodes, (artik_list *) node);
 
-	artik_list_delete_node(&requested_nodes, (artik_list *)node);
-
-	if (artik_list_size(requested_nodes) == 0)
-		see_free();
+	if (g_see_dev && artik_list_size(requested_nodes) == 0) {
+		see_device_deinit();
+		g_see_dev = NULL;
+	}
 
 	return S_OK;
 }
 
-artik_error os_security_get_certificate(artik_security_handle handle,
-		artik_security_certificate_id cert_id, char **cert)
+artik_error os_security_get_random_bytes(artik_security_handle handle,
+		unsigned int rand_size, unsigned char **rand)
 {
 	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
-	artik_error err = S_OK;
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data random;
 	int ret = 0;
-	unsigned char *cert_data = NULL;
-	unsigned int cert_len = SEE_MAX_BUF_SIZE;
-	unsigned char *pem_data = NULL;
-	size_t pem_len = 4096;
-	unsigned char *dev_cert = NULL;
-	int dev_cert_len = 0;
-	unsigned char *p = NULL;
-	size_t len = 0;
 
-	if (!node || !cert || *cert)
+	if (!node || !rand || rand_size == 0)
 		return E_BAD_ARGS;
 
-	if (cert_id != CERT_ID_ARTIK)
+	if (!g_see_dev || !g_see_dev->generate_random)
 		return E_NOT_SUPPORTED;
 
-	cert_data = zalloc(cert_len);
-	if (!cert_data)
-		return E_NO_MEM;
+	random.data = NULL;
+	random.length = 0;
 
-	pem_data = zalloc(pem_len);
-	if (!pem_data) {
-		err = E_NO_MEM;
-		goto exit;
-	}
-
-	ret = see_get_certificate(cert_data, &cert_len, FACTORYKEY_ARTIK_CERT,
-									0);
-	if (ret != SEE_OK) {
-		log_err("Failed to get certificate (err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
-
-	/* Ignore the root CA and go to the device certificate chain */
-	dev_cert = cert_data + ((cert_data[2] << 8) + cert_data[3] + 4);
-	dev_cert_len = cert_len - (dev_cert - cert_data);
-
-	/* Ignore the first certificate in the chain */
-	p = dev_cert;
-	ret = mbedtls_asn1_get_tag(&p, dev_cert + dev_cert_len, &len,
-			(MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
+	ret = g_see_dev->generate_random(rand_size, &random);
 	if (ret) {
-		log_err("Failed to find first certificate in the chain\n"
-			"(err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
+		log_dbg("Failed to generate random bytes from SE (%d)", ret);
+		return E_SECURITY_ERROR;
 	}
 
-	/* Only get the second certificate in the chain */
-	p += len;
-	dev_cert = p;
-	ret = mbedtls_asn1_get_tag(&p, dev_cert + dev_cert_len, &len,
-			(MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
-	if (ret) {
-		log_err("Failed to find second certificate in the chain\n"
-			"(err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
+	if (rand_size != random.length)
+		return E_SECURITY_ERROR;
 
-	/* Certificate should be in DER format, just export it as PEM */
-	ret = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT, dev_cert,
-			len + 4, pem_data, pem_len, &pem_len);
-	if (ret) {
-		log_err("Failed to write PEM certificate (err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
+	*rand = random.data;
 
-	*cert = strndup((char *)pem_data, pem_len);
-	if (*cert == NULL) {
-		err = E_NO_MEM;
-		goto exit;
-	}
-
-exit:
-	if (cert_data)
-		free(cert_data);
-	if (pem_data)
-		free(pem_data);
-
-	return err;
+	return S_OK;
 }
 
-artik_error os_security_get_key_from_cert(artik_security_handle handle,
-					const char *cert, char **key)
+artik_error os_security_get_certificate_sn(const char *pem_cert,
+		unsigned char *sn, unsigned int *len)
 {
-	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
-	unsigned char *pem_data = NULL;
-	unsigned int pem_len = 4096;
 	int ret = 0;
-	artik_error err = S_OK;
-	mbedtls_x509_crt x509_cert;
-	mbedtls_ecp_keypair *eck = NULL;
-	size_t olen = 0;
-
-	if (!node || !cert || !key || *key)
-		return E_BAD_ARGS;
-
-	pem_data = zalloc(pem_len);
-	if (!pem_data) {
-		err = E_NO_MEM;
-		goto exit;
-	}
-
-	mbedtls_x509_crt_init(&x509_cert);
-	ret = mbedtls_x509_crt_parse(&x509_cert, (const unsigned char *)cert,
-							strlen(cert) + 1);
-	if (ret) {
-		log_err("Failed to parse certificate (err=%d)", ret);
-		err = E_BAD_ARGS;
-		goto exit;
-	}
-
-	/* Extract point from public key */
-	eck = mbedtls_pk_ec(x509_cert.pk);
-	ret = mbedtls_ecp_point_write_binary(&eck->grp, &eck->Q,
-			MBEDTLS_ECP_PF_UNCOMPRESSED,
-			&olen, pem_data, pem_len);
-	if (ret) {
-		log_err("Failed to extract point (err=%d)", ret);
-		err = E_BAD_ARGS;
-		goto exit;
-	}
-
-	/* Use X coordinate as private key */
-	ret =  mbedtls_mpi_read_binary(&eck->d, pem_data + 1, (olen - 1) / 2);
-	if (ret) {
-		log_err("Failed to import X MPI (err=%d)", ret);
-		err = E_BAD_ARGS;
-		goto exit;
-	}
-
-	/* Export key to PEM format */
-	ret = mbedtls_pk_write_key_pem(&(x509_cert.pk), pem_data, pem_len);
-	if (ret) {
-		log_err("Failed to write key (err=%d)", ret);
-		err = E_BAD_ARGS;
-		goto exit;
-}
-
-	*key = strndup((char *)pem_data, strlen((char *)pem_data));
-
-exit:
-	mbedtls_x509_crt_free(&x509_cert);
-	if (pem_data)
-		free(pem_data);
-
-	return err;
-}
-
-artik_error os_security_get_ca_chain(artik_security_handle handle,
-		artik_security_certificate_id cert_id, char **chain)
-{
-	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
-	artik_error err = S_OK;
-	int ret = 0;
-	unsigned char *cert_data = NULL;
-	unsigned int cert_len = SEE_MAX_BUF_SIZE;
-	unsigned int len = 0;
-	unsigned char *pem_data = NULL;
-	unsigned char *intermediate_cert = NULL;
-	unsigned char *p = NULL;
-	size_t pem_len = 4096;
-	size_t olen = 0;
-	size_t olen2 = 0;
-
-	if (!node || !chain || *chain)
-		return E_BAD_ARGS;
-
-	if (cert_id != CERT_ID_ARTIK)
-		return E_NOT_SUPPORTED;
-
-	cert_data = zalloc(cert_len);
-	if (!cert_data)
-		return E_NO_MEM;
-
-	pem_data = zalloc(pem_len);
-	if (!pem_data) {
-		err = E_NO_MEM;
-		goto exit;
-	}
-
-	ret = see_get_certificate(cert_data, &cert_len, FACTORYKEY_ARTIK_CERT,
-									0);
-	if (ret != SEE_OK) {
-		log_err("Failed to get root CA (err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
-
-	/* Get the root CA length base on the sequence tag */
-	p = cert_data;
-	mbedtls_asn1_get_tag(&p, cert_data + cert_len, &len, (MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
-	/* Certificate should be in DER format, just export it as PEM */
-	ret = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT, cert_data,
-				len + (p - cert_data), pem_data, pem_len, &olen);
-	if (ret) {
-		log_err("Failed to write PEM root CA (err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
-
-	/* Get the intermediate certificate */
-	p += len;
-	intermediate_cert = p;
-	mbedtls_asn1_get_tag(&p, cert_data + cert_len, &len, (MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
-	ret = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT, intermediate_cert,
-				len + (p - intermediate_cert), pem_data + olen - 1, pem_len - olen + 1, &olen2);
-	if (ret) {
-		log_err("Failed to write PEM intermediate CA (err=%d)", ret);
-		err = E_ACCESS_DENIED;
-		goto exit;
-	}
-
-	*chain = strndup((char *)pem_data, olen - 1 + olen2);
-	if (*chain == NULL) {
-		err = E_NO_MEM;
-		goto exit;
-	}
-
-exit:
-	if (cert_data)
-		free(cert_data);
-	if (pem_data)
-		free(pem_data);
-
-	return err;
-}
-
-artik_error os_get_random_bytes(artik_security_handle handle,
-				unsigned char *rand, int len)
-{
-	artik_error err = S_OK;
-	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
-	int ret = 0;
-	int total = 0;
-	unsigned int *buf = NULL;
-
-	if (!node || !rand || (len < 0))
-		return E_BAD_ARGS;
-
-	buf = malloc(SEE_MAX_RANDOM_SIZE);
-	if (!buf)
-		return E_NO_MEM;
-
-	while (len >= SEE_MAX_RANDOM_SIZE) {
-		ret = see_generate_random(buf, SEE_MAX_RANDOM_SIZE);
-		if (ret != SEE_OK) {
-			log_err("Failed to get random numbers (err=%d)\n", ret);
-			err = E_ACCESS_DENIED;
-			goto exit;
-		}
-
-		memcpy(rand + total, buf, SEE_MAX_RANDOM_SIZE);
-		len -= SEE_MAX_RANDOM_SIZE;
-		total += SEE_MAX_RANDOM_SIZE;
-	}
-
-	if (len) {
-		ret = see_generate_random(buf, len);
-		if (ret != SEE_OK) {
-			log_err("Failed to get random numbers (err=%d)\n", ret);
-			err = E_ACCESS_DENIED;
-			goto exit;
-		}
-
-		memcpy(rand + total, buf, len);
-	}
-
-exit:
-	free(buf);
-	return err;
-}
-
-artik_error os_get_certificate_sn(artik_security_handle handle,
-		artik_security_certificate_id cert_id, unsigned char *sn,
-		unsigned int *len)
-{
-	security_node *node = (security_node *)artik_list_get_by_handle(
-				requested_nodes, (ARTIK_LIST_HANDLE)handle);
-	int ret = 0;
-	unsigned char *cert_data = NULL;
-	unsigned int cert_len = SEE_MAX_BUF_SIZE;
 	mbedtls_x509_crt cert;
-	unsigned char *dev_cert = NULL;
-	int dev_cert_len = 0;
-	unsigned char *p = NULL;
-	size_t plen = 0;
 
-	if (!node || !sn || !len || (*len == 0))
+	if (!pem_cert || !sn || !len || (*len == 0))
 		return E_BAD_ARGS;
-
-	if (cert_id != CERT_ID_ARTIK)
-		return E_NOT_SUPPORTED;
-
-	cert_data = zalloc(cert_len);
-	if (!cert_data)
-		return E_NO_MEM;
-
-	ret = see_get_certificate(cert_data, &cert_len, FACTORYKEY_ARTIK_CERT,
-									0);
-	if (ret != SEE_OK) {
-		log_err("Failed to get certificate (err=%d)", ret);
-		free(cert_data);
-		return E_ACCESS_DENIED;
-	}
-
-	/* Ignore the root CA and go to the device certificate chain */
-	dev_cert = cert_data + ((cert_data[2] << 8) + cert_data[3] + 4);
-	dev_cert_len = cert_len - (dev_cert - cert_data);
-
-	/* Ignore the first certificate in the chain */
-	p = dev_cert;
-	ret = mbedtls_asn1_get_tag(&p, dev_cert + dev_cert_len, &plen,
-		(MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
-	if (ret) {
-		log_err("Failed to find first certificate in the chain\n"
-			"(err=%d)", ret);
-		free(cert_data);
-		return E_ACCESS_DENIED;
-	}
-
-	/* Only get the second certificate in the chain */
-	p += plen;
-	dev_cert = p;
-	ret = mbedtls_asn1_get_tag(&p, dev_cert + dev_cert_len, &plen,
-		(MBEDTLS_ASN1_CONSTRUCTED|MBEDTLS_ASN1_SEQUENCE));
-	if (ret) {
-		log_err("Failed to find second certificate in the chain\n"
-			"(err=%d)", ret);
-		free(cert_data);
-		return E_ACCESS_DENIED;
-	}
 
 	mbedtls_x509_crt_init(&cert);
-	ret = mbedtls_x509_crt_parse(&cert, dev_cert, plen + 4);
+	ret = mbedtls_x509_crt_parse(&cert, (unsigned char *)pem_cert,
+			strlen(pem_cert) + 1);
 	if (ret) {
-		log_err("Failed to parse certificate (err=%d)", ret);
+		fprintf(stderr, "Failed to parse certificate (err=%d)", ret);
 		mbedtls_x509_crt_free(&cert);
-		free(cert_data);
 		return E_ACCESS_DENIED;
 	}
 
 	if (cert.serial.len > *len) {
-		log_err("Buffer is too small");
+		fprintf(stderr, "Buffer is too small");
 		mbedtls_x509_crt_free(&cert);
-		free(cert_data);
 		return E_BAD_ARGS;
 	}
 
@@ -453,61 +168,759 @@ artik_error os_get_certificate_sn(artik_security_handle handle,
 	*len = cert.serial.len;
 
 	mbedtls_x509_crt_free(&cert);
-	free(cert_data);
 
 	return S_OK;
 }
 
-artik_error os_get_ec_pubkey_from_cert(const char *cert, char **key)
+static void pem_chain_list_clear(artik_list *elm)
 {
-	int ret = 0;
-	mbedtls_x509_crt x509_cert;
-	unsigned char buf[2048];
-	size_t key_len = 0;
+	/* It should be a string allocated with strndup, free it */
+	free(elm->data);
+}
 
-	if (!cert || !key || *key)
+artik_error os_security_get_certificate_pem_chain(artik_security_handle handle,
+		const char *cert_name, artik_list **chain)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data certificate;
+	artik_list *cpem = NULL;
+	char cert_id[16] = "";
+
+	if (!node || !cert_name || !chain)
 		return E_BAD_ARGS;
 
-	mbedtls_x509_crt_init(&x509_cert);
+	if (!g_see_dev || !g_see_dev->get_certificate)
+		return E_NOT_SUPPORTED;
 
-	ret = mbedtls_x509_crt_parse(&x509_cert, (unsigned char *)cert,
-			strlen(cert) + 1);
+	memset(&certificate, 0, sizeof(see_data));
+	strncpy(cert_id, cert_name, SECU_LOCATION_STRLEN);
+	strncat(cert_id, "/0", 2);
 
-	if (ret) {
-		log_err("Failed to parse certificate (err=%d)", ret);
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_ACCESS_DENIED;
+	while (g_see_dev->get_certificate(cert_id, ARTIK_SECURITY_CERT_TYPE_PEM,
+			&certificate) == 0) {
+		cpem = artik_list_add(chain, NULL, sizeof(artik_list));
+		if (!cpem) {
+			free(certificate.data);
+			return E_NO_MEM;
+		}
+
+		cpem->data = (void *)strndup((const char *)certificate.data,
+				certificate.length);
+		free(certificate.data);
+		if (!cpem->data)
+			return E_NO_MEM;
+
+		cpem->clear = pem_chain_list_clear;
+
+		cert_id[SECU_LOCATION_STRLEN + 1]++;
+		if (cert_id[SECU_LOCATION_STRLEN + 1] > '9')
+			break;
 	}
 
-	memset(&buf, 0, sizeof(buf));
+	return S_OK;
+}
 
-	ret = mbedtls_pk_write_pubkey_pem(&x509_cert.pk, buf, 2048);
+artik_error os_security_set_certificate(artik_security_handle handle,
+		const char *cert_name, const unsigned char *cert,
+		unsigned int cert_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data certificate;
+	artik_error err = S_OK;
+	char *cert_pem = NULL;
+	int ret = 0;
 
-	if (ret) {
-		log_err("Failed to write pubkey PEM (err=%d)", ret);
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_ACCESS_DENIED;
+	if (!node || !cert_name || !cert || !cert_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_certificate)
+		return E_NOT_SUPPORTED;
+
+	/* If input is in PEM format, convert it to DER */
+	if (strstr((const char *)cert, PEM_BEGIN_CRT)) {
+		cert_pem = strndup((const char *)cert, cert_size);
+		if (!cert_pem)
+			return E_NO_MEM;
+
+		memset(&certificate, 0, sizeof(certificate));
+		err = os_security_convert_pem_to_der((const char *)cert,
+				(unsigned char **)(&certificate.data), &certificate.length);
+		if (err != S_OK)
+			goto exit;
+	} else {
+		certificate.data = (void *)cert;
+		certificate.length = cert_size;
 	}
 
-	key_len = strlen((char *)buf) + 1;
+	ret = g_see_dev->set_certificate(cert_name, &certificate);
+	if (ret) {
+		log_dbg("Failed to set certificate into SE (%d)", ret);
+		err = E_SECURITY_ERROR;
+		goto exit;
+	}
 
-	if (key_len <= 0) {
-		log_err("Wrong size of key");
-		mbedtls_x509_crt_free(&x509_cert);
+exit:
+	if (cert_pem)
+		free(cert_pem);
+
+	return err;
+}
+
+artik_error os_security_get_certificate(artik_security_handle handle,
+		const char *cert_name, artik_security_cert_type_t type,
+		unsigned char **cert, unsigned int *cert_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data certificate;
+	int ret = 0;
+
+	if (!node || !cert_name || !cert || !cert_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_certificate)
+		return E_NOT_SUPPORTED;
+
+	memset(&certificate, 0, sizeof(see_data));
+	ret = g_see_dev->get_certificate(cert_name, type, &certificate);
+	if (ret) {
+		log_dbg("Failed to get certificate from SE (%d)", ret);
 		return E_SECURITY_ERROR;
 	}
 
-	*key = malloc(key_len);
+	*cert = certificate.data;
+	*cert_size = certificate.length;
 
-	if (!*key) {
-		log_err("Not enough memory to allocate key");
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_NO_MEM;
+	return S_OK;
+}
+
+artik_error os_security_remove_certificate(artik_security_handle handle,
+		const char *cert_name)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	int ret = 0;
+
+	if (!node || !cert_name)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->remove_certificate)
+		return E_NOT_SUPPORTED;
+
+	ret = g_see_dev->remove_certificate(cert_name);
+	if (ret) {
+		log_dbg("Failed to remove certificate from SE (%d)", ret);
+		return E_SECURITY_ERROR;
 	}
 
-	memcpy(*key, buf, key_len);
+	return S_OK;
+}
 
-	mbedtls_x509_crt_free(&x509_cert);
+artik_error os_security_get_hash(artik_security_handle handle,
+		unsigned int hash_algo, const unsigned char *input,
+		unsigned int input_size, unsigned char **hash, unsigned int *hash_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data;
+	see_data hash_data;
+
+	if (!node || !input)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_hash)
+		return E_NOT_SUPPORTED;
+
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+
+	if (g_see_dev->get_hash(hash_algo, &input_data, &hash_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*hash = hash_data.data;
+	*hash_size = hash_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_get_hmac(artik_security_handle handle,
+		unsigned int hmac_algo, const char *key_name,
+		const unsigned char *input, unsigned int input_size,
+		unsigned char **hmac, unsigned int *hmac_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data;
+	see_data hmac_data;
+
+	if (!node || !key_name || !input || input_size == 0 || !hmac || !hmac_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_hmac)
+		return E_NOT_SUPPORTED;
+
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+
+	if (g_see_dev->get_hmac(hmac_algo, key_name, &input_data, &hmac_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*hmac = hmac_data.data;
+	*hmac_size = hmac_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_get_rsa_signature(artik_security_handle handle,
+		unsigned int rsa_algo, const char *key_name, const unsigned char *hash,
+		unsigned int hash_size, unsigned int salt_size,
+		unsigned char **sig, unsigned int *sig_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data hash_data;
+	see_data sig_data;
+	int ret = 0;
+
+	if (!node || !key_name || !hash || hash_size == 0 || !sig || !sig_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_rsa_signature)
+		return E_NOT_SUPPORTED;
+
+	hash_data.data = (unsigned char *)hash;
+	hash_data.length = hash_size;
+
+	ret = g_see_dev->get_rsa_signature(rsa_algo, key_name, &hash_data,
+			salt_size, &sig_data);
+	if (ret) {
+		log_err("Failed to RSA sign (0x%08x)", ret);
+		return E_SECURITY_ERROR;
+	}
+
+	*sig = sig_data.data;
+	*sig_size = sig_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_verify_rsa_signature(artik_security_handle handle,
+		unsigned int rsa_algo, const char *key_name, const unsigned char *hash,
+		unsigned int hash_size, unsigned int salt_size,
+		const unsigned char *sig, unsigned int sig_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data hash_data;
+	see_data sig_data;
+
+	if (!node || !key_name || !hash || hash_size == 0 || !sig || !sig_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->verify_rsa_signature)
+		return E_NOT_SUPPORTED;
+
+	hash_data.data = (unsigned char *)hash;
+	hash_data.length = hash_size;
+	sig_data.data = (unsigned char *)sig;
+	sig_data.length = sig_size;
+
+	if (g_see_dev->verify_rsa_signature(rsa_algo, key_name, &hash_data,
+			salt_size, &sig_data) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_get_ecdsa_signature(artik_security_handle handle,
+		unsigned int ecdsa_algo, const char *key_name,
+		const unsigned char *hash, unsigned int hash_size, unsigned char **sig,
+		unsigned int *sig_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data hash_data;
+	see_data sig_data;
+
+	if (!node || !key_name || !hash || hash_size == 0 || !sig || !sig_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->get_ecdsa_signature)
+		return E_NOT_SUPPORTED;
+
+	hash_data.data = (unsigned char *)hash;
+	hash_data.length = hash_size;
+
+	if (g_see_dev->get_ecdsa_signature(ecdsa_algo, key_name, &hash_data,
+			&sig_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*sig = sig_data.data;
+	*sig_size = sig_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_verify_ecdsa_signature(artik_security_handle handle,
+		unsigned int ecdsa_algo, const char *key_name,
+		const unsigned char *hash, unsigned int hash_size,
+		const unsigned char *sig, unsigned int sig_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data hash_data;
+	see_data sig_data;
+
+	if (!node || !key_name || !hash || hash_size == 0 || !sig || !sig_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->verify_ecdsa_signature)
+		return E_NOT_SUPPORTED;
+
+	hash_data.data = (unsigned char *)hash;
+	hash_data.length = hash_size;
+	sig_data.data = (unsigned char *)sig;
+	sig_data.length = sig_size;
+
+	if (g_see_dev->verify_ecdsa_signature(ecdsa_algo, key_name, &hash_data,
+			&sig_data) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_generate_dhm_params(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name, unsigned char **pubkey,
+		unsigned int *pubkey_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data pubkey_data;
+
+	if (!node || !key_name || !pubkey || !pubkey_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->generate_dhparams)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->generate_dhparams(key_algo, key_name, &pubkey_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*pubkey = pubkey_data.data;
+	*pubkey_size = pubkey_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_set_dhm_params(artik_security_handle handle,
+		const char *key_name, const unsigned char *params,
+		unsigned int params_size, unsigned char **pubkey,
+		unsigned int *pubkey_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data params_data;
+	see_data pubkey_data;
+
+	if (!node || !key_name || !params || params_size == 0 || !pubkey ||
+			!pubkey_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->set_dhparams)
+		return E_NOT_SUPPORTED;
+
+	params_data.data = (unsigned char *)params;
+	params_data.length = params_size;
+	if (g_see_dev->set_dhparams(key_name, &params_data, &pubkey_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*pubkey = pubkey_data.data;
+	*pubkey_size = pubkey_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_compute_dhm_params(artik_security_handle handle,
+		const char *key_name, const unsigned char *pubkey,
+		unsigned int pubkey_size, unsigned char **secret,
+		unsigned int *secret_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data pubkey_data;
+	see_data secret_data;
+
+	if (!node || !key_name || !pubkey || pubkey_size == 0 || !secret ||
+			!secret_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->compute_dhparams)
+		return E_NOT_SUPPORTED;
+
+	pubkey_data.data = (unsigned char *)pubkey;
+	pubkey_data.length = pubkey_size;
+	if (g_see_dev->compute_dhparams(key_name, &pubkey_data, &secret_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*secret = secret_data.data;
+	*secret_size = secret_data.length;
+
+	return S_OK;
+}
+
+
+artik_error os_security_generate_ecdh_params(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name, unsigned char **pubkey,
+		unsigned int *pubkey_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data pubkey_data;
+
+	if (!node || !key_name || !pubkey || !pubkey_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->generate_ecdhkey)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->generate_ecdhkey(key_algo, key_name, &pubkey_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*pubkey = pubkey_data.data;
+	*pubkey_size = pubkey_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_compute_ecdh_params(artik_security_handle handle,
+		const char *key_name, const unsigned char *pubkey,
+		unsigned int pubkey_size, unsigned char **secret,
+		unsigned int *secret_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data pubkey_data;
+	see_data secret_data;
+
+	if (!node || !key_name || !pubkey || pubkey_size == 0 || !secret ||
+			!secret_size)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->compute_ecdhkey)
+		return E_NOT_SUPPORTED;
+
+	pubkey_data.data = (unsigned char *)pubkey;
+	pubkey_data.length = pubkey_size;
+	if (g_see_dev->compute_ecdhkey(key_name, &pubkey_data, &secret_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*secret = secret_data.data;
+	*secret_size = secret_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_generate_key(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name, const void *key_param)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+
+	if (!node || !key_name)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->generate_key)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->generate_key(key_algo, key_name, (void *)key_param) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_set_key(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name, const unsigned char *key,
+		unsigned int key_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data key_data;
+
+	if (!node || !key_name || !key || key_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->set_key)
+		return E_NOT_SUPPORTED;
+
+	key_data.data = (unsigned char *)key;
+	key_data.length = key_size;
+	if (g_see_dev->set_key(key_algo, key_name, &key_data) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_get_publickey(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name, unsigned char **pubkey,
+		unsigned int *pubkey_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data public_data;
+
+	if (!node || !pubkey)
+		return E_BAD_ARGS;
+
+	if (g_see_dev == NULL || g_see_dev->get_pubkey == NULL)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->get_pubkey(key_algo, key_name, &public_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*pubkey = public_data.data;
+	*pubkey_size = public_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_remove_key(artik_security_handle handle,
+		unsigned int key_algo, const char *key_name)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+
+	if (!node || !key_name)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->remove_key)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->remove_key(key_algo, key_name) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_write_secure_storage(artik_security_handle handle,
+		const char *data_name, unsigned int offset, const unsigned char *data,
+		unsigned int data_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data storage_data;
+
+	if (!node || !data_name || !data || data_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->write_secure_storage)
+		return E_NOT_SUPPORTED;
+
+	storage_data.data = (unsigned char *)data;
+	storage_data.length = data_size;
+	if (g_see_dev->write_secure_storage(data_name, offset, &storage_data) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_read_secure_storage(artik_security_handle handle,
+		const char *data_name, unsigned int offset, unsigned int read_size,
+		unsigned char **data, unsigned int *data_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data storage_data;
+	artik_error err = S_OK;
+	int ret = 0;
+
+	if (!node || !data_name || !data || !data_size ||
+			(offset + read_size > SEE_MAX_DATA_SIZE))
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->read_secure_storage)
+		return E_NOT_SUPPORTED;
+
+	memset(&storage_data, 0, sizeof(storage_data));
+	ret = g_see_dev->read_secure_storage(data_name, 0, SEE_MAX_DATA_SIZE,
+			&storage_data);
+	if (ret) {
+		log_err("Failed to read secure storage (0x%08x)\n", ret);
+		err = E_SECURITY_ERROR;
+		goto exit;
+	}
+
+	if ((offset + read_size) > storage_data.length) {
+		read_size = storage_data.length - offset;
+	}
+
+	*data = malloc(read_size);
+	if (!data) {
+		err = E_NO_MEM;
+		goto exit;
+	}
+
+	memcpy(*data, storage_data.data + offset, read_size);
+	*data_size = read_size;
+
+exit:
+	if (storage_data.data)
+		free(storage_data.data);
+
+	return err;
+}
+
+artik_error os_security_remove_secure_storage(artik_security_handle handle,
+		const char *data_name)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+
+	if (!node || !data_name)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->delete_secure_storage)
+		return E_NOT_SUPPORTED;
+
+	if (g_see_dev->delete_secure_storage(data_name) != 0)
+		return E_SECURITY_ERROR;
+
+	return S_OK;
+}
+
+artik_error os_security_aes_encryption(artik_security_handle handle,
+		unsigned int aes_mode, const char *key_name, const unsigned char *iv,
+		unsigned int iv_size, const unsigned char *input,
+		unsigned int input_size, unsigned char **output,
+		unsigned int *output_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data;
+	see_data output_data;
+	see_data iv_data;
+	int ret = 0;
+
+	if (!node || !key_name || !input || input_size == 0 || !output ||
+			output_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->aes_encryption)
+		return E_NOT_SUPPORTED;
+
+	iv_data.data = (unsigned char *)iv;
+	iv_data.length = iv_size;
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+	ret = g_see_dev->aes_encryption(aes_mode, key_name, &iv_data, &input_data,
+			&output_data);
+	if (ret) {
+		log_err("Failed to AES encrypt (0x%08x)", ret);
+		return E_SECURITY_ERROR;
+	}
+
+	*output = output_data.data;
+	*output_size = output_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_aes_decryption(artik_security_handle handle,
+		unsigned int aes_mode, const char *key_name, const unsigned char *iv,
+		unsigned int iv_size, const unsigned char *input,
+		unsigned int input_size, unsigned char **output,
+		unsigned int *output_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data;
+	see_data output_data;
+	see_data iv_data;
+	int ret = 0;
+
+	if (!node || !key_name || !input || input_size == 0 || !output ||
+			output_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->aes_encryption)
+		return E_NOT_SUPPORTED;
+
+	iv_data.data = (unsigned char *)iv;
+	iv_data.length = iv_size;
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+	ret = g_see_dev->aes_decryption(aes_mode, key_name, &iv_data, &input_data,
+			&output_data);
+	if (ret) {
+		log_err("Failed to AES decrypt (0x%08x)", ret);
+		return E_SECURITY_ERROR;
+	}
+
+	*output = output_data.data;
+	*output_size = output_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_rsa_encryption(artik_security_handle handle,
+		unsigned int rsa_mode, const char *key_name, const unsigned char *input,
+		unsigned int input_size, unsigned char **output,
+		unsigned int *output_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data, output_data;
+	int ret = 0;
+
+	if (!node || !key_name || !input || input_size == 0 || !output ||
+			output_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->rsa_encryption)
+		return E_NOT_SUPPORTED;
+
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+	ret = g_see_dev->rsa_encryption(rsa_mode, key_name, &input_data,
+			&output_data);
+	if (ret) {
+		log_err("Failed to RSA encrypt (0x%08x)", ret);
+		return E_SECURITY_ERROR;
+	}
+
+	*output = output_data.data;
+	*output_size = output_data.length;
+
+	return S_OK;
+}
+
+artik_error os_security_rsa_decryption(artik_security_handle handle,
+		unsigned int rsa_mode, const char *key_name, const unsigned char *input,
+		unsigned int input_size, unsigned char **output,
+		unsigned int *output_size)
+{
+	security_node *node = (security_node *)artik_list_get_by_handle(
+			requested_nodes, (ARTIK_LIST_HANDLE) handle);
+	see_data input_data;
+	see_data output_data;
+
+	if (!node || !key_name || !input || input_size == 0 || !output ||
+			output_size == 0)
+		return E_BAD_ARGS;
+
+	if (!g_see_dev || !g_see_dev->rsa_encryption)
+		return E_NOT_SUPPORTED;
+
+	input_data.data = (unsigned char *)input;
+	input_data.length = input_size;
+	if (g_see_dev->rsa_decryption(rsa_mode, key_name, &input_data,
+			&output_data) != 0)
+		return E_SECURITY_ERROR;
+
+	*output = output_data.data;
+	*output_size = output_data.length;
+
 	return S_OK;
 }
 
@@ -529,16 +942,16 @@ static int x509_name_cmp(const mbedtls_x509_name *a, const mbedtls_x509_name *b)
 			return -1;
 
 		/* type */
-		if (a->oid.tag != b->oid.tag
-			|| a->oid.len != b->oid.len
-			|| memcmp(a->oid.p, b->oid.p, b->oid.len) != 0)
+		if (a->oid.tag != b->oid.tag || a->oid.len != b->oid.len ||
+				memcmp(a->oid.p, b->oid.p, b->oid.len) != 0) {
 			return -1;
+		}
 
 		/* value */
-		if (a->val.tag != b->val.tag
-			|| a->val.len != b->val.len
-			|| memcmp(a->val.p, b->val.p, b->val.len) != 0)
+		if (a->val.tag != b->val.tag || a->val.len != b->val.len ||
+				memcmp(a->val.p, b->val.p, b->val.len) != 0) {
 			return -1;
+		}
 
 		/* structure of the list of sets */
 		if (a->next_merged != b->next_merged)
@@ -569,9 +982,9 @@ static artik_error check_pkcs7_validity(signed_data *sig_data)
 			continue;
 		}
 
-		if (sig_data->signer.serial.len == cert->issuer_id.len
-			&& memcmp(sig_data->signer.serial.p,
-					  cert->issuer_id.p, cert->issuer_id.len) == 0) {
+		if (sig_data->signer.serial.len == cert->issuer_id.len &&
+				memcmp(sig_data->signer.serial.p, cert->issuer_id.p,
+					cert->issuer_id.len) == 0) {
 			log_dbg("Issuer serial number does not match.");
 			cert = cert->next;
 			continue;
@@ -580,13 +993,12 @@ static artik_error check_pkcs7_validity(signed_data *sig_data)
 		if ((cert->ext_types & MBEDTLS_X509_EXT_EXTENDED_KEY_USAGE) == 0) {
 			log_dbg("Extended key usage extension not found.");
 			cert = cert->next;
-			continue;;
+			continue;
 		}
 
-		if (mbedtls_x509_crt_check_extended_key_usage(
-				cert,
-				MBEDTLS_OID_CODE_SIGNING,
-				MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING)) != 0) {
+		if (mbedtls_x509_crt_check_extended_key_usage(cert,
+					MBEDTLS_OID_CODE_SIGNING,
+					MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING)) != 0) {
 			log_dbg("Signer certificate verification failed: The purpose of the certificate is not digitalSignature.");
 			cert = cert->next;
 			continue;
@@ -596,12 +1008,12 @@ static artik_error check_pkcs7_validity(signed_data *sig_data)
 	}
 
 	if (cert == NULL) {
-		log_err("Issuer certificate not found.");
+		log_dbg("Issuer certificate not found.");
 		return E_SECURITY_INVALID_PKCS7;
 	}
 
 	if (sig_data->signer.digest_alg_id != MBEDTLS_MD_SHA256) {
-		log_err("Only verification with SHA256 is supported.");
+		log_dbg("Only verification with SHA256 is supported.");
 		return E_NOT_SUPPORTED;
 	}
 
@@ -609,9 +1021,11 @@ static artik_error check_pkcs7_validity(signed_data *sig_data)
 	return S_OK;
 }
 
-static artik_error initialize_md_context(verify_node *node, signed_data *sig_data)
+static artik_error initialize_md_context(verify_node *node,
+		signed_data *sig_data)
 {
-	const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(sig_data->signer.digest_alg_id);
+	const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(
+			sig_data->signer.digest_alg_id);
 
 	if (!md_info) {
 		log_dbg("SHA256 is not supported by mbedtls.");
@@ -635,7 +1049,7 @@ static artik_error initialize_md_context(verify_node *node, signed_data *sig_dat
 
 static artik_error copy_node_data(verify_node *node, signed_data *sig_data)
 {
-	size_t data_digest_len =  sig_data->signer.authenticated_attributes.digest.len;
+	size_t data_digest_len = sig_data->signer.authenticated_attributes.digest.len;
 	size_t signed_digest_len = sig_data->signer.encrypted_digest.len;
 	size_t message_data_len = sig_data->signer.authenticated_attributes.raw.len;
 
@@ -660,15 +1074,18 @@ static artik_error copy_node_data(verify_node *node, signed_data *sig_data)
 	node->signed_digest.len = signed_digest_len;
 	node->message_data.len = message_data_len;
 
-	memcpy(node->data_digest.p, sig_data->signer.authenticated_attributes.digest.p, data_digest_len);
-	memcpy(node->signed_digest.p, sig_data->signer.encrypted_digest.p, signed_digest_len);
-	memcpy(node->message_data.p, sig_data->signer.authenticated_attributes.raw.p, message_data_len);
+	memcpy(node->data_digest.p,
+			sig_data->signer.authenticated_attributes.digest.p, data_digest_len);
+	memcpy(node->signed_digest.p,
+			sig_data->signer.encrypted_digest.p, signed_digest_len);
+	memcpy(node->message_data.p,
+			sig_data->signer.authenticated_attributes.raw.p, message_data_len);
 	*(node->message_data.p) = 0x31;
 
 	return S_OK;
 }
 
-artik_error os_verify_signature_init(artik_security_handle *handle,
+artik_error os_security_verify_signature_init(artik_security_handle *handle,
 		const char *signature_pem, const char *root_ca,
 		const artik_time *signing_time_in, artik_time *signing_time_out)
 {
@@ -684,20 +1101,17 @@ artik_error os_verify_signature_init(artik_security_handle *handle,
 	if (!handle)
 		return E_BAD_ARGS;
 
-	verify_node *node = (verify_node *)artik_list_add(&verify_nodes, 0, sizeof(verify_node));
+	verify_node *node = (verify_node *) artik_list_add(&verify_nodes, 0,
+			sizeof(verify_node));
 
 	if (!node)
 		return E_NO_MEM;
 
 	mbedtls_pem_init(&pem_ctx);
 
-	if (mbedtls_pem_read_buffer(&pem_ctx,
-								"-----BEGIN PKCS7-----",
-								"-----END PKCS7-----",
-								(unsigned char *)signature_pem,
-								NULL,
-								0,
-								&buf_pkcs7.len) != 0) {
+	if (mbedtls_pem_read_buffer(&pem_ctx, "-----BEGIN PKCS7-----",
+				"-----END PKCS7-----", (unsigned char *)signature_pem, NULL, 0,
+				&buf_pkcs7.len) != 0) {
 		log_dbg("failed to parse signature_pem.");
 		err = E_SECURITY_INVALID_PKCS7;
 		goto cleanup_node;
@@ -707,7 +1121,8 @@ artik_error os_verify_signature_init(artik_security_handle *handle,
 	buf_pkcs7.len = pem_ctx.buflen;
 
 	mbedtls_x509_crt_init(&x509_crt_root_ca);
-	ret = mbedtls_x509_crt_parse(&x509_crt_root_ca, (unsigned char *)root_ca, strlen(root_ca)+1);
+	ret = mbedtls_x509_crt_parse(&x509_crt_root_ca, (unsigned char *)root_ca,
+			strlen(root_ca) + 1);
 	if (ret != 0) {
 		log_dbg("Failed to parse root ca certificate (err %d).", ret);
 		err = E_SECURITY_INVALID_X509;
@@ -728,13 +1143,12 @@ artik_error os_verify_signature_init(artik_security_handle *handle,
 	signing_time.day_of_week = -1;
 	signing_time.msecond = 0;
 
-	log_info("SigningTime: %02d/%02d/%d %02d:%02d:%02d\n",
-			 signing_time.month, signing_time.day, signing_time.year,
-			 signing_time.hour, signing_time.minute, signing_time.second);
+	log_info("SigningTime: %02d/%02d/%d %02d:%02d:%02d\n", signing_time.month,
+			signing_time.day, signing_time.year, signing_time.hour,
+			signing_time.minute, signing_time.second);
 
 	if (signing_time_out)
 		memcpy(signing_time_out, &signing_time, sizeof(artik_time));
-
 
 	if (signing_time_in) {
 		artik_time_module *time = (artik_time_module *)artik_request_api_module("time");
@@ -761,8 +1175,8 @@ artik_error os_verify_signature_init(artik_security_handle *handle,
 	node->cert = sig_data.cert;
 	node->chain = sig_data.chain;
 	node->digest_alg_id = sig_data.signer.digest_alg_id;
-	node->node.handle = (ARTIK_LIST_HANDLE)node;
-	*handle = (artik_security_handle)node;
+	node->node.handle = (ARTIK_LIST_HANDLE) node;
+	*handle = (artik_security_handle) node;
 
 cleanup:
 	mbedtls_x509_crt_free(&x509_crt_root_ca);
@@ -770,15 +1184,16 @@ cleanup_pem:
 	mbedtls_pem_free(&pem_ctx);
 cleanup_node:
 	if (err != S_OK)
-		artik_list_delete_node(&verify_nodes, (artik_list *)node);
+		artik_list_delete_node(&verify_nodes, (artik_list *) node);
 
 	return err;
 }
 
-artik_error os_verify_signature_update(artik_security_handle handle,
-		unsigned char *data, unsigned int data_len)
+artik_error os_security_verify_signature_update(artik_security_handle handle,
+		const unsigned char *data, unsigned int data_len)
 {
-	verify_node *node = (verify_node *)artik_list_get_by_handle(verify_nodes, (ARTIK_LIST_HANDLE)handle);
+	verify_node *node = (verify_node *) artik_list_get_by_handle(verify_nodes,
+			(ARTIK_LIST_HANDLE) handle);
 
 	if (!node || !data || !data_len)
 		return E_BAD_ARGS;
@@ -791,14 +1206,15 @@ artik_error os_verify_signature_update(artik_security_handle handle,
 	return S_OK;
 }
 
-artik_error os_verify_signature_final(artik_security_handle handle)
+artik_error os_security_verify_signature_final(artik_security_handle handle)
 {
 	artik_error err = S_OK;
 	int ret = 0;
 	unsigned char md_dat[MBEDTLS_MD_MAX_SIZE];
 	unsigned char hash[MBEDTLS_MD_MAX_SIZE];
 	unsigned char md_len;
-	verify_node *node = (verify_node *)artik_list_get_by_handle(verify_nodes, (ARTIK_LIST_HANDLE)handle);
+	verify_node *node = (verify_node *) artik_list_get_by_handle(verify_nodes,
+			(ARTIK_LIST_HANDLE) handle);
 
 	if (!node)
 		return E_BAD_ARGS;
@@ -813,26 +1229,24 @@ artik_error os_verify_signature_final(artik_security_handle handle)
 	md_len = mbedtls_md_get_size(node->md_ctx.md_info);
 
 	/* Compare with the signer info digest */
-	if (md_len != node->data_digest.len || memcmp(node->data_digest.p, md_dat, md_len)) {
+	if (md_len != node->data_digest.len ||
+			memcmp(node->data_digest.p, md_dat, md_len)) {
 		log_dbg("Computed digest mismatch.");
 		err = E_SECURITY_DIGEST_MISMATCH;
 		goto cleanup;
 	}
 
 	/* Compute hash of the message */
-	if (mbedtls_md(node->md_ctx.md_info, node->message_data.p, node->message_data.len, hash) != 0) {
+	if (mbedtls_md(node->md_ctx.md_info, node->message_data.p,
+				node->message_data.len, hash) != 0) {
 		log_dbg("Failed to compute hash of AuthenticatedAttribute.");
 		err = E_SECURITY_SIGNATURE_MISMATCH;
 		goto cleanup;
 	}
 
-	/* Verify signature of the message*/
-	ret = mbedtls_pk_verify(
-		&node->cert->pk,
-		node->digest_alg_id, hash,
-		0,
-		node->signed_digest.p,
-		node->signed_digest.len);
+	/* Verify signature of the message */
+	ret = mbedtls_pk_verify(&node->cert->pk, node->digest_alg_id, hash, 0,
+			node->signed_digest.p, node->signed_digest.len);
 	if (ret != 0) {
 		log_dbg("Signature verification failed. (err %d)", ret);
 		err = E_SECURITY_SIGNATURE_MISMATCH;
@@ -846,14 +1260,13 @@ cleanup:
 	free(node->message_data.p);
 
 	mbedtls_x509_crt_free(node->chain);
-	artik_list_delete_node(&verify_nodes, (artik_list *)node);
+	artik_list_delete_node(&verify_nodes, (artik_list *) node);
 
 	return err;
 }
 
-artik_error os_convert_pem_to_der(const char *pem_data,
-		unsigned char **der_data,
-		size_t *length)
+artik_error os_security_convert_pem_to_der(const char *pem_data,
+		unsigned char **der_data, unsigned int *length)
 {
 	int ret = 0;
 	char *begin_tag = NULL;
@@ -878,20 +1291,21 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 		begin_tag = PEM_BEGIN_EC_PRIV_KEY;
 		end_tag = PEM_END_EC_PRIV_KEY;
 	} else {
-		log_err("Unknown PEM or wrong format");
+		log_dbg("Unknown PEM or wrong format");
 		return E_SECURITY_ERROR;
 	}
 
 	mbedtls_pem_init(&pem);
-	ret = mbedtls_pem_read_buffer(&pem, begin_tag, end_tag, (const unsigned char*)pem_data, NULL, 0, &len);
+	ret = mbedtls_pem_read_buffer(&pem, begin_tag, end_tag,
+			(const unsigned char *)pem_data, NULL, 0, &len);
 	if (ret) {
-		log_err("Failed to convert PEM to DER (err = %X)", ret);
+		log_dbg("Failed to convert PEM to DER (err = %X)", ret);
 		mbedtls_pem_free(&pem);
 		return E_SECURITY_ERROR;
 	}
 
 	if (pem.buflen <= 0) {
-		log_err("Wrong size of pem");
+		log_dbg("Wrong size of pem");
 		mbedtls_pem_free(&pem);
 		return E_SECURITY_ERROR;
 	}
@@ -899,7 +1313,7 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 	*der_data = malloc(pem.buflen);
 
 	if (!*der_data) {
-		log_err("Not enough memory to allocate der_data");
+		log_dbg("Not enough memory to allocate der_data");
 		mbedtls_pem_free(&pem);
 		return E_NO_MEM;
 	}
@@ -908,5 +1322,56 @@ artik_error os_convert_pem_to_der(const char *pem_data,
 	*length = pem.buflen;
 	mbedtls_pem_free(&pem);
 
+	return S_OK;
+}
+
+artik_error os_security_get_ec_pubkey_from_cert(const char *cert, char **key)
+{
+	int ret = 0;
+	mbedtls_x509_crt x509_cert;
+	unsigned char buf[2048];
+	size_t key_len = 0;
+
+	if (!cert || !key || *key)
+		return E_BAD_ARGS;
+
+	log_dbg("");
+
+	mbedtls_x509_crt_init(&x509_cert);
+
+	ret = mbedtls_x509_crt_parse(&x509_cert, (unsigned char *)cert,
+			strlen(cert) + 1);
+	if (ret) {
+		log_err("Failed to parse certificate (err=%d)", ret);
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_ACCESS_DENIED;
+	}
+
+	memset(&buf, 0, sizeof(buf));
+
+	ret = mbedtls_pk_write_pubkey_pem(&x509_cert.pk, buf, 2048);
+	if (ret) {
+		log_err("Failed to write pubkey PEM (err=%d)", ret);
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_ACCESS_DENIED;
+	}
+
+	key_len = strlen((char *)buf) + 1;
+	if (key_len <= 0) {
+		log_err("Wrong size of key");
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_SECURITY_ERROR;
+	}
+
+	*key = malloc(key_len);
+	if (!*key) {
+		log_err("Not enough memory to allocate key");
+		mbedtls_x509_crt_free(&x509_cert);
+		return E_NO_MEM;
+	}
+
+	memcpy(*key, buf, key_len);
+
+	mbedtls_x509_crt_free(&x509_cert);
 	return S_OK;
 }
