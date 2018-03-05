@@ -88,7 +88,7 @@ artik_error os_i2c_read(artik_i2c_config *config, char *buf, int len)
 {
 	int fd;
 	char devname[I2C_DEV_MAX_LEN];
-	int ret;
+	int ret = S_OK;
 
 	snprintf(devname, I2C_DEV_MAX_LEN, "/dev/i2c-%d", config->id);
 	fd = open(devname, O_SYNC | O_RDOK);
@@ -116,14 +116,14 @@ artik_error os_i2c_read(artik_i2c_config *config, char *buf, int len)
 exit:
 	close(fd);
 
-	return S_OK;
+	return ret;
 }
 
 artik_error os_i2c_write(artik_i2c_config *config, char *buf, int len)
 {
 	int fd;
 	char devname[I2C_DEV_MAX_LEN];
-	int ret;
+	int ret = S_OK;
 
 	snprintf(devname, I2C_DEV_MAX_LEN, "/dev/i2c-%d", config->id);
 	fd = open(devname, O_SYNC | O_WRONLY);
@@ -150,7 +150,7 @@ artik_error os_i2c_write(artik_i2c_config *config, char *buf, int len)
 exit:
 	close(fd);
 
-	return S_OK;
+	return ret;
 }
 
 artik_error os_i2c_read_register(artik_i2c_config *config, unsigned int reg,
