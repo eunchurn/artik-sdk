@@ -759,7 +759,7 @@ artik_error os_http_post_async(const char *url, artik_http_headers *headers,
 		void *user_data, artik_ssl_config *ssl)
 {
 	struct _http_param args = {
-			(char *) url, (char *) body, WGET_MODE_GET,
+			(char *) url, (char *) body, WGET_MODE_POST,
 			headers, NULL, NULL, ssl, NULL, callback, user_data
 	};
 
@@ -771,7 +771,7 @@ artik_error os_http_put_async(const char *url, artik_http_headers *headers,
 		void *user_data, artik_ssl_config *ssl)
 {
 	struct _http_param args = {
-			(char *) url, (char *) body, WGET_MODE_GET,
+			(char *) url, (char *) body, WGET_MODE_PUT,
 			headers, NULL, NULL, ssl, NULL, callback, user_data
 	};
 
@@ -783,7 +783,7 @@ artik_error os_http_delete_async(const char *url, artik_http_headers *headers,
 		artik_ssl_config *ssl)
 {
 	struct _http_param args = {
-		(char *) url, (char *) NULL, WGET_MODE_GET,
+		(char *) url, (char *) NULL, WGET_MODE_DELETE,
 		headers, NULL, NULL, ssl, NULL, callback, user_data
 	};
 
