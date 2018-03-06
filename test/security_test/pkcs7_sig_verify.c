@@ -23,9 +23,9 @@ static void usage(void)
 	printf("-r: root CA - X509 root CA certificate in PEM format\n");
 	printf("-b: signed data - file containing the signed data\n");
 	printf("-d: signing date (optional) - current signing date for rollback detection\n");
-	printf("-u: use secure element artik/manufacturer\n");
 	printf("\tFormat is \"%s\"\n", INPUT_TIME_FORMAT);
 	printf("\tIf not provided, rollback detection is not performed\n");
+	printf("-u: use secure element artik/manufacturer\n");
 	printf("\nA JSON formatted string with verification result and error information is output on stdout\n");
 	printf("Return value contains an error code among the following ones\n");
 	printf("\t0: success\n");
