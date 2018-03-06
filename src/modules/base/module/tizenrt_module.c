@@ -37,9 +37,9 @@ typedef struct {
 
 	const artik_api_module *modules;
 
-} tinyara_platform;
+} tizenrt_platform;
 
-static const tinyara_platform artik_api_modules[] = {
+static const tizenrt_platform artik_api_modules[] = {
 	{ ARTIK05x, artik_api_a05x_modules },
 	{ -1,		NULL}
 };

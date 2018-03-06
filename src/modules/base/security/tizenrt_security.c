@@ -27,7 +27,7 @@
 #include <artik_security.h>
 #include <artik_time.h>
 
-#include "tinyara/tinyara_security.h"
+#include "tizenrt/tizenrt_security.h"
 
 typedef struct {
 	artik_list node;

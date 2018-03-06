@@ -61,50 +61,50 @@ CFLAGS += -I$(TOPDIR)/../apps/include/netutils
 CFLAGS += -D__TINYARA__
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/artik_log.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/tinyara_log.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/tizenrt_log.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/module/artik_module.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/module/tinyara_module.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/tinyara_time.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/module/tizenrt_module.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/artik_time.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/tizenrt_time.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/artik_security.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tinyara_security.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tinyara/mbedtls_pkcs7_parser.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt_security.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt/mbedtls_pkcs7_parser.c
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/artik_adc.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/tinyara_adc.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/tizenrt_adc.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/artik_gpio.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/tinyara_gpio.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/tizenrt_gpio.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/artik_i2c.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/tinyara_i2c.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/tizenrt_i2c.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/artik_pwm.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/tinyara_pwm.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/tizenrt_pwm.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/spi/artik_spi.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/spi/tinyara_spi.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/spi/tizenrt_spi.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/artik_serial.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/tinyara_serial.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/tizenrt_serial.c
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/artik_network.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tinyara_network.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tinyara/dns_utils.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt_network.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt/dns_utils.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/artik_http.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/common_http.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tinyara_http.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tinyara/webclient.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt_http.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt/webclient.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/artik_websocket.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/tinyara_websocket.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/tizenrt_websocket.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/cloud/artik_cloud.c
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/wifi/artik_wifi.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/wifi/tinyara/tinyara_wifi.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/wifi/tizenrt/tizenrt_wifi.c
 
 CFLAGS += -I$(TOPDIR)/../apps/netutils/mqtt/lib
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/artik_mqtt.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/os_mqtt.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/tinyara/mqtt_client.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/tizenrt/mqtt_client.c
 
 CFLAGS += -I$(TOPDIR)/../external/wakaama-client/lwm2mclient
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/lwm2m/artik_lwm2m.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/lwm2m/tinyara_lwm2m.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/lwm2m/tizenrt_lwm2m.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))

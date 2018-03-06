@@ -35,7 +35,7 @@
 #include "common_http.h"
 #include "os_http.h"
 #include "tls/see_api.h"
-#include "tinyara/tinyara_http.h"
+#include "tizenrt/tizenrt_http.h"
 
 #define ARTIK_HTTP_RESPONSE_MAX_SIZE	4096
 

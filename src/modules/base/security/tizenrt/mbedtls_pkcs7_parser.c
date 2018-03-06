@@ -16,7 +16,7 @@
  *
  */
 
-#include "tinyara_security.h"
+#include "tizenrt_security.h"
 
 #include <artik_log.h>
 

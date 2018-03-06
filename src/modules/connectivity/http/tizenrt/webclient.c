@@ -70,7 +70,7 @@
 #include <tinyara/version.h>
 
 #include <apps/netutils/netlib.h>
-#include "tinyara_http.h"
+#include "tizenrt_http.h"
 #include "artik_log.h"
 
 #if defined(CONFIG_NETUTILS_CODECS)
