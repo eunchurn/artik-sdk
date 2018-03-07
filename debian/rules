@@ -27,6 +27,7 @@ override_dh_auto_configure:
 		-DCMAKE_SYSROOT=$(SYSROOT) \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_BUILD_TEST=1 \
+		-DCMAKE_BUILD_EXAMPLES=1 \
 		-DCMAKE_ZIGBEE_TYPE=$(ZIGBEE_TYPE)
 
 override_dh_shlibdeps:

@@ -22,7 +22,7 @@
 #include <artik_list.h>
 #include <artik_loop.h>
 #include <artik_module.h>
-#include "artik_zigbee_test_common.h"
+#include "artik_zigbee_common.h"
 
 static artik_list *test_device_list;
 

@@ -27,7 +27,7 @@
 #include <artik_module.h>
 #include <artik_platform.h>
 #include <artik_log.h>
-#include "artik_zigbee_test_common.h"
+#include "artik_zigbee_common.h"
 
 #define EASY_PJOIN_DURATION		0x3C
 #define EASY_IDENTIFY_DURATION		10 /* seconds */

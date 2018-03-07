@@ -240,6 +240,23 @@ Summary: Test programs to validate the ARTIK SDK.
 %description tests
 This package contains unit tests for the functions exposed by the ARTIK SDK.
 
+%package examples
+Group: Development/Libraries
+Requires: %{name}-base = %{version}-%{release}
+Requires: %{name}-systemio = %{version}-%{release}
+Requires: %{name}-connectivity = %{version}-%{release}
+Requires: %{name}-media = %{version}-%{release}
+Requires: %{name}-bluetooth = %{version}-%{release}
+Requires: %{name}-sensor = %{version}-%{release}
+Requires: %{name}-wifi = %{version}-%{release}
+Requires: %{name}-zigbee = %{version}-%{release}
+Requires: %{name}-lwm2m = %{version}-%{release}
+Requires: %{name}-mqtt = %{version}-%{release}
+Summary: Example program of the ARTIK SDK
+
+%description examples
+This package contains example program of the ARTIK SDK.
+
 %prep
 %setup -q
 
@@ -248,12 +265,14 @@ echo %{_host_cpu}
 %if %(echo %arm | egrep -c %{_host_cpu})
 cmake . -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_BUILD_TEST=1 \
+	-DCMAKE_BUILD_EXAMPLES=1 \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %else
 cmake . -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_TOOLCHAIN_FILE=target/toolchain-cross-arm.cmake \
         -DCMAKE_SYSROOT=%{_sysrootdir} \
         -DCMAKE_BUILD_TEST=1 \
+	-DCMAKE_BUILD_EXAMPLES=1 \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %define __strip "arm-linux-gnueabihf-strip"
 %endif
@@ -377,6 +396,10 @@ make install DESTDIR=%{buildroot}
 %files tests
 %defattr(-,root,root)
 %{_libdir}/artik-sdk/tests/*
+
+%files examples
+%defattr(-, root,root)
+%{_libdir}/artik-sdk/examples/*
 
 %debug_package
 

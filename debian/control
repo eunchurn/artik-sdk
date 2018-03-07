@@ -159,6 +159,21 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 	libartik-sdk-mqtt,
 Description: Test programs to validate the ARTIK SDK.
 
+Package: libartik-sdk-examples
+Architecture: any-arm arm64
+Depends: ${shlibs:Depends}, ${misc:Depends},
+	libartik-sdk-base,
+	libartik-sdk-systemio,
+	libartik-sdk-connectivity,
+	libartik-sdk-media,
+	libartik-sdk-bluetooth,
+	libartik-sdk-sensor,
+	libartik-sdk-wifi,
+	libartik-sdk-zigbee,
+	libartik-sdk-lwm2m,
+	libartik-sdk-mqtt,
+Description: Example programs of the ARTIK SDK.
+
 Package: libartik-sdk
 Architecture: any-arm arm64
 Depends: ${shlibs:Depends}, ${misc:Depends},
