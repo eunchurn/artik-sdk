@@ -71,6 +71,7 @@ typedef struct {
 	artik_list node;
 	char cookie[4];
 	ENGINE *engine;
+	int refcnt;
 } security_node;
 
 typedef struct {
@@ -220,7 +221,23 @@ artik_error os_security_request(artik_security_handle *handle)
 {
 	ENGINE *engine = NULL;
 	char *load_dir = NULL;
-	security_node *node = (security_node *) artik_list_add(&requested_node,
+	security_node *node = NULL;
+
+	/*
+	 * If the module was already requested within the same process,
+	 * just return a reference to a single instance, and increment
+	 * reference counter to know when to destroy the instance.
+	 */
+	if (artik_list_size(requested_node)) {
+		node = (security_node *)artik_list_get_by_pos(requested_node, 0);
+		if (!node)
+			return E_ACCESS_DENIED;
+		node->refcnt++;
+		*handle = (artik_security_handle)node;
+		return S_OK;
+	}
+
+	node = (security_node *) artik_list_add(&requested_node,
 						0, sizeof(security_node));
 
 	if (!node)
@@ -259,6 +276,7 @@ artik_error os_security_request(artik_security_handle *handle)
 
 	/* Create a new node in the requested list */
 	node->engine = engine;
+	node->refcnt++;
 	strncpy(node->cookie, COOKIE_SECURITY, sizeof(node->cookie));
 
 	return S_OK;
@@ -273,9 +291,11 @@ artik_error os_security_release(artik_security_handle handle)
 	if (!node || strncmp(node->cookie, COOKIE_SECURITY, sizeof(node->cookie)))
 		return E_BAD_ARGS;
 
+	if (--node->refcnt > 0)
+		return S_OK;
+
 	/* Unload the engine and clean up */
 	if (node->engine) {
-		/* Code is not obvious, taken from Oleg's sdrclient lib */
 		OBJ_cleanup();
 		EVP_cleanup();
 		ENGINE_unregister_ciphers(node->engine);
