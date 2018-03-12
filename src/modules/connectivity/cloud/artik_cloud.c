@@ -1911,8 +1911,10 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 
 	node = (cloud_node *)artik_list_add(&requested_node,
 				(ARTIK_LIST_HANDLE)*handle, sizeof(cloud_node));
-	if (!node)
-		return E_NO_MEM;
+	if (!node) {
+		ret = E_NO_MEM;
+		goto exit;
+	}
 
 	node->data.access_token = strndup(access_token, strlen(access_token));
 	node->data.device_id = strndup(device_id, strlen(device_id));
@@ -1933,6 +1935,11 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 
 exit:
 	artik_release_api_module(websocket);
+
+	if (ret != S_OK && *handle != NULL) {
+		websocket->websocket_close_stream(*handle);
+		*handle = NULL;
+	}
 
 	return ret;
 }
