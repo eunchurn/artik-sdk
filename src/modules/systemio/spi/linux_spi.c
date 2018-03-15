@@ -196,7 +196,8 @@ artik_error os_spi_write(artik_spi_config *config, char *buf, int len)
 	data.tx_buf = (unsigned long)buf;
 	data.rx_buf = (unsigned long)NULL;
 	data.len    = len;
-
+	data.speed_hz = config->max_speed;
+	data.bits_per_word = config->bits_per_word;
 
 	if (ioctl(fd, SPI_IOC_MESSAGE(1), &data) < 0) {
 		log_err("%s: Failed to write (%d)", devname, errno);
@@ -244,6 +245,9 @@ artik_error os_spi_read_write(artik_spi_config *config, char *tx_buf,
 	data.tx_buf = (unsigned long)tx_buf;
 	data.rx_buf = (unsigned long)rx_buf;
 	data.len    = len;
+	data.speed_hz = config->max_speed;
+	data.bits_per_word = config->bits_per_word;
+
 	if (ioctl(fd, SPI_IOC_MESSAGE(1), &data) < 0) {
 		log_err("%s: Failed to read/write operation at address 0x%04x (%d)",
 			devname, tx_buf[0], errno);
