@@ -504,8 +504,10 @@ static pthread_addr_t _http_method(void *arg)
 
 	ret = http_client_send_request(&request, ssl, &response);
 	if (ret < 0 || response.entity_len <= 0) {
-		log_err("error has detected while http process(ret: %d, len: %d)\n", ret,
-				response.entity_len);
+		log_err("error has detected while http process(ret: %d, len: %d, status: %d)\n",
+				ret, response.entity_len, response.status);
+		if (param->status)
+			*param->status = response.status;
 		http_client_response_release(&response);
 		ret = E_HTTP_ERROR;
 		goto exit;
