@@ -67,17 +67,22 @@ artik_error artik::Network::dhcp_server_stop() {
   return m_module->dhcp_server_stop(this->m_dhcp_server_handle);
 }
 
-artik_error artik::Network::get_online_status(bool *online_status) {
-  return m_module->get_online_status(online_status);
+artik_error artik::Network::get_online_status(const char *addr, int timeout,
+    bool *online_status) {
+  return m_module->get_online_status(addr, timeout, online_status);
 }
 
 artik_error artik::Network::add_watch_online_status(
-    watch_online_status_handle* handle,
-    watch_online_status_callback app_callback, void *user_data) {
-  return m_module->add_watch_online_status(handle, app_callback, user_data);
+    artik_watch_online_status_handle* handle,
+    const char *addr,
+    int interval,
+    int timeout,
+    artik_watch_online_status_callback app_callback, void *user_data) {
+    return m_module->add_watch_online_status(handle, addr, interval,
+       timeout, app_callback, user_data);
 }
 
 artik_error artik::Network::remove_watch_online_status(
-    watch_online_status_handle handle) {
+    artik_watch_online_status_handle handle) {
   return m_module->remove_watch_online_status(handle);
 }

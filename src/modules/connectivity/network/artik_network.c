@@ -16,18 +16,18 @@
  *
  */
 
-#include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
 
 #include <artik_module.h>
 #include <artik_http.h>
-#include <artik_loop.h>
 #include <artik_log.h>
 #include <artik_network.h>
 
+#include <unistd.h>
+
+#include "common_network.h"
 #include "os_network.h"
 
 #define ARTIK_CURRENT_IP_URL	"http://www.checkip.org/"
@@ -49,12 +49,17 @@ static artik_error artik_dhcp_server_start(
 		artik_network_dhcp_server_config *config);
 static artik_error artik_dhcp_server_stop(
 		artik_network_dhcp_server_handle handle);
+static artik_error artik_get_online_status(
+	const char *addr, int timeout, bool *online_status);
 static artik_error artik_add_watch_online_status(
-		watch_online_status_handle * handle,
-		watch_online_status_callback app_callback,
+		artik_watch_online_status_handle * handle,
+		const char *url,
+		int delay,
+		int timeout,
+		artik_watch_online_status_callback app_callback,
 		void *user_data);
 static artik_error artik_remove_watch_online_status(
-		watch_online_status_handle handle);
+		artik_watch_online_status_handle handle);
 
 const artik_network_module network_module = {
 		artik_set_network_config,
@@ -92,7 +97,7 @@ artik_error artik_get_current_public_ip(artik_network_ip *ip)
 	headers.num_fields = ARRAY_SIZE(fields);
 
 	/* Perform the request */
-	ret = http->get(ARTIK_CURRENT_IP_URL, &headers, &response, NULL, false);
+	ret = http->get(ARTIK_CURRENT_IP_URL, &headers, &response, NULL, NULL);
 	if (ret != S_OK)
 		goto exit;
 
@@ -108,25 +113,58 @@ artik_error artik_get_current_public_ip(artik_network_ip *ip)
 			ip->address[size] = '\0';
 		}
 	}
+
+	free(response);
+
 exit:
 	artik_release_api_module(http);
 
 	return ret;
 }
 
-artik_error artik_get_online_status(bool *online_status)
+artik_error artik_get_online_status(const char *addr, int timeout, bool *online_status)
 {
-	artik_network_ip current_ip;
-	artik_error ret = artik_get_current_public_ip(&current_ip);
+	char buf[64];
+	int sock;
+	socklen_t fromlen;
+	struct sockaddr_storage from;
+	struct sockaddr_storage to;
 
-	if (ret == S_OK)
-		*online_status = true;
-	else if (ret == E_HTTP_ERROR) {
-		*online_status = false;
-		ret = S_OK;
+	if (!online_status || !addr || !(timeout > 0))
+		return E_BAD_ARGS;
+
+	log_dbg("");
+
+	*online_status = false;
+
+	int err = resolve(addr, &to);
+
+	if (err != 0)
+		return E_NETWORK_ERROR;
+
+	sock = create_icmp_socket(timeout);
+	if (sock < 0)
+		return E_NETWORK_ERROR;
+
+	if (!os_send_echo(sock, (struct sockaddr *)&to, 0)) {
+		close(sock);
+		return E_NETWORK_ERROR;
 	}
 
-	return ret;
+	size_t len = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+
+	if (len <= 0) {
+		log_dbg("recvfrom: unable to receive data");
+		close(sock);
+		return E_NETWORK_ERROR;
+	}
+	close(sock);
+
+	if (!os_check_echo_response(buf, len, 0))
+		return E_NETWORK_ERROR;
+
+	*online_status = true;
+	return S_OK;
 }
 
 artik_error artik_dhcp_client_start(artik_network_dhcp_client_handle *handle,
@@ -163,15 +201,18 @@ artik_error artik_get_network_config(artik_network_config *config,
 	return os_get_network_config(config, interface);
 }
 
-artik_error artik_add_watch_online_status(watch_online_status_handle *handle,
-				watch_online_status_callback app_callback,
+artik_error artik_add_watch_online_status(artik_watch_online_status_handle *handle,
+				const char *url,
+				int delay,
+				int timeout,
+				artik_watch_online_status_callback app_callback,
 				void *user_data)
 {
-	return os_network_add_watch_online_status(handle, app_callback,
+	return os_network_add_watch_online_status(handle, url, delay, timeout, app_callback,
 							user_data);
 }
 
-artik_error artik_remove_watch_online_status(watch_online_status_handle handle)
+artik_error artik_remove_watch_online_status(artik_watch_online_status_handle handle)
 {
 	return os_network_remove_watch_online_status(handle);
 }

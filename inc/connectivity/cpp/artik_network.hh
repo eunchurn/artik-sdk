@@ -56,11 +56,17 @@ class Network {
   artik_error dhcp_client_stop();
   artik_error dhcp_server_start(artik_network_dhcp_server_config* config);
   artik_error dhcp_server_stop();
-  artik_error get_online_status(bool* online_status);
-  artik_error add_watch_online_status(watch_online_status_handle* handle,
-                                      watch_online_status_callback app_callback,
-                                      void *user_data);
-  artik_error remove_watch_online_status(watch_online_status_handle handle);
+  artik_error get_online_status(const char *addr, int timeout,
+                                      bool* online_status);
+  artik_error add_watch_online_status(
+     artik_watch_online_status_handle* handle,
+     const char *addr,
+     int interval,
+     int timeout,
+     artik_watch_online_status_callback app_callback,
+     void *user_data);
+  artik_error remove_watch_online_status(
+     artik_watch_online_status_handle handle);
 };
 
 }  // namespace artik

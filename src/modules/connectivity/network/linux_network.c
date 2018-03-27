@@ -16,47 +16,71 @@
  *
  */
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <regex.h>
-
 #include <artik_network.h>
 #include <artik_loop.h>
 #include <artik_module.h>
 #include <artik_log.h>
 
-#include <netinet/in.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#include <gio/gio.h>
+#pragma GCC diagnostic pop
+
+#include <arpa/inet.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <arpa/inet.h>
+#include <netdb.h>
 #include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/ip_icmp.h>
+#include <errno.h>
+#include <regex.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "linux/netutils/dhcpc.h"
 #include "linux/netutils/dhcpd.h"
 #include "linux/netutils/netlib.h"
 
 #include "os_network.h"
+#include "common_network.h"
 
 #define ROUTE_EXISTS 17
 
 typedef struct {
 	artik_list *root;
-	int fd;
-	bool current_online_status;
-	int watch_id;
+	int netlink_sock;
+	int icmp_sock;
+	int watch_netlink_id;
+	int watch_icmp_id;
+	GResolver *resolver;
+	artik_loop_module *loop;
 } watch_online_status_t;
 
 typedef struct {
-	watch_online_status_callback callback;
+	artik_watch_online_status_callback callback;
+	char *addr;
+	int interval;
+	int timeout;
 	void *user_data;
 } watch_online_config;
 
 typedef struct {
 	artik_list node;
 	watch_online_config config;
+	artik_loop_module *loop;
+	GResolver *resolver;
+	int sock;
+	bool online_status;
+	int timeout_echo_id;
+	bool update_online_status;
+	struct sockaddr_storage to;
+	bool resolved;
+	bool force;
+	uint16_t seqno;
 } watch_online_node_t;
 
 typedef struct {
@@ -76,8 +100,12 @@ typedef struct {
 	void *dhcpc_handle;
 } dhcp_handle_client;
 
+#define ICMP_HDR_SIZE (sizeof(struct iphdr) + 8)
+#define SOCK_ADDR_IN_ADDR(sa) (((struct sockaddr_in *)(sa))->sin_addr)
+
 static int dhcp_client_renew(artik_network_dhcp_client_handle *handle,
 		const char *interface);
+static void update_online_status(watch_online_node_t *node);
 
 static watch_online_status_t *watch_online_status = NULL;
 
@@ -299,6 +327,192 @@ exit:
 	return ret;
 }
 
+bool os_check_echo_response(char *buf, size_t len, uint16_t seqno)
+{
+	struct iphdr *ip = NULL;
+	struct icmphdr *icp = NULL;
+	pid_t id = getpid();
+
+	if (len >= ICMP_HDR_SIZE) {
+		ip = (struct iphdr *)buf;
+		icp = (struct icmphdr *)(buf + (ip->ihl*4));
+
+		if (icp->type == ICMP_ECHOREPLY
+			&& icp->un.echo.sequence == htons(seqno)
+			&& icp->un.echo.id == id) {
+			return true;
+		}
+	}
+
+	log_dbg("Bad echo response");
+	return false;
+}
+
+bool os_send_echo(int sock, const struct sockaddr *to, uint16_t seqno)
+{
+	int ret;
+	struct icmphdr icp;
+	pid_t id = getpid();
+
+	icp.type = ICMP_ECHO;
+	icp.code = 0;
+	icp.checksum = 0;
+	icp.un.echo.sequence = htons(seqno);
+	icp.un.echo.id = id;
+	icp.checksum = ~chksum(&icp, 8);
+
+	ret = sendto(sock, &icp, 8, 0, to, sizeof(struct sockaddr_in));
+	if (ret <= 0) {
+		log_dbg("sendto: unable to send ICMP request: %s", strerror(errno));
+		return false;
+	}
+
+	return true;
+}
+
+static void timeout_send_echo_callback(void *user_data)
+{
+	update_online_status((watch_online_node_t *)user_data);
+}
+
+static void notify_online_status_change(watch_online_node_t *node, bool status)
+{
+	artik_loop_module *loop = node->loop;
+
+	node->resolved = status;
+	node->update_online_status = false;
+
+	loop->remove_timeout_callback(node->timeout_echo_id);
+	loop->add_timeout_callback(&node->timeout_echo_id, node->config.interval,
+							   timeout_send_echo_callback, node);
+
+	if (status == node->online_status && !node->force)
+		return;
+
+	node->force = false;
+	node->online_status = status;
+	node->resolved = status;
+	node->config.callback(status, node->config.addr, node->config.user_data);
+}
+
+static void timeout_receive_er_callback(void *user_data)
+{
+	watch_online_node_t *node = user_data;
+
+	notify_online_status_change(node, false);
+}
+
+static void send_echo_request(watch_online_node_t *node)
+{
+	artik_loop_module *loop = node->loop;
+
+	loop->add_timeout_callback(&node->timeout_echo_id, node->config.timeout,
+							   timeout_receive_er_callback, node);
+	log_dbg("Send echo request - timeoutid %d", node->timeout_echo_id);
+	os_send_echo(node->sock, (struct sockaddr *)&node->to, node->seqno);
+	node->seqno++;
+}
+
+static void get_addresses(GObject *source, GAsyncResult *res, gpointer user_data)
+{
+	GResolver *resolver = G_RESOLVER(source);
+	GList *addresses, *a;
+	GSocketAddress *sockaddr = NULL;
+	watch_online_node_t *node = (watch_online_node_t *)user_data;
+
+	addresses = g_resolver_lookup_by_name_finish(resolver, res, NULL);
+
+	if (!addresses) {
+		notify_online_status_change(node, false);
+		return;
+	}
+
+	for (a = addresses; a; a = a->next) {
+		if (g_inet_address_get_family(a->data) == G_SOCKET_FAMILY_IPV4) {
+			sockaddr = g_inet_socket_address_new(a->data, 0);
+			break;
+		}
+	}
+
+	if (!sockaddr) {
+		notify_online_status_change((watch_online_node_t *)user_data, false);
+		return;
+	}
+
+	if (!g_socket_address_to_native(sockaddr, &node->to, sizeof(struct sockaddr_storage), NULL)) {
+		notify_online_status_change((watch_online_node_t *)user_data, false);
+		return;
+	}
+
+	node->resolved = true;
+	send_echo_request(node);
+}
+
+static void update_online_status(watch_online_node_t *node)
+{
+	node->update_online_status = true;
+	if (!node->resolved) {
+		g_resolver_lookup_by_name_async(node->resolver, node->config.addr,
+										NULL, get_addresses, node);
+		return;
+	}
+
+	send_echo_request(node);
+}
+
+static int search_node_with_sockaddr(watch_online_node_t *node, struct sockaddr *sock_addr)
+{
+	if (node->to.ss_family != sock_addr->sa_family)
+		return 0;
+
+	if (node->to.ss_family != AF_INET)
+		return 0;
+
+	if (SOCK_ADDR_IN_ADDR(&node->to).s_addr != SOCK_ADDR_IN_ADDR(sock_addr).s_addr)
+		return 0;
+
+	return 1;
+}
+
+static int echo_response_watch(int fd, enum watch_io io, void *user_data)
+{
+	size_t len;
+	char buf[64];
+	socklen_t fromlen = sizeof(struct sockaddr_storage);
+	struct sockaddr_storage from;
+	watch_online_node_t *node;
+
+	if (io & (WATCH_IO_NVAL | WATCH_IO_HUP | WATCH_IO_ERR)) {
+		log_dbg("IO error");
+		return 1;
+	}
+
+	len = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+
+	node =
+		(watch_online_node_t *)artik_list_get_by_check(
+			watch_online_status->root,
+			(ARTIK_LIST_FUNCB)&search_node_with_sockaddr,
+			&from);
+
+	if (!node) {
+#ifndef CONFIG_RELEASE
+		char host[INET6_ADDRSTRLEN];
+
+		getnameinfo((struct sockaddr *)&from, fromlen,
+					host, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST|NI_NUMERICSERV);
+		log_dbg("Node %s not found", host);
+#endif
+		return 1;
+	}
+
+	if (!os_check_echo_response(buf, len, node->seqno - 1))
+		return 1;
+
+	notify_online_status_change(node, true);
+	return 1;
+}
+
 static int network_connection(int fd, enum watch_io io, void *user_data)
 {
 	int len = 0;
@@ -308,10 +522,7 @@ static int network_connection(int fd, enum watch_io io, void *user_data)
 	struct nlmsghdr *hdr = NULL;
 	struct ifinfomsg *infomsg = NULL;
 	struct msghdr msg = { &addr, sizeof(addr), &iov, 1, NULL, 0, 0 };
-	bool check_online_status = false;
-	bool old_online_status = watch_online_status->current_online_status;
-
-	artik_error ret = S_OK;
+	bool online_status = false;
 
 	if (io & (WATCH_IO_NVAL | WATCH_IO_HUP | WATCH_IO_ERR)) {
 		log_dbg("%s netlink error", __func__);
@@ -325,61 +536,78 @@ static int network_connection(int fd, enum watch_io io, void *user_data)
 							NLMSG_NEXT(hdr, len)) {
 		if (hdr->nlmsg_type == NLMSG_DONE ||
 						hdr->nlmsg_type == NLMSG_ERROR)
-			break;
+			return 1;
 
 		if (hdr->nlmsg_type ==  RTM_NEWLINK ||
 					hdr->nlmsg_type == RTM_DELLINK) {
 			infomsg = (struct ifinfomsg *)NLMSG_DATA(hdr);
-			check_online_status = infomsg->ifi_flags & IFF_UP ?
-				!old_online_status : old_online_status;
+			online_status = infomsg->ifi_flags & IFF_UP;
 		} else if (hdr->nlmsg_type == RTM_NEWADDR ||
 						hdr->nlmsg_type == RTM_NEWROUTE)
-			check_online_status = !old_online_status;
+			online_status = true;
 
 		else if (hdr->nlmsg_type == RTM_DELADDR ||
 						hdr->nlmsg_type == RTM_DELROUTE)
-			check_online_status = old_online_status;
+			online_status = false;
 	}
 
-	if (check_online_status) {
-		ret = artik_get_online_status(
-				&watch_online_status->current_online_status);
-		if (ret != S_OK)
-			return 1;
-	}
 
-	if (watch_online_status->current_online_status != old_online_status) {
-		watch_online_node_t *node = (watch_online_node_t *)
-						watch_online_status->root;
-		while (node) {
-			node->config.callback(
-				watch_online_status->current_online_status,
-				node->config.user_data);
-			node = (watch_online_node_t *)node->node.next;
-		}
+	watch_online_node_t *node = NULL;
 
+	for (node = (watch_online_node_t *)watch_online_status->root;
+		node;
+		node = (watch_online_node_t *)node->node.next) {
+		artik_loop_module *loop = node->loop;
+
+		if (node->update_online_status)
+			continue;
+
+		if (node->online_status == online_status)
+			continue;
+
+		log_dbg("remove timeoutid %d", node->timeout_echo_id);
+		loop->remove_timeout_callback(node->timeout_echo_id);
+		update_online_status(node);
 	}
 
 	return 1;
 }
 
+static void clean_watch_online_status(void)
+{
+	watch_online_status->loop->remove_fd_watch(watch_online_status->watch_netlink_id);
+	watch_online_status->loop->remove_fd_watch(watch_online_status->watch_icmp_id);
+	close(watch_online_status->netlink_sock);
+	close(watch_online_status->icmp_sock);
+	artik_release_api_module(watch_online_status->loop);
+	free(watch_online_status);
+	watch_online_status = NULL;
+}
+
 static artik_error initialize_watch_online_status(void)
 {
+	artik_loop_module *loop = artik_request_api_module("loop");
 	artik_error ret = S_OK;
 	struct sockaddr_nl addr;
-	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
-	watch_online_status = (watch_online_status_t *)
-					malloc(sizeof(watch_online_status_t));
-	if (!watch_online_status)
+
+	if (!loop)
 		return E_NO_MEM;
 
-	watch_online_status->fd = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC,
+	watch_online_status = (watch_online_status_t *)
+					malloc(sizeof(watch_online_status_t));
+	if (!watch_online_status) {
+		artik_release_api_module(loop);
+		return E_NO_MEM;
+	}
+
+	watch_online_status->loop = loop;
+	watch_online_status->netlink_sock = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC,
 								NETLINK_ROUTE);
-	if (watch_online_status->fd == -1) {
+	if (watch_online_status->netlink_sock == -1) {
 		log_err("couldn't open NETLINK_ROUTE socket");
 		free(watch_online_status);
 		watch_online_status = NULL;
+		artik_release_api_module(loop);
 		return E_ACCESS_DENIED;
 	}
 
@@ -388,40 +616,71 @@ static artik_error initialize_watch_online_status(void)
 	addr.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV4_ROUTE |
 					(1<<(RTNLGRP_ND_USEROPT-1));
 
-	if (bind(watch_online_status->fd, (struct sockaddr *)&addr,
+	if (bind(watch_online_status->netlink_sock, (struct sockaddr *)&addr,
 							sizeof(addr)) != 0) {
 		log_err("couldn't bind NETLINK_ROUTE socket");
-		close(watch_online_status->fd);
+		close(watch_online_status->netlink_sock);
 		free(watch_online_status);
 		watch_online_status = NULL;
+		artik_release_api_module(loop);
 		return E_ACCESS_DENIED;
 	}
 
-	ret = artik_get_online_status(
-				&watch_online_status->current_online_status);
-	if (ret != S_OK) {
-		log_err("couldn't get initial online status");
-		close(watch_online_status->fd);
+	watch_online_status->icmp_sock = create_icmp_socket(0);
+	if (watch_online_status->icmp_sock == -1) {
+		log_err("cloudn't open ICMP socket");
+		close(watch_online_status->netlink_sock);
 		free(watch_online_status);
 		watch_online_status = NULL;
-		return ret;
+		artik_release_api_module(loop);
+		return E_ACCESS_DENIED;
 	}
 
-	loop->add_fd_watch(watch_online_status->fd,
+	ret = loop->add_fd_watch(watch_online_status->netlink_sock,
 		(WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP |
 		WATCH_IO_NVAL),
 		network_connection,
 		NULL,
-		&(watch_online_status->watch_id));
+		&(watch_online_status->watch_netlink_id));
 
+	if (ret != S_OK) {
+		close(watch_online_status->netlink_sock);
+		close(watch_online_status->icmp_sock);
+		free(watch_online_status);
+		watch_online_status = NULL;
+		artik_release_api_module(loop);
+		log_err("cloudn't watch netlink socket.");
+		return E_ACCESS_DENIED;
+	}
+
+	ret = loop->add_fd_watch(watch_online_status->icmp_sock,
+		(WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP | WATCH_IO_NVAL),
+		echo_response_watch,
+		NULL,
+		&(watch_online_status->watch_icmp_id));
+	if (ret != S_OK) {
+		loop->remove_fd_watch(watch_online_status->watch_netlink_id);
+		close(watch_online_status->netlink_sock);
+		close(watch_online_status->icmp_sock);
+		free(watch_online_status);
+		watch_online_status = NULL;
+		artik_release_api_module(loop);
+		log_err("cloudn't watch icmp socket.");
+		return E_ACCESS_DENIED;
+	}
+
+	watch_online_status->resolver = g_resolver_get_default();
 	watch_online_status->root = NULL;
 
 	return S_OK;
 }
 
 artik_error os_network_add_watch_online_status(
-				watch_online_status_handle * handle,
-				watch_online_status_callback app_callback,
+				artik_watch_online_status_handle * handle,
+				const char *addr,
+				int interval,
+				int timeout,
+				artik_watch_online_status_callback app_callback,
 				void *user_data)
 {
 	artik_error ret = S_OK;
@@ -437,34 +696,59 @@ artik_error os_network_add_watch_online_status(
 		artik_list_add(&(watch_online_status->root), 0,
 						sizeof(watch_online_node_t));
 
-	if (!node)
-		return E_NO_MEM;
+	if (!node) {
+		if (artik_list_size(watch_online_status->root) == 0)
+			clean_watch_online_status();
 
+		return E_NO_MEM;
+	}
+
+	node->config.addr = strdup(addr);
+	node->config.interval = interval;
+	node->config.timeout = timeout;
 	node->config.callback = app_callback;
 	node->config.user_data = user_data;
+	node->loop = watch_online_status->loop;
+	node->resolver = watch_online_status->resolver;
+	node->sock = watch_online_status->icmp_sock;
+	node->resolved  = false;
+	node->online_status = false;
+	node->timeout_echo_id = -1;
+	node->update_online_status = false;
+	node->resolved = false;
+	node->force = true;
+	node->seqno = 0;
 
-	*handle = (watch_online_status_handle)node->node.handle;
+	*handle = (artik_watch_online_status_handle)node->node.handle;
+	update_online_status(node);
 
 	return ret;
 }
 
 artik_error os_network_remove_watch_online_status(
-					watch_online_status_handle handle)
+					artik_watch_online_status_handle handle)
 {
+	watch_online_node_t *node;
+
 	if (!watch_online_status)
 		return E_NOT_INITIALIZED;
 
+	node =
+		(watch_online_node_t *)artik_list_get_by_handle(
+			watch_online_status->root,
+			(ARTIK_LIST_HANDLE)handle);
+	if (!node) {
+		log_dbg("node not found");
+		return E_NOT_INITIALIZED;
+	}
+
+	free(node->config.addr);
+	node->loop->remove_timeout_callback(node->timeout_echo_id);
+
 	artik_list_delete_handle(&(watch_online_status->root),
 						(ARTIK_LIST_HANDLE)handle);
-	if (artik_list_size(watch_online_status->root) == 0) {
-		artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
-		loop->remove_fd_watch(watch_online_status->watch_id);
-		close(watch_online_status->fd);
-		free(watch_online_status);
-		watch_online_status = NULL;
-		artik_release_api_module(loop);
-	}
+	if (artik_list_size(watch_online_status->root) == 0)
+		clean_watch_online_status();
 
 	return S_OK;
 }

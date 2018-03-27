@@ -4,6 +4,8 @@ PROJECT			( artik-sdk-connectivity C CXX )
 FIND_PACKAGE ( CURL )
 FIND_PACKAGE (PkgConfig)
 PKG_CHECK_MODULES ( LIBWEBSOCKETS REQUIRED libwebsockets )
+PKG_CHECK_MODULES ( GLIB REQUIRED glib-2.0)
+PKG_CHECK_MODULES ( GIO REQUIRED gio-2.0)
 
 SET ( LIB_CONNECTIVITY artik-sdk-connectivity CACHE INTERNAL "" FORCE )
 SET ( ARTIK_CONNECTIVITY_INCLUDE_DIR ${LIB_INC}/connectivity CACHE INTERNAL "" FORCE )
@@ -14,8 +16,9 @@ SET ( SRC_CONNECTIVITY
 					http/common_http.c
 					http/linux_http.c
 					http/artik_http.c
-					network/linux_network.c
 					network/artik_network.c
+					network/common_network.c
+					network/linux_network.c
 					network/linux/netutils/dhcpc.c
 					network/linux/netutils/dhcpd.c
 					network/linux/netutils/netlib.c
@@ -34,6 +37,8 @@ TARGET_INCLUDE_DIRECTORIES ( ${LIB_CONNECTIVITY} PUBLIC
 							 ${ARTIK_UTILS_INCLUDE_DIR}
 							 ${ARTIK_CONNECTIVITY_INCLUDE_DIR}
 							 ${CURL_INCLUDE_DIRS}
+							 ${GLIB_INCLUDE_DIRS}
+							 ${GIO_INCLUDE_DIRS}
 							 ${LIBWEBSOCKETS_INCLUDE_DIRS}
 							 ${ARTIK_BASE_INCLUDE_DIR}/cpp
 							 ${ARTIK_CONNECTIVITY_INCLUDE_DIR}/cpp
@@ -45,6 +50,8 @@ TARGET_LINK_LIBRARIES ( ${LIB_CONNECTIVITY}
 						${LIB_BASE}
 						curl
 						${LIBWEBSOCKETS_LIBRARIES}
+						${GLIB_LIBRARIES}
+						${GIO_LIBRARIES}
 )
 
 SET_TARGET_PROPERTIES ( ${LIB_CONNECTIVITY} PROPERTIES VERSION ${LIB_VERSION_MAJOR}.${LIB_VERSION_MINOR}.${LIB_VERSION_PATCH} SOVERSION ${LIB_VERSION_MAJOR} OUTPUT_NAME ${LIB_CONNECTIVITY} )

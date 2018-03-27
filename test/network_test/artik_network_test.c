@@ -129,7 +129,7 @@ static artik_error test_get_online_status(void)
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = network->get_online_status(&online_status);
+	ret = network->get_online_status("artik.cloud", 1000, &online_status);
 	if (ret < S_OK)
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
 
@@ -186,16 +186,16 @@ static void disconnect(void *user_data)
 	artik_release_api_module(loop);
 }
 
-static void _callback(bool online_status, void *user_data)
+static void _callback(bool online_status, const char *addr, void *user_data)
 {
 	watch_online_status_t *data = user_data;
 
 	if (online_status == 1) {
 		data->deconnection_detected = 1;
-		fprintf(stdout, "Network Connected\n");
+		fprintf(stdout, "%s: Network Connected\n", addr);
 	} else {
 		data->reconnection_detected = 1;
-		fprintf(stdout, "Network could not be connected\n");
+		fprintf(stdout, "%s: Network could not be connected\n", addr);
 	}
 }
 
@@ -207,14 +207,14 @@ static artik_error test_watch_online_status(void)
 					artik_request_api_module("network");
 	artik_loop_module *loop = (artik_loop_module *)
 					artik_request_api_module("loop");
-	watch_online_status_handle handle;
-	watch_online_status_handle handle2;
+	artik_watch_online_status_handle handle;
+	artik_watch_online_status_handle handle2;
 	watch_online_status_t data = {0, 0};
 	watch_online_status_t data2 = {0, 0};
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
-	ret = network->add_watch_online_status(&handle, _callback, &data);
-	ret = network->add_watch_online_status(&handle2, _callback, &data2);
+	ret = network->add_watch_online_status(&handle, "artik.cloud", 5000, 500, _callback, &data);
+	ret = network->add_watch_online_status(&handle2, "google.com", 5000, 500, _callback, &data2);
 
 	loop->add_timeout_callback(&timeout_disconnect_id, 10000, disconnect,
 									NULL);
@@ -222,7 +222,7 @@ static artik_error test_watch_online_status(void)
 	loop->run();
 
 	if (!data.deconnection_detected && !data.reconnection_detected
-	    && !data2.deconnection_detected && !data2.reconnection_detected) {
+		&& !data2.deconnection_detected && !data2.reconnection_detected) {
 		ret = -1;
 		fprintf(stderr, "TEST: %s failed (deconnection = %d,"\
 			" reconnection = %d)\n",

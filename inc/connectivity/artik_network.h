@@ -68,7 +68,7 @@ extern "C" {
  *  Handle type used to carry instance specific
  *  information for a WATCH_ONLINE_STATUS object.
  */
-typedef void *watch_online_status_handle;
+typedef void *artik_watch_online_status_handle;
 
 /*!
  *  \brief MAC_ADDRESS type
@@ -109,10 +109,12 @@ typedef struct {
  *  \brief Watch online status callback prototype
  *
  *  \param[in] online_status The new online status
+ *  \param[in] addr The host name or IP address of a remote server to ping
+ *             to monitor online status changes
  *  \param[in] user_data The user data passed from the callback
  *             function
  */
-typedef void (*watch_online_status_callback)(bool online_status,
+typedef void (*artik_watch_online_status_callback)(bool online_status, const char *addr,
 						void *user_data);
 
 /*!
@@ -279,20 +281,24 @@ typedef struct {
 	/*!
 	 *  \brief Get network online status
 	 *
-	 *  \param[out] online_status  Pointer to an integer filled up
-	 *               by the function with the current online status
+	 *  \param[in] addr The hostname or IP address to ping to detect connectivity
+	 *  \param[in] timeout Time to wait for a ICMP echo response (in milliseconds)
+	 *  \param[out] online_status True when the board is online
 	 *
 	 *  \return S_OK on success, error code otherwise
 	 */
-	artik_error(*get_online_status)(bool *online_status);
+	artik_error(*get_online_status)(const char *addr, int timeout, bool *online_status);
 
 	/*!
-	 *  \brief Add a registered callback that watches online status
+	 *  \brief Add a registered callback that watches online status of \ref addr
 	 *
-	 *  Call callback function when online status change.
+	 *  Call \ref func when the online status of \ref addr change occurs
 	 *
 	 *  \param[out] handle Handle reference of the registered
 	 *              callback
+	 *  \param[in] addr The host name or IP address to ping to detect connectivity change
+	 *  \param[in] interval Wait interval between sending each ping (in milliseconds)
+	 *  \param[in] timeout  Time to wait for a ping response (in milliseconds)
 	 *  \param[in] func The callback function to register
 	 *  \param[in] user_data The user data to be passed to the
 	 *             callback function
@@ -300,8 +306,11 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error(*add_watch_online_status)(
-				watch_online_status_handle * handle,
-				watch_online_status_callback func,
+				artik_watch_online_status_handle * handle,
+				const char *addr,
+				int interval,
+				int timeout,
+				artik_watch_online_status_callback func,
 				void *user_data);
 
 	/*!
@@ -312,7 +321,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error(*remove_watch_online_status)(
-				watch_online_status_handle handle
+				artik_watch_online_status_handle handle
 				);
 } artik_network_module;
 

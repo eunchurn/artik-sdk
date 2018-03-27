@@ -84,6 +84,7 @@ CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/artik_serial.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/tizenrt_serial.c
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/artik_network.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/common_network.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt_network.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt/dns_utils.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/artik_http.c

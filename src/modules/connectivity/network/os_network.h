@@ -19,7 +19,10 @@
 #ifndef	OS_NETWORK_H_
 #define	OS_NETWORK_H_
 
+#include "artik_network.h"
 #include "artik_error.h"
+
+#include <sys/socket.h>
 
 artik_error os_set_network_config(
 		artik_network_config * config,
@@ -28,10 +31,13 @@ artik_error os_get_network_config(
 		artik_network_config * config,
 		artik_network_interface_t interface);
 artik_error os_network_add_watch_online_status(
-		watch_online_status_handle * handle,
-		watch_online_status_callback app_callback, void *user_data);
+		artik_watch_online_status_handle * handle,
+		const char *url,
+		int delay,
+		int timeout,
+		artik_watch_online_status_callback app_callback, void *user_data);
 artik_error os_network_remove_watch_online_status(
-		watch_online_status_handle handle);
+		artik_watch_online_status_handle handle);
 artik_error os_dhcp_client_start(artik_network_dhcp_client_handle *handle,
 		artik_network_interface_t interface);
 artik_error os_dhcp_client_stop(artik_network_dhcp_client_handle handle);
@@ -40,6 +46,7 @@ artik_error os_dhcp_server_start(artik_network_dhcp_server_handle *handle,
 artik_error os_dhcp_server_stop(artik_network_dhcp_server_handle handle);
 
 artik_error artik_get_current_public_ip(artik_network_ip *ip);
-artik_error artik_get_online_status(bool *online_status);
+bool os_send_echo(int sock, const struct sockaddr *to, uint16_t seqno);
+bool os_check_echo_response(char *buf, size_t len, uint16_t seqno);
 
 #endif	/* OS_NETWORK_H_ */
