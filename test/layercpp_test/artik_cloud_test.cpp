@@ -168,7 +168,8 @@ int main(int argc, char *argv[]) {
 
   artik::Cloud* cloud = new artik::Cloud(access_token);
 
-  ret = cloud->websocket_open_stream(access_token, device_id, &ssl_config);
+  ret = cloud->websocket_open_stream(access_token, device_id, 20, 5,
+      &ssl_config);
   if (ret != S_OK) {
     fprintf(stderr, "websocket_open_stream failed\n");
     goto exit;

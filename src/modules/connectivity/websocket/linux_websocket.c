@@ -40,15 +40,12 @@
 					lws_get_protocol(wsi)->user)
 #define CB_FDS				(((os_websocket_fds *)\
 					CB_CONTAINER->fds)->fdset)
-#define NUM_FDS				4
-#define FD_CLOSE			0
-#define FD_CONNECT			1
-#define FD_RECEIVE			2
-#define FD_ERROR			3
+
 #define MAX_QUEUE_NAME			1024
 #define MAX_QUEUE_SIZE			128
 #define MAX_MESSAGE_SIZE		2048
 #define PROCESS_TIMEOUT_MS		10
+
 #define ARTIK_WEBSOCKET_INTERFACE	((os_websocket_interface *)\
 					config->private_data)
 #define ARTIK_WEBSOCKET_PROTOCOL_NAME	"artik-websocket"
@@ -63,6 +60,15 @@
 #define PEM_END_CERTIFICATE_UNIX "-----END CERTIFICATE-----\n"
 #define PEM_END_CERTIFICATE_WIN  "-----END CERTIFICATE-----\r\n"
 
+enum fd_event {
+	FD_CLOSE,
+	FD_CONNECT,
+	FD_RECEIVE,
+	FD_ERROR,
+	FD_CONNECTION_ERROR,
+	NUM_FDS
+};
+
 typedef struct {
 	int fdset[NUM_FDS];
 } os_websocket_fds;
@@ -72,11 +78,15 @@ typedef struct {
 	int send_message_len;
 	char *receive_message;
 	os_websocket_fds *fds;
+	int timeout_id;
+	int periodic_id;
+	unsigned int ping_period;
+	unsigned int pong_timeout;
 } os_websocket_container;
 
 typedef struct {
 	int watch_id;
-	int fd;
+	enum fd_event fd;
 	artik_websocket_callback callback;
 	void *user_data;
 	artik_loop_module *loop;
@@ -121,9 +131,12 @@ static const struct lws_extension exts[] = {
 };
 
 static int lws_callback(struct lws *wsi, enum lws_callback_reasons reason,
-			void *user, void *in, size_t len);
+						void *user, void *in, size_t len);
 
 static void ssl_ctx_info_callback(const SSL *ssl, int where, int ret);
+
+static int ping_periodic_callback(void *user_data);
+static void pong_timeout_callback(void *user_data);
 
 void lws_cleanup(artik_websocket_config *config)
 {
@@ -132,33 +145,46 @@ void lws_cleanup(artik_websocket_config *config)
 		return;
 	}
 	void *protocol = (void *)lws_get_protocol(
-						ARTIK_WEBSOCKET_INTERFACE->wsi);
+					ARTIK_WEBSOCKET_INTERFACE->wsi);
 
 	log_dbg("");
 
 	/* Release security data and OpenSSL Engine */
 	if (ARTIK_WEBSOCKET_INTERFACE->sec_data) {
 		artik_security_module *security = (artik_security_module *)
-					artik_request_api_module("security");
+			artik_request_api_module("security");
 		security->release(
-			ARTIK_WEBSOCKET_INTERFACE->sec_data->sec_handle);
+		  ARTIK_WEBSOCKET_INTERFACE->sec_data->sec_handle);
 		artik_release_api_module(security);
 
 		free(ARTIK_WEBSOCKET_INTERFACE->sec_data);
 	}
 
 	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
+		artik_request_api_module("loop");
 
 	loop->remove_fd_watch(
-			ARTIK_WEBSOCKET_INTERFACE->data[FD_CLOSE].watch_id);
+	  ARTIK_WEBSOCKET_INTERFACE->data[FD_CLOSE].watch_id);
 	loop->remove_fd_watch(
-			ARTIK_WEBSOCKET_INTERFACE->data[FD_CONNECT].watch_id);
+	  ARTIK_WEBSOCKET_INTERFACE->data[FD_CONNECT].watch_id);
 	loop->remove_fd_watch(
-			ARTIK_WEBSOCKET_INTERFACE->data[FD_RECEIVE].watch_id);
+	  ARTIK_WEBSOCKET_INTERFACE->data[FD_RECEIVE].watch_id);
 	loop->remove_fd_watch(
-			ARTIK_WEBSOCKET_INTERFACE->data[FD_ERROR].watch_id);
+	  ARTIK_WEBSOCKET_INTERFACE->data[FD_ERROR].watch_id);
+	loop->remove_fd_watch(
+	  ARTIK_WEBSOCKET_INTERFACE->data[FD_CONNECTION_ERROR].watch_id);
 	loop->remove_idle_callback(ARTIK_WEBSOCKET_INTERFACE->loop_process_id);
+
+	if ((ARTIK_WEBSOCKET_INTERFACE->container.pong_timeout) &&
+		(ARTIK_WEBSOCKET_INTERFACE->container.timeout_id != -1))
+		loop->remove_timeout_callback(
+			ARTIK_WEBSOCKET_INTERFACE->container.timeout_id);
+
+	if ((ARTIK_WEBSOCKET_INTERFACE->container.ping_period) &&
+		(ARTIK_WEBSOCKET_INTERFACE->container.periodic_id != -1))
+		loop->remove_periodic_callback(
+			ARTIK_WEBSOCKET_INTERFACE->container.periodic_id);
+
 	artik_release_api_module(loop);
 
 	/* Destroy context in libwebsockets API */
@@ -169,7 +195,9 @@ void lws_cleanup(artik_websocket_config *config)
 	close(ARTIK_WEBSOCKET_INTERFACE->container.fds->fdset[FD_CONNECT]);
 	close(ARTIK_WEBSOCKET_INTERFACE->container.fds->fdset[FD_RECEIVE]);
 	close(ARTIK_WEBSOCKET_INTERFACE->container.fds->fdset[FD_ERROR]);
+	close(ARTIK_WEBSOCKET_INTERFACE->container.fds->fdset[FD_CONNECTION_ERROR]);
 	free(ARTIK_WEBSOCKET_INTERFACE->container.fds);
+
 	free(protocol);
 
 	/* Free OpenSSL context */
@@ -182,28 +210,41 @@ void lws_cleanup(artik_websocket_config *config)
 }
 
 int lws_callback(struct lws *wsi, enum lws_callback_reasons reason,
-					void *user, void *in, size_t len)
+				void *user, void *in, size_t len)
 {
 	uint64_t event_setter = FLAG_EVENT;
 	char *received = NULL;
+	artik_error ret = S_OK;
+	artik_loop_module *loop = (artik_loop_module *)
+		artik_request_api_module("loop");
 
 	switch (reason) {
 
 	case LWS_CALLBACK_CLIENT_ESTABLISHED:
 		log_dbg("LWS_CALLBACK_CLIENT_ESTABLISHED");
-		if (write(CB_FDS[FD_CONNECT], &event_setter,
-						sizeof(event_setter)) < 0)
+		if (write(CB_FDS[FD_CONNECT], &event_setter, sizeof(event_setter)) < 0)
 			log_err("Failed to set connect event");
+
+		if (CB_CONTAINER->ping_period) {
+			ret = loop->add_periodic_callback(&CB_CONTAINER->periodic_id,
+				CB_CONTAINER->ping_period, ping_periodic_callback, (void *) wsi);
+
+			if (ret != S_OK) {
+				log_err("Failed to set ping periodic callback");
+				artik_release_api_module(loop);
+				return -1;
+			}
+		}
+
 		break;
 
 	case LWS_CALLBACK_CLIENT_WRITEABLE:
 		log_dbg("LWS_CALLBACK_CLIENT_WRITEABLE");
 		if (CB_CONTAINER->send_message) {
-			lws_write(wsi, (unsigned char *)
-				CB_CONTAINER->send_message,
+			lws_write(wsi, (unsigned char *) CB_CONTAINER->send_message,
 				CB_CONTAINER->send_message_len, LWS_WRITE_TEXT);
 			free(CB_CONTAINER->send_message -
-						LWS_SEND_BUFFER_PRE_PADDING);
+				LWS_SEND_BUFFER_PRE_PADDING);
 			CB_CONTAINER->send_message = NULL;
 		}
 		log_dbg("");
@@ -217,49 +258,111 @@ int lws_callback(struct lws *wsi, enum lws_callback_reasons reason,
 		}
 		CB_CONTAINER->receive_message = received;
 
-		if (write(CB_FDS[FD_RECEIVE], &event_setter,
-						sizeof(event_setter)) < 0)
+		if (write(CB_FDS[FD_RECEIVE], &event_setter, sizeof(event_setter)) < 0)
 			log_err("Failed to set connect event");
 		break;
 
 	case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
 		log_dbg("LWS_CALLBACK_CLIENT_CONNECTION_ERROR");
-		if (write(CB_FDS[FD_CLOSE], &event_setter,
-						sizeof(event_setter)) < 0)
-			log_err("Failed to set close event");
+		if (write(CB_FDS[FD_CONNECTION_ERROR], &event_setter,
+			sizeof(event_setter)) < 0)
+			log_err("Failed to connection error event");
 		break;
 
 	case LWS_CALLBACK_CLOSED:
 		log_dbg("LWS_CALLBACK_CLOSED");
-		if (write(CB_FDS[FD_CLOSE], &event_setter,
-						sizeof(event_setter)) < 0)
+		if (write(CB_FDS[FD_CLOSE], &event_setter, sizeof(event_setter)) < 0)
 			log_err("Failed to set close event");
+		break;
+
+	case LWS_CALLBACK_WSI_CREATE:
+		log_dbg("LWS_CALLBACK_WSI_CREATE");
 		break;
 
 	case LWS_CALLBACK_WSI_DESTROY:
 		log_dbg("LWS_CALLBACK_WSI_DESTROY");
 		websocket_node *node = (websocket_node *)artik_list_get_by_handle(
-				requested_node, (ARTIK_LIST_HANDLE)wsi);
+			requested_node, (ARTIK_LIST_HANDLE)wsi);
 
 		if (!node) {
 			log_err("Failed to find websocket instance");
+			artik_release_api_module(loop);
 			return -1;
 		}
 
 		node->interface.error_connect = true;
 		if (write(CB_FDS[FD_CLOSE], &event_setter,
-						sizeof(event_setter)) < 0)
+			sizeof(event_setter)) < 0)
 			log_err("Failed to set close event");
 		break;
 
 	case LWS_CALLBACK_CLIENT_CONFIRM_EXTENSION_SUPPORTED:
 		log_err("LWS_CALLBACK_CLIENT_CONFIRM_EXTENSION_SUPPORTED: %s",
-							(const char *)in);
+			(const char *)in);
+		break;
+
+	case LWS_CALLBACK_LOCK_POLL:
+		log_dbg("LWS_CALLBACK_LOCK_POLL");
+		break;
+
+	case LWS_CALLBACK_CHANGE_MODE_POLL_FD:
+		log_dbg("LWS_CALLBACK_CHANGE_MODE_POLL_FD");
+		break;
+
+	case LWS_CALLBACK_ADD_POLL_FD:
+		log_dbg("LWS_CALLBACK_ADD_POLL_FD");
+		break;
+
+	case LWS_CALLBACK_UNLOCK_POLL:
+		log_dbg("LWS_CALLBACK_UNLOCK_POLL");
+		break;
+
+	case LWS_CALLBACK_DEL_POLL_FD:
+		log_dbg("LWS_CALLBACK_DEL_POLL_FD");
+		break;
+
+	case LWS_CALLBACK_PROTOCOL_INIT:
+		log_dbg("LWS_CALLBACK_PROTOCOL_INIT");
+		break;
+
+	case LWS_CALLBACK_PROTOCOL_DESTROY:
+		log_dbg("LWS_CALLBACK_PROTOCOL_DESTROY");
+		break;
+
+	case LWS_CALLBACK_WS_PEER_INITIATED_CLOSE:
+		log_dbg("LWS_CALLBACK_WS_PEER_INITIATED_CLOSE");
+		break;
+
+	case LWS_CALLBACK_GET_THREAD_ID:
+		break;
+
+	case LWS_CALLBACK_CLIENT_RECEIVE_PONG:
+		log_dbg("LWS_CALLBACK_CLIENT_RECEIVE_PONG");
+		if ((CB_CONTAINER->pong_timeout) && (CB_CONTAINER->timeout_id != -1)) {
+			loop->remove_timeout_callback(CB_CONTAINER->timeout_id);
+			CB_CONTAINER->timeout_id = -1;
+		}
+
+		break;
+
+	case LWS_CALLBACK_CLIENT_FILTER_PRE_ESTABLISH:
+		log_dbg("LWS_CALLBACK_CLIENT_FILTER_PRE_ESTABLISH");
+		break;
+
+	case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER:
+		log_dbg("LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER");
+		break;
+
+	case LWS_CALLBACK_OPENSSL_LOAD_EXTRA_SERVER_VERIFY_CERTS:
+		log_dbg("LWS_CALLBACK_OPENSSL_LOAD_EXTRA_SERVER_VERIFY_CERTS");
 		break;
 
 	default:
+		log_dbg("reason = %d", reason);
 		break;
 	}
+
+	artik_release_api_module(loop);
 
 	return 0;
 }
@@ -283,27 +386,25 @@ void ssl_ctx_info_callback(const SSL *ssl, int where, int ret)
 
 	if (where & SSL_CB_ALERT) {
 		str = (where & SSL_CB_READ) ? "read" : "write";
-		log_dbg("SSL Alert %s:%s:%s", str,
-			SSL_alert_type_string_long(ret),
+		log_dbg("SSL Alert %s:%s:%s", str, SSL_alert_type_string_long(ret),
 			SSL_alert_desc_string_long(ret));
 
 		if (SSL_ALERT_FATAL && (UNKNOWN_CA || BAD_CERTIFICATE ||
-							HANDSHAKE_FAILURE)) {
+			HANDSHAKE_FAILURE)) {
 			if (write(CB_FDS[FD_ERROR], &event_setter,
-						sizeof(event_setter)) < 0)
+				sizeof(event_setter)) < 0)
 				log_err("Failed to set close event : %d",
 					errno);
 		}
 	} else if (where & SSL_CB_EXIT) {
 		if (ret == 0)
-			log_err("%s:failed in %s",
-				str, SSL_state_string_long(ssl));
+			log_err("%s:failed in %s", str, SSL_state_string_long(ssl));
 	} else if (where & SSL_CB_HANDSHAKE_DONE)
 		log_dbg("%s", SSL_state_string_long(ssl));
 }
 
 SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
-			artik_ssl_config *ssl_config, char *host)
+						artik_ssl_config *ssl_config, char *host)
 {
 	artik_error ret = S_OK;
 	SSL_CTX *ssl_ctx = NULL;
@@ -348,11 +449,10 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 		param = SSL_CTX_get0_param(ssl_ctx);
 		X509_VERIFY_PARAM_set1_host(param, host, 0);
 		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
-	} else{
+	} else {
 		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
 		SSL_CTX_set_default_verify_paths(ssl_ctx);
-		SSL_CTX_load_verify_locations(ssl_ctx, "/etc/pki/tls/cert.pem",
-									NULL);
+		SSL_CTX_load_verify_locations(ssl_ctx, "/etc/pki/tls/cert.pem", NULL);
 	}
 
 	if (ssl_config->ca_cert.data && ssl_config->ca_cert.len &&
@@ -422,11 +522,11 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 		log_dbg("");
 
 		if (ssl_config->client_cert.data &&
-						ssl_config->client_cert.len) {
+		    ssl_config->client_cert.len) {
 			/* Convert certificate string into a BIO */
 			bio = BIO_new(BIO_s_mem());
 			BIO_write(bio, ssl_config->client_cert.data,
-					ssl_config->client_cert.len);
+				ssl_config->client_cert.len);
 
 			/* Extract X509 cert from the BIO */
 			x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
@@ -453,7 +553,7 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 			/* Convert key string into a BIO */
 			bio = BIO_new(BIO_s_mem());
 			if (!BIO_write(bio, ssl_config->client_key.data,
-					ssl_config->client_key.len)) {
+				ssl_config->client_key.len)) {
 				BIO_free(bio);
 				ret = E_WEBSOCKET_ERROR;
 				goto exit;
@@ -499,11 +599,10 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 	}
 	/* Processes related with SE are below */
 	security_data[0]->security = (artik_security_module *)
-					artik_request_api_module("security");
+		artik_request_api_module("security");
 
 	/* Initialize ARTIK Security module */
-	ret = security_data[0]->security->request(
-						&security_data[0]->sec_handle);
+	ret = security_data[0]->security->request(&security_data[0]->sec_handle);
 	if (ret != S_OK) {
 		log_err("Failed to request security module (err=%d)\n", ret);
 		goto exit;
@@ -511,7 +610,8 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 
 	/* Get a certificate in SE as a string */
 	ret = security_data[0]->security->get_certificate(
-				security_data[0]->sec_handle, ssl_config->se_config.certificate_id, &raw_cert);
+		security_data[0]->sec_handle, ssl_config->se_config.certificate_id,
+		&raw_cert);
 	if (ret != S_OK) {
 		log_err("Failed to get certificate (err=%d)\n", ret);
 		goto exit;
@@ -519,7 +619,7 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 
 	/* Get a public key from cert as a string */
 	ret = security_data[0]->security->get_key_from_cert(
-			security_data[0]->sec_handle, raw_cert, &raw_key);
+		security_data[0]->sec_handle, raw_cert, &raw_key);
 	if (ret != S_OK) {
 		log_err("Failed to get key (err=%d)\n", ret);
 		goto exit;
@@ -648,7 +748,7 @@ exit:
 
 
 static int websocket_parse_uri(const char *uri, char **host, char **path,
-		int *port, bool *use_tls)
+								int *port, bool *use_tls)
 {
 	artik_utils_module *utils = artik_request_api_module("utils");
 	artik_uri_info uri_info;
@@ -713,7 +813,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	struct lws_client_connect_info conn_info;
 	char *hostport = NULL;
 	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
+		artik_request_api_module("loop");
 
 	if (!config->uri) {
 		log_err("Undefined uri");
@@ -721,12 +821,19 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		goto exit;
 	}
 
-	if (websocket_parse_uri(config->uri, &host, &path, &port,
-						&use_tls) < 0) {
+	if (websocket_parse_uri(config->uri, &host, &path, &port, &use_tls) < 0) {
 		log_err("Failed to parse uri");
 		ret = E_WEBSOCKET_ERROR;
 		goto exit;
 	}
+
+	if (config->ping_period < config->pong_timeout) {
+		log_err("The pong_timeout value must be significantly smaller "
+			"than ping_period.");
+		ret = E_BAD_ARGS;
+		goto exit;
+	}
+
 
 	log_dbg("");
 
@@ -760,7 +867,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	info.uid = -1;
 
 	info.provided_client_ssl_ctx = setup_ssl_ctx(&sec_data,
-						&config->ssl_config, host);
+		&config->ssl_config, host);
 	if (info.provided_client_ssl_ctx == NULL) {
 		ret = E_WEBSOCKET_ERROR;
 		goto exit;
@@ -858,6 +965,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	fds->fdset[FD_CONNECT] = eventfd(0, 0);
 	fds->fdset[FD_RECEIVE] = eventfd(0, 0);
 	fds->fdset[FD_ERROR] = eventfd(0, 0);
+	fds->fdset[FD_CONNECTION_ERROR] = eventfd(0, 0);
 
 	memset(interface, 0, sizeof(*interface));
 	interface->context = (void *)context;
@@ -866,9 +974,13 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	interface->ssl_ctx = info.provided_client_ssl_ctx;
 	interface->sec_data = sec_data;
 	interface->error_connect = false;
+	interface->container.periodic_id = -1;
+	interface->container.timeout_id = -1;
+	interface->container.ping_period = config->ping_period;
+	interface->container.pong_timeout = config->pong_timeout;
 
 	node = (websocket_node *)artik_list_add(&requested_node,
-				(ARTIK_LIST_HANDLE)wsi, sizeof(websocket_node));
+			(ARTIK_LIST_HANDLE)wsi, sizeof(websocket_node));
 	if (!node)
 		return E_NO_MEM;
 
@@ -877,7 +989,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	SSL_CTX_set_ex_data(interface->ssl_ctx, 0, (void *)wsi);
 
 	loop->add_idle_callback(&interface->loop_process_id,
-				os_websocket_process_stream, (void *)interface);
+		os_websocket_process_stream, (void *)interface);
 
 	config->private_data = (void *)interface;
 exit:
@@ -902,7 +1014,7 @@ exit:
 }
 
 artik_error os_websocket_write_stream(artik_websocket_config *config,
-							char *message, int len)
+	char *message, int len)
 {
 	artik_error ret = S_OK;
 	char *websocket_buf = NULL;
@@ -926,7 +1038,7 @@ artik_error os_websocket_write_stream(artik_websocket_config *config,
 	}
 
 	websocket_buf = malloc(LWS_SEND_BUFFER_PRE_PADDING + len +
-						LWS_SEND_BUFFER_POST_PADDING);
+		LWS_SEND_BUFFER_POST_PADDING);
 	if (websocket_buf == NULL) {
 		log_err("Failed to allocate memory");
 		ret = E_NO_MEM;
@@ -935,7 +1047,7 @@ artik_error os_websocket_write_stream(artik_websocket_config *config,
 
 	memcpy(websocket_buf + LWS_SEND_BUFFER_PRE_PADDING, message, len);
 	ARTIK_WEBSOCKET_INTERFACE->container.send_message = websocket_buf +
-						LWS_SEND_BUFFER_PRE_PADDING;
+	    LWS_SEND_BUFFER_PRE_PADDING;
 	ARTIK_WEBSOCKET_INTERFACE->container.send_message_len = len;
 	lws_callback_on_writable(ARTIK_WEBSOCKET_INTERFACE->wsi);
 
@@ -956,7 +1068,7 @@ int os_websocket_close_callback(int fd, enum watch_io io, void *user_data)
 	}
 
 	data[FD_CLOSE].callback(data->user_data, (void *)
-							ARTIK_WEBSOCKET_CLOSED);
+		ARTIK_WEBSOCKET_CLOSED);
 
 	return 1;
 }
@@ -974,7 +1086,7 @@ int os_websocket_connection_callback(int fd, enum watch_io io, void *user_data)
 	}
 
 	data[FD_CONNECT].callback(data->user_data, (void *)
-						ARTIK_WEBSOCKET_CONNECTED);
+		ARTIK_WEBSOCKET_CONNECTED);
 
 	return 1;
 }
@@ -992,20 +1104,39 @@ int os_websocket_error_callback(int fd, enum watch_io io, void *user_data)
 	}
 
 	data[FD_ERROR].callback(data->user_data, (void *)
-					ARTIK_WEBSOCKET_HANDSHAKE_ERROR);
+		ARTIK_WEBSOCKET_HANDSHAKE_ERROR);
+
+	return 1;
+}
+
+int os_websocket_connection_error_callback(int fd, enum watch_io io,
+	void *user_data)
+{
+	uint64_t n = 0;
+	os_websocket_data *data = (os_websocket_data *)user_data;
+
+	log_dbg("");
+
+	if (read(fd, &n, sizeof(uint64_t)) < 0) {
+		log_err("connection error callback error");
+		return 0;
+	}
+
+	data[FD_CONNECTION_ERROR].callback(data->user_data, (void *)
+		ARTIK_WEBSOCKET_CONNECTION_ERROR);
 
 	return 1;
 }
 
 artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
-			artik_websocket_callback callback, void *user_data)
+	artik_websocket_callback callback, void *user_data)
 {
 	artik_error ret = S_OK;
 	os_websocket_fds *fds = ARTIK_WEBSOCKET_INTERFACE->container.fds;
 	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
+								artik_request_api_module("loop");
 	os_websocket_data *data = ((os_websocket_interface *)
-						config->private_data)->data;
+								config->private_data)->data;
 
 	log_dbg("");
 
@@ -1015,10 +1146,12 @@ artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
 	data[FD_CONNECT].user_data = user_data;
 	data[FD_ERROR].callback = callback;
 	data[FD_ERROR].user_data = user_data;
+	data[FD_CONNECTION_ERROR].callback = callback;
+	data[FD_CONNECTION_ERROR].user_data = user_data;
 
 	ret = loop->add_fd_watch(fds->fdset[FD_CLOSE], WATCH_IO_IN,
-			os_websocket_close_callback, (void *)data,
-			&data[FD_CLOSE].watch_id);
+		os_websocket_close_callback, (void *)data,
+		&data[FD_CLOSE].watch_id);
 
 	if (ret != S_OK) {
 		log_err("Failed to set fd watch close callback");
@@ -1026,8 +1159,8 @@ artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
 	}
 
 	ret = loop->add_fd_watch(fds->fdset[FD_CONNECT], WATCH_IO_IN,
-			os_websocket_connection_callback, (void *)data,
-			&data[FD_CONNECT].watch_id);
+		os_websocket_connection_callback, (void *)data,
+		&data[FD_CONNECT].watch_id);
 
 	if (ret != S_OK) {
 		log_err("Failed to set fd watch connection callback");
@@ -1035,16 +1168,72 @@ artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
 	}
 
 	ret = loop->add_fd_watch(fds->fdset[FD_ERROR], WATCH_IO_IN,
-			os_websocket_error_callback, (void *)data,
-			&data[FD_ERROR].watch_id);
+		os_websocket_error_callback, (void *)data,
+		&data[FD_ERROR].watch_id);
 
 	if (ret != S_OK) {
 		log_err("Failed to set fd watch error callback");
 		goto exit;
 	}
 
+	ret = loop->add_fd_watch(fds->fdset[FD_CONNECTION_ERROR], WATCH_IO_IN,
+		os_websocket_connection_error_callback, (void *)data,
+		&data[FD_CONNECTION_ERROR].watch_id);
+
+	if (ret != S_OK) {
+		log_err("Failed to set fd watch connnection error callback");
+		goto exit;
+	}
+
 exit:
+	artik_release_api_module(loop);
 	return ret;
+}
+
+static int ping_periodic_callback(void *user_data)
+{
+	artik_error ret = S_OK;
+	static unsigned int size = LWS_PRE;
+	static unsigned char pingbuf[LWS_PRE] = {
+		0x81, 0x85, 0x37, 0xFA,
+		0x21, 0x3d, 0x7F, 0x9F,
+		0x4D, 0x51, 0x58
+	};
+
+	artik_loop_module *loop = (artik_loop_module *)
+		artik_request_api_module("loop");
+
+	struct lws *wsi = (struct lws *)user_data;
+
+	log_dbg("ping_periodic_callback");
+
+	lws_write(wsi, &pingbuf[LWS_PRE], size, LWS_WRITE_PING);
+
+	ret = loop->add_timeout_callback(&CB_CONTAINER->timeout_id,
+		CB_CONTAINER->pong_timeout, pong_timeout_callback, (void *) wsi);
+
+	if (ret != S_OK) {
+		log_err("Failed to add on_timeout_callback error");
+		return 0;
+	}
+
+	artik_release_api_module(loop);
+	return 1;
+}
+
+static void pong_timeout_callback(void *user_data)
+{
+	uint64_t event_setter = FLAG_EVENT;
+
+	struct lws *wsi = (struct lws *)user_data;
+
+	log_err("Failed to ping websocket server %s error", __func__);
+
+	if (write(CB_FDS[FD_CONNECTION_ERROR], &event_setter,
+		sizeof(event_setter)) < 0)
+		log_err("Failed write connection error event");
+
+	CB_CONTAINER->timeout_id = -1;
 }
 
 int os_websocket_receive_callback(int fd, enum watch_io io, void *user_data)
@@ -1052,7 +1241,7 @@ int os_websocket_receive_callback(int fd, enum watch_io io, void *user_data)
 	uint64_t n = 0;
 	artik_websocket_config *config = (artik_websocket_config *)user_data;
 	os_websocket_data *data = ((os_websocket_interface *)
-						config->private_data)->data;
+		config->private_data)->data;
 
 	log_dbg("");
 
@@ -1073,14 +1262,14 @@ int os_websocket_receive_callback(int fd, enum watch_io io, void *user_data)
 }
 
 artik_error os_websocket_set_receive_callback(artik_websocket_config *config,
-			artik_websocket_callback callback, void *user_data)
+	artik_websocket_callback callback, void *user_data)
 {
 	artik_error ret = S_OK;
 	os_websocket_fds *fds = ARTIK_WEBSOCKET_INTERFACE->container.fds;
 	os_websocket_data *data = ((os_websocket_interface *)
-						config->private_data)->data;
+		config->private_data)->data;
 	artik_loop_module *loop = (artik_loop_module *)
-					artik_request_api_module("loop");
+		artik_request_api_module("loop");
 
 	log_dbg("");
 
@@ -1088,14 +1277,15 @@ artik_error os_websocket_set_receive_callback(artik_websocket_config *config,
 	data[FD_RECEIVE].user_data = user_data;
 
 	ret = loop->add_fd_watch(fds->fdset[FD_RECEIVE], WATCH_IO_IN,
-			os_websocket_receive_callback, (void *)config,
-			&data[FD_RECEIVE].watch_id);
+		os_websocket_receive_callback, (void *)config,
+		&data[FD_RECEIVE].watch_id);
 	if (ret != S_OK) {
 		log_err("Failed to set fd watch close callback");
 		goto exit;
 	}
 
 exit:
+	artik_release_api_module(loop);
 	return ret;
 }
 

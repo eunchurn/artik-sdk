@@ -44,7 +44,8 @@ class Websocket {
   artik_websocket_handle m_handle;
 
  public:
-  Websocket(const char* uri, artik_ssl_config *ssl_config);
+  Websocket(const char* uri, unsigned int ping_period,
+    unsigned int pong_timeout, artik_ssl_config *ssl_config);
   ~Websocket();
 
   artik_error request();

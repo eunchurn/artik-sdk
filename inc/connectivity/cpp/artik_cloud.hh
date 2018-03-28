@@ -128,7 +128,8 @@ class Cloud {
       artik_security_certificate_id cert_id, const char* reg_id,
       const char* reg_nonce, artik_cloud_callback callback, void *user_data);
   artik_error websocket_open_stream(const char *access_token,
-      const char *device_id, artik_ssl_config *ssl);
+      const char *device_id, unsigned int ping_period,
+      unsigned int pong_timeout, artik_ssl_config *ssl);
   artik_error websocket_send_message(char *message);
   artik_error websocket_set_connection_callback(
       artik_websocket_callback callback, void *user_data);

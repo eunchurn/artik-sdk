@@ -324,6 +324,8 @@ static artik_error sdr_complete_registration_async(
 static artik_error websocket_open_stream(artik_websocket_handle *handle,
 	const char *access_token,
 	const char *device_id,
+	unsigned int ping_period,
+	unsigned int pong_timeout,
 	artik_ssl_config *ssl_config);
 static artik_error websocket_send_message(artik_websocket_handle handle,
 	char *message);
@@ -1911,9 +1913,11 @@ void websocket_connection_callback(void *user_data, void *result)
 }
 
 artik_error websocket_open_stream(artik_websocket_handle *handle,
-				  const char *access_token,
-				  const char *device_id,
-				  artik_ssl_config *ssl_config)
+				const char *access_token,
+				const char *device_id,
+				unsigned int ping_period,
+				unsigned int pong_timeout,
+				artik_ssl_config *ssl_config)
 {
 	artik_websocket_module *websocket = (artik_websocket_module *)
 					artik_request_api_module("websocket");
@@ -1952,6 +1956,9 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 		config.ssl_config.client_key.data = NULL;
 		config.ssl_config.client_key.len = 0;
 	}
+
+	config.ping_period = ping_period;
+	config.pong_timeout = pong_timeout;
 
 	ret = websocket->websocket_request(handle, &config);
 	if (ret != S_OK)

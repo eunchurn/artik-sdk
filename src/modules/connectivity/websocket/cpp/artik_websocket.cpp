@@ -18,10 +18,13 @@
 
 #include "artik_websocket.hh"
 
-artik::Websocket::Websocket(const char* uri, artik_ssl_config *ssl_config) {
+artik::Websocket::Websocket(const char* uri, unsigned int ping_period,
+  unsigned int pong_timeout, artik_ssl_config *ssl_config) {
   this->m_module = reinterpret_cast<artik_websocket_module*>(
       artik_request_api_module("websocket"));
   this->m_handle = NULL;
+  this->m_config.ping_period = ping_period;
+  this->m_config.pong_timeout = pong_timeout;
   this->m_config.uri = strndup(uri, strlen(uri));
   memcpy(&this->m_config.ssl_config, ssl_config,
             sizeof(this->m_config.ssl_config));

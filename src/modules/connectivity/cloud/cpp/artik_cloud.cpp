@@ -251,12 +251,13 @@ artik_error artik::Cloud::sdr_complete_registration_async(
 }
 
 artik_error artik::Cloud::websocket_open_stream(const char *access_token,
-    const char *device_id, artik_ssl_config *ssl) {
+    const char *device_id, unsigned int ping_period, unsigned int pong_timeout,
+    artik_ssl_config *ssl) {
   if (m_ws_handle)
     return E_BUSY;
 
   return m_module->websocket_open_stream(&m_ws_handle, access_token, device_id,
-      ssl);
+      ping_period, pong_timeout, ssl);
 }
 
 artik_error artik::Cloud::websocket_send_message(char *message) {

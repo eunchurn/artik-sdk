@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
 
 #include <artik_module.h>
 #include <artik_loop.h>
@@ -52,12 +53,13 @@ static const char *echo_websocket_root_ca =
 
 static char *test_message = NULL;
 
-static void on_timeout_callback(void *user_data) {
+static int quit_loop(void *user_data) {
   artik_loop_module *loop = reinterpret_cast<artik_loop_module*>(user_data);
 
-  fprintf(stdout, "TEST: %s stop scanning, exiting loop\n", __func__);
-
   loop->quit();
+  fprintf(stdout, "Loop quit!\n");
+
+  return true;
 }
 
 void websocket_receive_callback(void *user_data, void *result) {
@@ -81,15 +83,22 @@ void websocket_connection_callback(void *user_data, void *result) {
   artik::Websocket* websocket = (artik::Websocket*)user_data;
   intptr_t ret = reinterpret_cast<intptr_t>(result);
 
-  if (ret == ARTIK_WEBSOCKET_CLOSED) {
-    fprintf(stdout, "connection close\n");
-    artik_release_api_module(websocket);
-    goto exit;
-  }
-
   if (ret == ARTIK_WEBSOCKET_CONNECTED) {
     fprintf(stdout, "Writing: %s\n", test_message);
     websocket->write_stream(test_message);
+  } else if (ret == ARTIK_WEBSOCKET_CLOSED) {
+    fprintf(stdout, "connection close\n");
+    artik_loop_module *loop = reinterpret_cast<artik_loop_module*>(
+        artik_request_api_module("loop"));
+    loop->quit();
+    artik_release_api_module(websocket);
+    goto exit;
+  } else if (ret == ARTIK_WEBSOCKET_CONNECTION_ERROR) {
+    fprintf(stderr, "connection error\n");
+    artik_loop_module *loop = reinterpret_cast<artik_loop_module*>(
+        artik_request_api_module("loop"));
+    loop->quit();
+    artik_release_api_module(loop);
   } else {
     fprintf(stderr, "TEST failed, handshake error\n");
     artik_loop_module *loop = reinterpret_cast<artik_loop_module*>(
@@ -106,11 +115,11 @@ int main(int argc, char *argv[]) {
   int opt;
   bool verify = false;
   artik_error ret = S_OK;
-  int timeout_ms = 10*1000;
-  int timeout_id = 0;
   artik_loop_module *loop = reinterpret_cast<artik_loop_module*>(
       artik_request_api_module("loop"));
   char uri[26] = "ws://echo.websocket.org/";
+  unsigned int ping_period = 10000;
+  unsigned int pong_timeout = 5000;
 
   while ((opt = getopt(argc, argv, "m:vt")) != -1) {
     switch (opt) {
@@ -147,7 +156,8 @@ int main(int argc, char *argv[]) {
 
   ssl_config.verify_cert = ARTIK_SSL_VERIFY_REQUIRED;
 
-  artik::Websocket* websocket = new artik::Websocket(uri, &ssl_config);
+  artik::Websocket* websocket = new artik::Websocket(uri, ping_period,
+    pong_timeout, &ssl_config);
 
   ret = websocket->request();
   if (ret != S_OK) {
@@ -174,9 +184,8 @@ int main(int argc, char *argv[]) {
     goto exit;
   }
 
-  ret = loop->add_timeout_callback(&timeout_id, timeout_ms, on_timeout_callback,
-      reinterpret_cast<void*>(loop));
-
+  loop->add_signal_watch(SIGINT, quit_loop, reinterpret_cast<void *>(loop),
+    NULL);
   loop->run();
 
 exit:

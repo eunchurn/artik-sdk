@@ -53,9 +53,18 @@ static const char *echo_websocket_root_ca =
 
 static char *test_message = NULL;
 
+static int quit_loop(void *user_data)
+{
+	artik_loop_module *loop = (artik_loop_module *)user_data;
+
+	loop->quit();
+	fprintf(stdout, "Loop quit!\n");
+
+	return true;
+}
+
 static void connection_callback(void *user_data, void *result)
 {
-
 	intptr_t connected = (intptr_t)result;
 
 	if (connected == ARTIK_WEBSOCKET_CONNECTED) {
@@ -71,6 +80,13 @@ static void connection_callback(void *user_data, void *result)
 		artik_release_api_module(websocket);
 	} else if (connected == ARTIK_WEBSOCKET_CLOSED) {
 		fprintf(stdout, "Websocket closed\n");
+
+		artik_loop_module *loop = (artik_loop_module *)
+					artik_request_api_module("loop");
+		loop->quit();
+		artik_release_api_module(loop);
+	} else if (connected == ARTIK_WEBSOCKET_CONNECTION_ERROR) {
+		fprintf(stdout, "Websocket connection error\n");
 
 		artik_loop_module *loop = (artik_loop_module *)
 					artik_request_api_module("loop");
@@ -124,6 +140,8 @@ static artik_error test_websocket_write(char *uri, bool verify)
 	config->uri = uri;
 	config->ssl_config.ca_cert.data = strdup(echo_websocket_root_ca);
 	config->ssl_config.ca_cert.len = strlen(echo_websocket_root_ca);
+	config->ping_period = 10000;
+	config->pong_timeout = 5000;
 
 	if (verify)
 		config->ssl_config.verify_cert = ARTIK_SSL_VERIFY_REQUIRED;
@@ -162,6 +180,7 @@ static artik_error test_websocket_write(char *uri, bool verify)
 		goto exit;
 	}
 
+	loop->add_signal_watch(SIGINT, quit_loop, (void *)loop, NULL);
 	loop->run();
 
 	websocket->websocket_close_stream(handle);
@@ -211,3 +230,4 @@ int main(int argc, char *argv[])
 
 	return (ret == S_OK) ? 0 : -1;
 }
+

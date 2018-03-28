@@ -48,6 +48,7 @@ extern "C" {
 typedef enum {
 	ARTIK_WEBSOCKET_CLOSED = 1,
 	ARTIK_WEBSOCKET_CONNECTED,
+	ARTIK_WEBSOCKET_CONNECTION_ERROR,
 	ARTIK_WEBSOCKET_HANDSHAKE_ERROR
 } artik_websocket_connection_state;
 
@@ -74,10 +75,25 @@ typedef struct {
 	 *  \brief SSL configuration
 	 */
 	artik_ssl_config ssl_config;
-/*!
- *  \brief Pointer to data for internal use by the API.
- */
-void *private_data;
+	/*!
+	 *  \brief Pointer to data for internal use by the API.
+	 */
+	void *private_data;
+	/*!
+	 *  \brief ping_period is the websocket client ping period in milliseconds.
+	 *  Every period a ping packet is sent to the websocket server.
+	 *  If value is set to 0 msec client ping periodic callback is disabled.
+	 */
+	unsigned int ping_period;
+	/*!
+	 *  \brief pong_timeout is the websocket client timeout pong period in
+	 *  milliseconds. After sending a ping to the server, the client will
+	 *  consider the connection stalled if the server has not responded with
+	 *  with a pong frame within the timeout period. If this value is set to 0,
+	 *  client timeout callback is disabled. The pong_timeout value must be
+	 *  significantly smaller than ping_period.
+	 */
+	unsigned int pong_timeout;
 } artik_websocket_config;
 
 /*!

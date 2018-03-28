@@ -50,6 +50,13 @@ static void websocket_connection_callback(void *user_data, void *result)
 					artik_request_api_module("loop");
 		loop->quit();
 		artik_release_api_module(loop);
+	} else if (connected == ARTIK_WEBSOCKET_CONNECTION_ERROR) {
+		fprintf(stdout, "Websocket connection error\n");
+
+		artik_loop_module *loop = (artik_loop_module *)
+					artik_request_api_module("loop");
+		loop->quit();
+		artik_release_api_module(loop);
 	} else {
 		fprintf(stderr, "TEST failed, handshake error\n");
 
@@ -64,7 +71,7 @@ static void on_timeout_callback(void *user_data)
 {
 	artik_loop_module *loop = (artik_loop_module *) user_data;
 
-	fprintf(stdout, "TEST: %s stop scanning, exiting loop\n", __func__);
+	fprintf(stdout, "exiting loop\n");
 
 	loop->quit();
 }
@@ -119,7 +126,7 @@ static artik_error test_websocket_read(int timeout_ms,
 	/* Open websocket to ARTIK Cloud and register device to
 	 * receive messages from cloud
 	 */
-	ret = cloud->websocket_open_stream(&handle, access_token, device_id,
+	ret = cloud->websocket_open_stream(&handle, access_token, device_id, 20, 5,
 					&ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
@@ -178,7 +185,7 @@ static artik_error test_websocket_write(int timeout_ms,
 	/* Open websocket to ARTIK Cloud and register device to receive message
 	 * from cloud
 	 */
-	ret = cloud->websocket_open_stream(&handle, access_token, device_id,
+	ret = cloud->websocket_open_stream(&handle, access_token, device_id, 20, 5,
 		&ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
