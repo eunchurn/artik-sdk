@@ -59,6 +59,7 @@
 					(ret), "bad certificate")
 #define HANDSHAKE_FAILURE		!strcmp(SSL_alert_desc_string_long\
 					(ret), "handshake failure")
+#define PEM_END_CERTIFICATE	"-----END CERTIFICATE-----\n"
 
 typedef struct {
 	int fdset[NUM_FDS];
@@ -312,6 +313,9 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 	X509 *x509_cert = NULL;
 	EVP_PKEY *pk = NULL;
 	X509_VERIFY_PARAM *param = NULL;
+	X509_STORE *keystore = NULL;
+	char *start = NULL, *end = NULL;
+	int remain = 0;
 
 	log_dbg("");
 
@@ -351,46 +355,58 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 
 	if (ssl_config->ca_cert.data && ssl_config->ca_cert.len &&
 			ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED) {
-		X509_STORE *keystore = NULL;
-
-		/* Convert CA certificate string into a BIO */
-		bio = BIO_new(BIO_s_mem());
-		BIO_write(bio, ssl_config->ca_cert.data,
-				ssl_config->ca_cert.len);
-
-		/* Extract X509 cert from the BIO */
-		x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-		if (!x509_cert) {
-			log_err("Failed to extract cert from the bio");
-			BIO_free(bio);
-			ret = E_WEBSOCKET_ERROR;
-			goto exit;
-		}
-
-		log_dbg("");
-
-		BIO_free(bio);
-
+		/* Create a new keystore */
 		keystore = X509_STORE_new();
-
 		if (!keystore) {
-			log_err("Failed to load keystore");
-			BIO_free(bio);
+			log_err("Failed to create keystore");
 			ret = E_WEBSOCKET_ERROR;
 			goto exit;
 		}
+
+		/* CA certs may come as a bundle, parse them all */
+		start = ssl_config->ca_cert.data;
+		end = start;
+		remain = ssl_config->ca_cert.len;
+
+		do {
+			end = strstr(start, PEM_END_CERTIFICATE);
+			if (!end)
+				break;
+
+			end += strlen(PEM_END_CERTIFICATE);
+
+			/* Convert CA certificate string into a BIO */
+			bio = BIO_new(BIO_s_mem());
+			BIO_write(bio, start, end - start);
+
+			/* Extract X509 cert from the BIO */
+			x509_cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+			if (!x509_cert) {
+				log_err("Failed to extract cert from the bio");
+				BIO_free(bio);
+				ret = E_WEBSOCKET_ERROR;
+				goto exit;
+			}
+
+			/* Add certificate to keystore */
+			if (!X509_STORE_add_cert(keystore, x509_cert)) {
+				log_err("Failed add certificate to the keystore");
+				BIO_free(bio);
+				X509_free(x509_cert);
+				x509_cert = NULL;
+				ret = E_WEBSOCKET_ERROR;
+				goto exit;
+			}
+
+			BIO_free(bio);
+			X509_free(x509_cert);
+			x509_cert = NULL;
+
+			remain -= end - start;
+			start = end;
+		} while (remain);
 
 		SSL_CTX_set_cert_store(ssl_ctx, keystore);
-
-		/* Set CA certificate to context */
-		if (!X509_STORE_add_cert(keystore, x509_cert)) {
-			log_err("Failed add certificate to the keystore");
-			ret = E_WEBSOCKET_ERROR;
-			goto exit;
-		}
-
-		X509_free(x509_cert);
-		x509_cert = NULL;
 	}
 
 	if (ssl_config->se_config.use_se == false) {
