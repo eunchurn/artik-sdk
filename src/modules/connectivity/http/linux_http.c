@@ -41,6 +41,7 @@
 #define MAX_QUEUE_NAME		1024
 #define MAX_QUEUE_SIZE		128
 #define MAX_MESSAGE_SIZE	2048
+#define PEM_END_CERTIFICATE	"-----END CERTIFICATE-----\n"
 
 typedef struct {
 	char *cert;
@@ -94,48 +95,66 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 	BIO *b64 = NULL;
 	X509 *x509_cert = NULL;
 	EVP_PKEY *pk = NULL;
+	X509_STORE *keystore = NULL;
+	char *start = NULL, *end = NULL;
+	int remain = 0;
 
 	log_dbg("");
 
 	if (ssl_config->ca_cert.data && ssl_config->ca_cert.len &&
 		ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED) {
-		X509_STORE *keystore = NULL;
-
-		/* Convert CA certificate string into a BIO */
-		b64 = BIO_new(BIO_s_mem());
-		BIO_write(b64, ssl_config->ca_cert.data,
-			ssl_config->ca_cert.len);
-
-		/* Extrat X509 cert from the BIO */
-		x509_cert = PEM_read_bio_X509(b64, NULL, NULL, NULL);
-		if (!x509_cert) {
-			log_err("Failed to extract cert from the bio");
-			BIO_free(b64);
-			ret = CURLE_SSL_CERTPROBLEM;
-			goto exit;
-		}
-
-		log_dbg("");
-
-		BIO_free(b64);
-
-		keystore = SSL_CTX_get_cert_store(ctx);
+		/* Create a new keystore */
+		keystore = X509_STORE_new();
 		if (!keystore) {
-			log_err("Failed to load keystore");
+			log_err("Failed to create keystore");
+			ret = CURLE_SSL_CERTPROBLEM;
+			goto exit;
+		}
+
+		/* CA certs may come as a bundle, parse them all */
+		start = ssl_config->ca_cert.data;
+		end = start;
+		remain = ssl_config->ca_cert.len;
+
+		do {
+			end = strstr(start, PEM_END_CERTIFICATE);
+			if (!end)
+				break;
+
+			end += strlen(PEM_END_CERTIFICATE);
+
+			/* Convert CA certificate string into a BIO */
+			b64 = BIO_new(BIO_s_mem());
+			BIO_write(b64, start, end - start);
+
+			/* Extract X509 cert from the BIO */
+			x509_cert = PEM_read_bio_X509(b64, NULL, NULL, NULL);
+			if (!x509_cert) {
+				log_err("Failed to extract cert from the bio");
+				BIO_free(b64);
+				ret = CURLE_SSL_CERTPROBLEM;
+				goto exit;
+			}
+
+			/* Add certificate to keystore */
+			if (!X509_STORE_add_cert(keystore, x509_cert)) {
+				log_err("Failed add certificate to the keystore");
+				BIO_free(b64);
+				X509_free(x509_cert);
+				x509_cert = NULL;
+				ret = CURLE_SSL_CERTPROBLEM;
+				goto exit;
+			}
+
 			BIO_free(b64);
-			ret = CURLE_SSL_CERTPROBLEM;
-			goto exit;
-		}
+			X509_free(x509_cert);
+			x509_cert = NULL;
 
-		/* Set CA certificate to context */
-		if (!X509_STORE_add_cert(keystore, x509_cert)) {
-			log_err("Failed add certificate to the keystore");
-			ret = CURLE_SSL_CERTPROBLEM;
-			goto exit;
-		}
+			remain -= end - start;
+			start = end;
+		} while (remain);
 
-		X509_free(x509_cert);
-		x509_cert = NULL;
+		SSL_CTX_set_cert_store(ctx, keystore);
 	}
 
 	log_dbg("");
