@@ -109,13 +109,8 @@ artik_error os_serial_request(artik_serial_config *config)
 	FD_ZERO(&data_user->rdfs);
 	FD_SET(data_user->fd, &data_user->rdfs);
 
-	if (tcgetattr(data_user->fd, &tty)) {
-		os_serial_release(config);
-		return E_ACCESS_DENIED;
-	}
-	tty.c_iflag &=
-	    ~(IXON | IXOFF | IXANY | CSIZE | CSTOPB | PARENB | PARODD | CBAUD |
-	      CRTSCTS);
+	/* Initialize minimal termios configuration - RAW mode */
+	memset(&tty, 0, sizeof(struct termios));
 	tty.c_cflag |= (CREAD | CLOCAL);
 	tty.c_cc[VMIN] = 1;
 	tty.c_cc[VTIME] = 5;
@@ -129,9 +124,6 @@ artik_error os_serial_request(artik_serial_config *config)
 	/* Configure baudrate */
 	cfsetispeed(&tty, baudrate_value[config->baudrate]);
 	cfsetospeed(&tty, baudrate_value[config->baudrate]);
-
-	/* UART ports should be use in raw mode */
-	cfmakeraw(&tty);
 
 	/* Configure flow control */
 	switch (config->flowctrl) {
