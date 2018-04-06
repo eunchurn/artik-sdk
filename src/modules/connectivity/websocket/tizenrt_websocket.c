@@ -474,6 +474,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	priv->cli->cb = &callbacks;
 	priv->cli->tls_enabled = use_tls;
 	priv->cli->user_data = (void *)priv;
+	priv->cli->ping_interval = config->ping_period;
 
 	/* Setup TLS configuration if applicable */
 	if (ssl_setup(priv->cli, &(config->ssl_config)) != S_OK) {
