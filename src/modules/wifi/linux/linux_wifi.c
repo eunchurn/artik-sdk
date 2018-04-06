@@ -394,8 +394,15 @@ artik_error os_wifi_connect(const char *ssid, const char *password,
 	}
 
 	ret = wifi_connect(ssid, password, persistent);
-	if (ret != WIFI_SUCCESS)
+	switch (ret) {
+	case WIFI_SUCCESS:
+		break;
+	case WIFI_ERROR_CONNECT_INVALID_SSID:
+	case WIFI_ERROR_CONNECT_INVALID_PSK:
+		return E_BAD_ARGS;
+	default:
 		return E_WIFI_ERROR;
+	}
 
 	wifi_connected = true;
 

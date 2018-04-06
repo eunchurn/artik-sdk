@@ -388,8 +388,7 @@ int wifi_connect(const char *ssid, const char *psk, int save_profile)
 	int netid_len = 0;
 	char strnid[5] = "\0";
 
-	if (!ssid || (os_strlen(ssid) == 0) || (os_strlen(ssid) > MAX_AP_NAME_LEN)
-			|| (os_strchr(ssid, ' ')))
+	if (!ssid || (os_strlen(ssid) == 0) || (os_strlen(ssid) > MAX_AP_NAME_LEN))
 		return WIFI_ERROR_CONNECT_INVALID_SSID;
 
 	if (psk && (os_strlen(psk) > 0) && ((os_strlen(psk) < MIN_AP_WPA2PASS_LEN) ||
