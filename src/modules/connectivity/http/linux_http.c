@@ -32,16 +32,17 @@
 #include "os_http.h"
 #include "common_http.h"
 
-#define WAIT_CONNECT_POLLING_MS	500
-#define FLAG_EVENT		(0x1 << 0)
-#define MAX(a, b)		((a > b) ? a : b)
-#define NUM_FDS			2
-#define FD_CLOSE		0
-#define FD_CONNECT		1
-#define MAX_QUEUE_NAME		1024
-#define MAX_QUEUE_SIZE		128
-#define MAX_MESSAGE_SIZE	2048
-#define PEM_END_CERTIFICATE	"-----END CERTIFICATE-----\n"
+#define WAIT_CONNECT_POLLING_MS  500
+#define FLAG_EVENT               (0x1 << 0)
+#define MAX(a, b)                ((a > b) ? a : b)
+#define NUM_FDS                  2
+#define FD_CLOSE                 0
+#define FD_CONNECT               1
+#define MAX_QUEUE_NAME           1024
+#define MAX_QUEUE_SIZE           128
+#define MAX_MESSAGE_SIZE         2048
+#define PEM_END_CERTIFICATE_UNIX "-----END CERTIFICATE-----\n"
+#define PEM_END_CERTIFICATE_WIN  "-----END CERTIFICATE-----\r\n"
 
 typedef struct {
 	char *cert;
@@ -117,11 +118,17 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 		remain = ssl_config->ca_cert.len;
 
 		do {
-			end = strstr(start, PEM_END_CERTIFICATE);
-			if (!end)
-				break;
-
-			end += strlen(PEM_END_CERTIFICATE);
+			/* Look for UNIX style ending first */
+			end = strstr(start, PEM_END_CERTIFICATE_UNIX);
+			if (end) {
+				end += strlen(PEM_END_CERTIFICATE_UNIX);
+			} else {
+				/* If not found, check for Windows stye ending */
+				end = strstr(start, PEM_END_CERTIFICATE_WIN);
+				if (!end)
+					break;
+				end += strlen(PEM_END_CERTIFICATE_WIN);
+			}
 
 			/* Convert CA certificate string into a BIO */
 			b64 = BIO_new(BIO_s_mem());

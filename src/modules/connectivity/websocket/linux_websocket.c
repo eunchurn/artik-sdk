@@ -59,7 +59,8 @@
 					(ret), "bad certificate")
 #define HANDSHAKE_FAILURE		!strcmp(SSL_alert_desc_string_long\
 					(ret), "handshake failure")
-#define PEM_END_CERTIFICATE	"-----END CERTIFICATE-----\n"
+#define PEM_END_CERTIFICATE_UNIX "-----END CERTIFICATE-----\n"
+#define PEM_END_CERTIFICATE_WIN  "-----END CERTIFICATE-----\r\n"
 
 typedef struct {
 	int fdset[NUM_FDS];
@@ -369,11 +370,17 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 		remain = ssl_config->ca_cert.len;
 
 		do {
-			end = strstr(start, PEM_END_CERTIFICATE);
-			if (!end)
-				break;
-
-			end += strlen(PEM_END_CERTIFICATE);
+			/* Look for UNIX style ending first */
+			end = strstr(start, PEM_END_CERTIFICATE_UNIX);
+			if (end) {
+				end += strlen(PEM_END_CERTIFICATE_UNIX);
+			} else {
+				/* If not found, check for Windows stye ending */
+				end = strstr(start, PEM_END_CERTIFICATE_WIN);
+				if (!end)
+					break;
+				end += strlen(PEM_END_CERTIFICATE_WIN);
+			}
 
 			/* Convert CA certificate string into a BIO */
 			bio = BIO_new(BIO_s_mem());
