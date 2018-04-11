@@ -195,7 +195,7 @@ artik_error os_log_set_handler(artik_log_handler handler, void *user_data)
 
 void os_log_set_prefix_fields(enum artik_log_prefix field_set)
 {
-	 _log_prefix_fields = field_set;
+	 _log_prefix_fields = field_set & LOG_PREFIX_ALL;
 }
 
 enum artik_log_prefix os_log_get_prefix_fields(void)
