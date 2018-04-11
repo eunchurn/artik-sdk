@@ -58,7 +58,7 @@ static int _log_make_prefix(char *prefix, int prefix_len,
 		prefix[len++] = ' ';
 	}
 
-	if (_log_prefix_fields & LOG_PREFIX_FILENAME) {
+	if ((_log_prefix_fields & LOG_PREFIX_FILENAME) && filename) {
 		pretty_filename = strrchr(filename, '/');
 		if (!pretty_filename)
 			pretty_filename = filename;
@@ -82,7 +82,7 @@ static int _log_make_prefix(char *prefix, int prefix_len,
 			len += snprintf(prefix + len, field_len + 5, "<%s> ",
 				pretty_filename);
 		/* Filename with line number */
-		if (_log_prefix_fields & LOG_PREFIX_LINE) {
+		if ((_log_prefix_fields & LOG_PREFIX_LINE) && (line > 0)) {
 			len--;
 			len--;
 			len += snprintf(prefix + len, 9, ":%d> ", line);
@@ -90,7 +90,7 @@ static int _log_make_prefix(char *prefix, int prefix_len,
 		}
 	} else {
 		/* Standalone line number */
-		if (_log_prefix_fields & LOG_PREFIX_LINE) {
+		if ((_log_prefix_fields & LOG_PREFIX_LINE) && (line > 0)) {
 			len += snprintf(prefix + len, 9, "<%d> ", line);
 			*(prefix + len - 1) = ' ';
 		}
@@ -150,6 +150,9 @@ void os_log_print(enum artik_log_level level, const char *filename,
 {
 	if (!_log_override_checked)
 		_log_check_override();
+
+	if (level > LOG_LEVEL_DEBUG)
+		return;
 
 	switch (_log_system) {
 	case LOG_SYSTEM_STDERR:
