@@ -97,11 +97,6 @@ typedef int artik_error;
 #define E_INVALID_VALUE		(-11)
 
 /*!
- *  \brief No received data in the requested message queue
- */
-#define E_WEBSOCKET_QUEUE	(-12)
-
-/*!
  *  \brief The network connection is invalid
  */
 #define E_NOT_CONNECTED     (-13)
@@ -228,6 +223,7 @@ static const artik_error_msg_string error_msg_strings[] = {
 	{E_ZIGBEE_INVALID_DAEMON, "Invalid zigbee daemon"},
 	{E_ZIGBEE_NO_DAEMON, "No zigbee daemon"},
 	{E_ZIGBEE_NO_MESSAGE, "No zigbee message"},
+	{E_ZIGBEE_NO_DEVICE, "No zigbee device"},
 	{E_ZIGBEE_ERR_SOCK, "Socket error"},
 	{E_ZIGBEE_MSG_SEND_ERROR, "Send message error"},
 	{E_ZIGBEE_NETWORK_EXIST, "Network has existed"},
@@ -241,7 +237,8 @@ static const artik_error_msg_string error_msg_strings[] = {
 	{E_SECURITY_CA_VERIF_FAILED, "Certificate verification against CA failed"},
 	{E_SECURITY_DIGEST_MISMATCH, "Computed digest mismatch"},
 	{E_SECURITY_SIGNATURE_MISMATCH, "Signature mismatch"},
-	{E_SECURITY_SIGNING_TIME_ROLLBACK, "Signing time rollback error"}
+	{E_SECURITY_SIGNING_TIME_ROLLBACK, "Signing time rollback error"},
+	{E_IN_PROGRESS, "Operation in progress"}
 };
 
 static const char *error_msg_null = "null";
