@@ -151,7 +151,7 @@ artik_error test_http_get_stream(bool verify, bool secure)
 		{"Accept-Language", "en-US,en;q=0.8"},
 	};
 
-	fp = fopen(outfilename, "wb");
+	fp = fopen(outfilename, "w+b");
 	if (!fp) {
 		fprintf(stdout, "TEST: %s failed to open %s (err=%d)\n", __func__,
 				outfilename, errno);
@@ -186,15 +186,7 @@ artik_error test_http_get_stream(bool verify, bool secure)
 		return ret;
 	}
 
-	if (fp)
-		fclose(fp);
-
-	fp = fopen(outfilename, "rb");
-	if (!fp) {
-		fprintf(stdout, "TEST: %s failed to open %s (err=%d)\n", __func__,
-				outfilename, errno);
-		return ret;
-	}
+	fseek(fp, 0, SEEK_SET);
 
 	MD5_Init(&mdContext);
 
@@ -633,4 +625,4 @@ int main(int argc, char *argv[])
 exit:
 	return (ret == S_OK) ? 0 : -1;
 
-}
+	}
