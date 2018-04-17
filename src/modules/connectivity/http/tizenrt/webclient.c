@@ -527,7 +527,6 @@ HANDSHAKE_FAIL:
 static void wget_tls_ssl_release(struct wget_tls_t *tls)
 {
 	mbedtls_net_free(&tls->tls_net);
-	mbedtls_ssl_session_reset(&tls->tls_ssl);
 	mbedtls_ssl_free(&tls->tls_ssl);
 }
 
@@ -626,6 +625,7 @@ static int wget_connect(struct wget_s *ws, int tls, void *tls_data)
 
 			log_dbg("WARNING: Failed to resolve hostname\n");
 			ret = -EHOSTUNREACH;
+			close(sockfd);
 			goto errout_with_errno;
 		}
 
@@ -637,6 +637,7 @@ static int wget_connect(struct wget_s *ws, int tls, void *tls_data)
 			sizeof(struct sockaddr_in));
 		if (ret < 0) {
 			log_dbg("ERROR: connect failed: %d\n", errno);
+			close(sockfd);
 			goto errout;
 		}
 
@@ -646,6 +647,7 @@ static int wget_connect(struct wget_s *ws, int tls, void *tls_data)
 				sockfd);
 			if (ret != 0) {
 				retry = handshake_retry > 0;
+				wget_tls_ssl_release(client_tls);
 				if (retry &&
 					(ret == MBEDTLS_ERR_NET_SEND_FAILED
 						|| ret ==
@@ -654,8 +656,6 @@ static int wget_connect(struct wget_s *ws, int tls, void *tls_data)
 						MBEDTLS_ERR_SSL_CONN_EOF)) {
 					handshake_retry--;
 					log_dbg("Handshake again...\n");
-					mbedtls_net_free(&client_tls->tls_net);
-					mbedtls_ssl_free(&client_tls->tls_ssl);
 					continue;
 				}
 				log_dbg("TLS Handshake failed with %d\n", ret);
@@ -682,12 +682,6 @@ static int wget_connect(struct wget_s *ws, int tls, void *tls_data)
 errout_with_errno:
 	set_errno(-ret);
 errout:
-#ifdef CONFIG_NET_SECURITY_TLS
-	if (tls)
-		wget_tls_ssl_release(client_tls);
-#endif
-	if (!tls)
-		close(sockfd);
 
 	return ret;
 }
