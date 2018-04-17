@@ -274,24 +274,24 @@ static void ssl_cleanup(websocket_t *ws)
 {
 	log_dbg("");
 
-	if (ws->tls_cred)
-		free(ws->tls_cred);
-
-	if (ws->tls_opt)
+	if (ws->tls_opt) {
 		free(ws->tls_opt);
+		memset(ws->tls_opt, 0, sizeof(tls_opt));
+	}
 
-	if (ws->tls_cred->ca_cert)
-		free((unsigned char *)ws->tls_cred->ca_cert);
+	if (ws->tls_cred) {
+		if (ws->tls_cred->ca_cert)
+			free((unsigned char *)ws->tls_cred->ca_cert);
 
-	if (ws->tls_cred->dev_cert)
-		free((unsigned char *)ws->tls_cred->dev_cert);
+		if (ws->tls_cred->dev_cert)
+			free((unsigned char *)ws->tls_cred->dev_cert);
 
-	if (ws->tls_cred->dev_key)
-		free((unsigned char *)ws->tls_cred->dev_key);
+		if (ws->tls_cred->dev_key)
+			free((unsigned char *)ws->tls_cred->dev_key);
 
-	/* Nullify everything */
-	memset(ws->tls_cred, 0, sizeof(tls_cred));
-	memset(ws->tls_opt, 0, sizeof(tls_opt));
+		free(ws->tls_cred);
+		memset(ws->tls_cred, 0, sizeof(tls_cred));
+	}
 }
 
 static int see_generate_random_client(void *ctx, unsigned char *data,
