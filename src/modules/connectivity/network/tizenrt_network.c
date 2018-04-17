@@ -215,6 +215,7 @@ artik_error os_get_network_config(
 	ret = ioctl(sockfd, SIOCGIFADDR, &req);
 	if (ret) {
 		log_dbg("Failed to get IP address. (err %d)", ret);
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
@@ -224,6 +225,7 @@ artik_error os_get_network_config(
 	ret = ioctl(sockfd, SIOCGIFDSTADDR, &req);
 	if (ret) {
 		log_dbg("Failed to get GW address.");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
@@ -233,6 +235,7 @@ artik_error os_get_network_config(
 	ret = ioctl(sockfd, SIOCGIFNETMASK, &req);
 	if (ret) {
 		log_dbg("Failed to get netmask");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
@@ -240,6 +243,7 @@ artik_error os_get_network_config(
 
 	if (netlib_getmacaddr("wl1", macaddr) != OK) {
 		log_dbg("Failed to get mac address");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
@@ -252,27 +256,33 @@ artik_error os_get_network_config(
 	printf("config->dns_addr %p\n", config->dns_addr);
 	if (!dns_foreach_nameserver(add_nameserver, &dns)) {
 		log_dbg("Failed to get DNS servers.");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
 	if (!inet_ntop(AF_INET, &ipv4_host, config->ip_addr.address, MAX_IP_ADDRESS_LEN)) {
 		log_dbg("Failed to convert host ip address into a character string.");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
 	if (!inet_ntop(AF_INET, &ipv4_gw, config->gw_addr.address, MAX_IP_ADDRESS_LEN)) {
 		log_dbg("Failed to convert gw ip address into a character string.");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
 	if (!inet_ntop(AF_INET, &ipv4_netmask->sin_addr, config->netmask.address, MAX_IP_ADDRESS_LEN)) {
 		log_dbg("Failed to convert netmask ip address into a character string.");
+		close(sockfd);
 		return E_NETWORK_ERROR;
 	}
 
 	config->ip_addr.type = ARTIK_IPV4;
 	config->gw_addr.type = ARTIK_IPV4;
 	config->netmask.type = ARTIK_IPV4;
+
+	close(sockfd);
 
 	return S_OK;
 }
