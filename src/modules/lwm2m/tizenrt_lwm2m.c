@@ -203,11 +203,15 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 		return E_BAD_ARGS;
 
 	node = (lwm2m_node *) artik_list_add(&nodes, 0, sizeof(lwm2m_node));
+	if (!node)
+		return E_NO_MEM;
+
 	objects = malloc(sizeof(object_container_t));
 	server = malloc(sizeof(object_security_server_t));
-
-	if (!node || !objects || !server)
-		return E_NO_MEM;
+	if (!objects || !server) {
+		ret = E_NO_MEM;
+		goto error;
+	}
 
 	memset(objects, 0, sizeof(object_container_t));
 	memset(server, 0, sizeof(object_security_server_t));
@@ -220,7 +224,6 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 
 	if (config->ssl_config) {
 		if (!config->tls_psk_key) {
-			artik_list_delete_node(&nodes, (artik_list *)node);
 			ret = E_BAD_ARGS;
 			goto error;
 		}
