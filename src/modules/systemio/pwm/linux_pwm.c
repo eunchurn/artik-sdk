@@ -167,6 +167,9 @@ static artik_error os_pwm_init(artik_pwm_config *config,
 
 	log_dbg("");
 
+	if (config->pin_num < 0)
+		return E_BAD_ARGS;
+
 	config->user_data = malloc(sizeof(artik_pwm_user_data_t));
 	user_data = config->user_data;
 	user_data->fd = malloc(sizeof(*user_data->fd) * len);
@@ -225,6 +228,9 @@ artik_error os_pwm_request(artik_pwm_config *config)
 	artik_error res = S_OK;
 
 	log_dbg("");
+
+	if (config->duty_cycle > config->period)
+		return E_BAD_ARGS;
 
 	if (config->duty_cycle == 0)
 		config->duty_cycle = config->period / 2;
