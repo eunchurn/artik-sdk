@@ -300,7 +300,7 @@ static int os_http_process_get_stream(void *user_data)
 	if (interface->response_cb_params.callback)
 		interface->response_cb_params.callback(ret,
 			interface->status,
-			interface->response,
+			NULL,
 			interface->response_cb_params.user_data);
 
 
