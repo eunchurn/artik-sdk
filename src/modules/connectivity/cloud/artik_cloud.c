@@ -78,6 +78,25 @@
 #define ARTIK_CLOUD_SECURE_REG_DEVICE_BODY	"{\"deviceTypeId\":\"%s\",\""\
 						"vendorDeviceId\":\"%s\"}"
 #define ARTIK_CLOUD_SECURE_REG_COMPLETE_BODY	"{\"nonce\":\"%s\"}"
+
+#define ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE ARTIK_CLOUD_SECURE_URL("devices/%s")
+#define ARTIK_CLOUD_SECURE_URL_ADD_DEVICE	ARTIK_CLOUD_SECURE_URL("devices")
+#define ARTIK_CLOUD_SECURE_URL_MESSAGES		ARTIK_CLOUD_SECURE_URL("messages")
+#define ARTIK_CLOUD_SECURE_URL_SELF_USER	ARTIK_CLOUD_SECURE_URL("users/self")
+#define ARTIK_CLOUD_SECURE_URL_USER_DEVICES	ARTIK_CLOUD_SECURE_URL("users/%s/"\
+						"devices?count=%d&include"\
+						"Properties=%s&offset=%d")
+#define ARTIK_CLOUD_SECURE_URL_USER_DEVICE_TYPES ARTIK_CLOUD_SECURE_URL("users"\
+						"/%s/devicetypes?count=%d&includeShared=%s&offset=%d")
+#define ARTIK_CLOUD_SECURE_URL_UPDATE_DEVICE_TOKEN ARTIK_CLOUD_SECURE_URL("dev"\
+						"ices/%s/tokens")
+#define ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE_TOKEN ARTIK_CLOUD_SECURE_URL("dev"\
+						"ices/%s/tokens")
+#define ARTIK_CLOUD_SECURE_URL_GET_DEVICE_PROPS	ARTIK_CLOUD_SECURE_URL("devicemgmt/"\
+						"devices/%s/properties?"\
+						"includeTimestamp=%s")
+#define ARTIK_CLOUD_SECURE_URL_SET_DEVICE_SERV_PROPS ARTIK_CLOUD_SECURE_URL("devicemgmt/"\
+						"devices/%s/serverproperties")
 #define ARTIK_CLOUD_TOKEN_MAX			128
 #define ARTIK_CLOUD_DTID_MAX			64
 #define ARTIK_CLOUD_VDID_MAX			64
@@ -615,7 +634,8 @@ static artik_error _get_current_user_profile(
 	fields[0].data = bearer;
 
 	return _artik_cloud_get(akc_http_request,
-							ARTIK_CLOUD_URL_SELF_USER, &headers);
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_SELF_USER : ARTIK_CLOUD_URL_SELF_USER, &headers);
 }
 
 artik_error get_current_user_profile_async(const char
@@ -681,7 +701,9 @@ static artik_error _get_user_devices(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_USER_DEVICES,
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_USER_DEVICES : ARTIK_CLOUD_URL_USER_DEVICES,
 		 user_id, count, properties ? "true" : "false", offset);
 
 	/* Perform the request */
@@ -752,8 +774,11 @@ static artik_error _get_user_devices_types(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_USER_DEVICE_TYPES,
-		 user_id, count, shared ? "true" : "false", offset);
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_USER_DEVICE_TYPES :
+		ARTIK_CLOUD_URL_USER_DEVICE_TYPES,
+		user_id, count, shared ? "true" : "false", offset);
 
 	return _artik_cloud_get(akc_http_request, url, &headers);
 }
@@ -1036,7 +1061,12 @@ static artik_error _add_device(
 	snprintf(body, body_len, ARTIK_CLOUD_ADD_DEVICE_BODY, user_id, dt_id,
 		name);
 
-	ret = _artik_cloud_post(akc_http_request, ARTIK_CLOUD_URL_ADD_DEVICE, &headers, body);
+
+	ret = _artik_cloud_post(akc_http_request,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_ADD_DEVICE : ARTIK_CLOUD_URL_ADD_DEVICE,
+		&headers, body);
+
 	free(body);
 
 	return ret;
@@ -1117,7 +1147,11 @@ artik_error _send_message(
 
 	snprintf(body, body_len, ARTIK_CLOUD_MESSAGE_BODY, device_id, message);
 
-	ret = _artik_cloud_post(akc_http_request, ARTIK_CLOUD_URL_MESSAGES, &headers, body);
+	ret = _artik_cloud_post(akc_http_request,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_MESSAGES : ARTIK_CLOUD_URL_MESSAGES,
+		&headers, body);
+
 	free(body);
 
 	return ret;
@@ -1193,7 +1227,11 @@ static artik_error _send_action(
 
 	snprintf(body, body_len, ARTIK_CLOUD_ACTION_BODY, device_id, action);
 
-	ret = _artik_cloud_post(akc_http_request, ARTIK_CLOUD_URL_MESSAGES, &headers, body);
+	ret = _artik_cloud_post(akc_http_request,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_MESSAGES : ARTIK_CLOUD_URL_MESSAGES,
+		&headers, body);
+
 	free(body);
 
 	return ret;
@@ -1259,8 +1297,10 @@ artik_error _update_device_token(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_UPDATE_DEVICE_TOKEN,
-		 device_id);
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_UPDATE_DEVICE_TOKEN :
+		ARTIK_CLOUD_URL_UPDATE_DEVICE_TOKEN, device_id);
 
 	/* Perform the request */
 	return _artik_cloud_put(akc_http_request, url, &headers, body);
@@ -1326,8 +1366,11 @@ static artik_error _delete_device_token(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_DELETE_DEVICE_TOKEN,
-		 device_id);
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE_TOKEN :
+		ARTIK_CLOUD_URL_DELETE_DEVICE_TOKEN,
+		device_id);
 
 	/* Perform the request */
 	return _artik_cloud_del(akc_http_request, url, &headers);
@@ -1392,7 +1435,9 @@ static artik_error _delete_device(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_DELETE_DEVICE,
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE : ARTIK_CLOUD_URL_DELETE_DEVICE,
 		 device_id);
 
 	/* Perform the request */
@@ -1458,7 +1503,10 @@ static artik_error _get_device_properties(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_GET_DEVICE_PROPS,
+	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		 ARTIK_CLOUD_SECURE_URL_GET_DEVICE_PROPS :
+		 ARTIK_CLOUD_URL_GET_DEVICE_PROPS,
 		device_id, timestamp ? "true" : "false");
 
 	/* Perform the request */
@@ -1528,6 +1576,8 @@ static artik_error _set_device_server_properties(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
+		akc_http_request->ssl_config->se_config.use_se ?
+		ARTIK_CLOUD_SECURE_URL_SET_DEVICE_SERV_PROPS :
 		ARTIK_CLOUD_URL_SET_DEVICE_SERV_PROPS, device_id);
 
 	/* Build up message body */
