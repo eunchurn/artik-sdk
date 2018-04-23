@@ -21,6 +21,7 @@
 #include <artik_loop.h>
 #include <artik_log.h>
 #include <artik_security.h>
+#include <artik_utils.h>
 
 #include <artik_lwm2m.h>
 #include <artik_list.h>
@@ -202,6 +203,32 @@ static void on_resource_changed(void *user_data, void *extra)
 	}
 }
 
+static bool check_lwm2m_uri(const char *uri)
+{
+	artik_utils_module *utils = (artik_utils_module *)
+		artik_request_api_module("utils");
+	artik_uri_info uri_info;
+	bool ret = true;
+
+	if (utils->get_uri_info(&uri_info, uri) != S_OK) {
+		artik_release_api_module("utils");
+		return false;
+	}
+
+	if (strcmp("coap", uri_info.scheme) != 0
+		&& strcmp("coaps", uri_info.scheme) != 0
+		&& strcmp("coap+tcp", uri_info.scheme) != 0
+		&& strcmp("coaps+tcp", uri_info.scheme) != 0) {
+		log_dbg("scheme is %s", uri_info.scheme);
+		ret = false;
+	}
+
+	utils->free_uri_info(&uri_info);
+	artik_release_api_module(utils);
+
+	return ret;
+}
+
 artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 				artik_lwm2m_config *config)
 {
@@ -216,6 +243,18 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	log_dbg("");
 
 	if (!config || !config->server_uri || !config->name)
+		return E_BAD_ARGS;
+
+	if (config->lifetime < 0 || config->server_id < 0)
+		return E_BAD_ARGS;
+
+	if (!check_lwm2m_uri(config->server_uri))
+		return E_BAD_ARGS;
+
+	if (!config->tls_psk_identity && !config->ssl_config)
+		return E_BAD_ARGS;
+
+	if (!config->tls_psk_key)
 		return E_BAD_ARGS;
 
 	node = (lwm2m_node *) artik_list_add(&nodes, 0, sizeof(lwm2m_node));
@@ -331,7 +370,6 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	objects->server = server;
 
 	/* Copy objects if they have been provided */
-		/* Copy objects if they have been provided */
 	for (i = 0; i < ARTIK_LWM2M_OBJECT_COUNT; i++) {
 		if (!config->objects[i])
 			continue;
@@ -371,9 +409,17 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	}
 
 	node->container = objects;
+
+	/* Configure the client */
+	node->client = lwm2m_client_start(node->container, node->container->server->serverCertificate, false);
+	if (!node->client) {
+		log_dbg("lwm2m_client error");
+		return E_BAD_ARGS;
+	}
 	*handle = (artik_lwm2m_handle)node;
 
 	return S_OK;
+
 exit:
 	artik_list_delete_node(&nodes, (artik_list *)node);
 	if (server) {
@@ -460,13 +506,6 @@ artik_error os_lwm2m_client_connect(artik_lwm2m_handle handle)
 
 	if (!node)
 		return E_BAD_ARGS;
-
-	/* Configure and start the client */
-	node->client = lwm2m_client_start(node->container, node->container->server->serverCertificate, false);
-	if (!node->client) {
-		log_dbg("lwm2m_client error");
-		return E_LWM2M_ERROR;
-	}
 
 	/* Start timeout callback to service the LWM2M library */
 	ret = node->loop_module->add_idle_callback(&node->service_cbk_id,
