@@ -29,6 +29,7 @@
 static const artik_api_module artik_api_a520_modules[] = {
 	{ARTIK_MODULE_LOG,	 (char *)"log",       (char *)"base"},
 	{ARTIK_MODULE_LOOP,	 (char *)"loop",      (char *)"base"},
+	{ARTIK_MODULE_UTILS,     (char *)"utils",     (char *)"base"},
 	{ARTIK_MODULE_GPIO,	 (char *)"gpio",      (char *)"systemio"},
 	{ARTIK_MODULE_I2C,	 (char *)"i2c",       (char *)"systemio"},
 	{ARTIK_MODULE_SERIAL,	 (char *)"serial",    (char *)"systemio"},
