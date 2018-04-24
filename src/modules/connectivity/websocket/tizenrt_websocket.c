@@ -74,6 +74,8 @@ static int websocket_parse_uri(const char *uri, char **host, char **path,
 
 	tmp = strchr(uri + idx, '/');
 	if (!tmp) {
+		if (*host)
+			free(*host);
 		log_err("Malformed URI: missing path after hostname");
 		return -1;
 	}
@@ -208,6 +210,8 @@ void websocket_print_on_msg_cb(websocket_context_ptr ctx,
 	struct websocket_priv *priv = (struct websocket_priv *)
 							info->data->user_data;
 
+	log_dbg("");
+
 	if (!priv)
 		return;
 
@@ -231,6 +235,8 @@ void websocket_on_connectivity_change_callback(websocket_context_ptr ctx,
 	struct websocket_info_t *info = user_data;
 	struct websocket_priv *priv = (struct websocket_priv *)
 							info->data->user_data;
+
+	log_dbg("");
 
 	if (!priv)
 		return;
@@ -433,6 +439,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	char *path = NULL;
 	int port = 0;
 	bool use_tls = false;
+	artik_error err = S_OK;
 
 	log_dbg("");
 
@@ -451,14 +458,15 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	priv = (struct websocket_priv *)zalloc(sizeof(struct websocket_priv));
 	if (!priv) {
 		log_err("Failed to allocate memory for private data");
-		return E_NO_MEM;
+		err = E_NO_MEM;
+		goto error;
 	}
 
 	priv->cli = (websocket_t *)zalloc(sizeof(websocket_t));
 	if (!priv->cli) {
 		log_err("Failed to allocate memory");
-		free(priv);
-		return E_NO_MEM;
+		err = E_NO_MEM;
+		goto error;
 	}
 
 	/* Fill up the configuration structure */
@@ -470,31 +478,47 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	/* Setup TLS configuration if applicable */
 	if (ssl_setup(priv->cli, &(config->ssl_config)) != S_OK) {
 		log_err("Failed to configure SSL");
-		free(priv->cli);
-		free(priv);
-		return E_BAD_ARGS;
+		err = E_BAD_ARGS;
+		goto error;
 	}
 
 	/* Convert port integer into a string */
 	if (!itoa(port, port_str, 10)) {
 		log_err("Invalid port parameter");
-		free(priv->cli);
-		free(priv);
-		return E_BAD_ARGS;
+		err = E_BAD_ARGS;
+		goto error;
 	}
 
 	/* Open the websocket client connection */
 	ret = websocket_client_open(priv->cli, host, port_str, path);
 	if (ret != WEBSOCKET_SUCCESS) {
 		log_err("Failed to open websocket client (ret=%d)", ret);
-		free(priv->cli);
-		free(priv);
-		return E_WEBSOCKET_ERROR;
+		websocket_queue_close(priv->cli, NULL);
+		err = E_WEBSOCKET_ERROR;
+		goto error;
 	}
+
+	free(host);
+	free(path);
 
 	config->private_data = (void *)priv;
 
 	return S_OK;
+
+error:
+	if (host)
+		free(host);
+	if (path)
+		free(path);
+	if (priv) {
+		if (priv->cli) {
+			ssl_cleanup(priv->cli);
+			free(priv->cli);
+		}
+		free(priv);
+	}
+
+	return err;
 }
 
 artik_error os_websocket_write_stream(artik_websocket_config *config,
