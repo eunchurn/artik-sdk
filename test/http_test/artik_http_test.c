@@ -186,7 +186,10 @@ artik_error test_http_get_stream(bool verify, bool secure)
 		return ret;
 	}
 
-	fseek(fp, 0, SEEK_SET);
+	if (fseek(fp, 0, SEEK_SET)) {
+		ret = E_ACCESS_DENIED;
+		return ret;
+	}
 
 	MD5_Init(&mdContext);
 
