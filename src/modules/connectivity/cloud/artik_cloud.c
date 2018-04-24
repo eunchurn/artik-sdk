@@ -1887,6 +1887,8 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 	int len = 6 + strlen(host) + 1 + strlen(port) + strlen(path) + 1;
 
 	config.uri = malloc(len);
+	if (!config.uri)
+		return E_NO_MEM;
 
 	snprintf(config.uri, len, "wss://%s:%s%s", host, port, path);
 
@@ -1940,6 +1942,8 @@ exit:
 		websocket->websocket_close_stream(*handle);
 		*handle = NULL;
 	}
+
+	free(config.uri);
 
 	return ret;
 }
