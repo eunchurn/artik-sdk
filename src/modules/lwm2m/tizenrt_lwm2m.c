@@ -822,22 +822,19 @@ artik_lwm2m_object *os_lwm2m_create_connectivity_monitoring_object(
 	content->smnc = smnc;
 	content->smcc = smcc;
 	if (ipaddr && lenip >= 1 && ipaddr[0])
-		strncpy(content->ip_addr2, ipaddr[0], LWM2M_MAX_STR_LEN);
+		strncpy(content->ip_addr2, ipaddr[0], LWM2M_MAX_STR_LEN - 1);
 	if (ipaddr && lenip >= 2 && ipaddr[1])
-		strncpy(content->ip_addr2, ipaddr[1], LWM2M_MAX_STR_LEN);
+		strncpy(content->ip_addr2, ipaddr[1], LWM2M_MAX_STR_LEN - 1);
 	if (routeaddr && lenroute >= 1 && routeaddr[0])
-		strncpy(content->router_ip_addr, routeaddr[0],
-				LWM2M_MAX_STR_LEN);
+		strncpy(content->router_ip_addr, routeaddr[0], LWM2M_MAX_STR_LEN - 1);
 	if (routeaddr && lenroute >= 2 && routeaddr[1])
-		strncpy(content->router_ip_addr2, routeaddr[1],
-				LWM2M_MAX_STR_LEN);
+		strncpy(content->router_ip_addr2, routeaddr[1],	LWM2M_MAX_STR_LEN - 1);
 	if (apn)
-		strncpy(content->apn, apn, LWM2M_MAX_STR_LEN);
+		strncpy(content->apn, apn, LWM2M_MAX_STR_LEN - 1);
 
 	obj->content = (void *)content;
 	return obj;
 }
-
 
 void os_lwm2m_free_object(artik_lwm2m_object *object)
 {
