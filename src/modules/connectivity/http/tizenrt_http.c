@@ -661,7 +661,7 @@ static artik_error _http_method_thread(struct _http_param *arg)
 
 		free_http_headers(thread_arg->headers);
 		free(thread_arg);
-		return (status == ENOMEM) ? E_NO_MEM : E_HTTP_ERROR;
+		return (status == -ENOMEM) ? E_NO_MEM : E_HTTP_ERROR;
 	}
 
 	pthread_setname_np(tid, __func__);
