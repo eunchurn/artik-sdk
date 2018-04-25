@@ -467,7 +467,7 @@ artik_error os_lwm2m_client_connect(artik_lwm2m_handle handle)
 	pthread_setname_np(node->thread_id, "LWM2M daemon");
 	struct sched_param param;
 
-	param.sched_priority = 105;
+	param.sched_priority = 95;
 	pthread_setschedparam(node->thread_id, SCHED_RR, &param);
 
 	return S_OK;
