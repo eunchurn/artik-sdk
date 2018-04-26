@@ -60,6 +60,9 @@ void artik_log_print(enum artik_log_level level, const char *filename,
 {
 	va_list arg;
 
+	if (!format)
+		return;
+
 	va_start(arg, format);
 	os_log_print(level, filename, funcname, line, format, arg);
 	va_end(arg);

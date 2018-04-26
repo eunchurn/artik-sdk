@@ -94,6 +94,9 @@ extern "C" {
 	{
 		artik_list *elem = *list;
 
+		if (size_of_node < 0)
+			return NULL;
+
 		while ((elem != NULL) && (elem->next != NULL))
 			elem = elem->next;
 
