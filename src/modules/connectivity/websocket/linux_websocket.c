@@ -30,6 +30,7 @@
 #include <artik_loop.h>
 #include <artik_security.h>
 #include <artik_websocket.h>
+#include <artik_utils.h>
 #include "os_websocket.h"
 
 #define WAIT_CONNECT_POLLING_MS		500
@@ -598,139 +599,100 @@ static int os_websocket_process_stream(void *user_data)
 	return 1;
 }
 
+static artik_error set_proxy(struct lws_context *context, const char *uri, int default_port)
+{
+	artik_utils_module *utils = artik_request_api_module("utils");
+	artik_uri_info uri_info;
+	artik_error ret = S_OK;
+	char *lws_proxy = NULL;
+	size_t len;
+	int lws_ret;
+
+	if (utils->get_uri_info(&uri_info, uri) != S_OK) {
+		log_err("Wrong websocket proxy (%s)", uri);
+		artik_release_api_module(utils);
+		return E_WEBSOCKET_ERROR;
+	}
+
+	if (uri_info.port == -1)
+		uri_info.port = default_port;
+
+	/* The max length for lws_proxy is strlen(uri_info.hostname) + 6
+	 * 6 = 1 + 5
+	 *    1 for '\0'
+	 *    5 for the max size of the port (the max value for a port is 65 535)
+	 */
+	len = strlen(uri_info.hostname) + 6;
+	lws_proxy = malloc(sizeof(char)*len);
+	if (!lws_proxy) {
+		ret = E_NO_MEM;
+		goto exit;
+	}
+
+	snprintf(lws_proxy, len, "%s:%d", uri_info.hostname, uri_info.port);
+	lws_ret = lws_set_proxy(context, lws_proxy);
+	if (lws_ret != 0) {
+		ret = E_WEBSOCKET_ERROR;
+		goto exit;
+	}
+
+exit:
+	if (lws_proxy)
+		free(lws_proxy);
+
+	utils->free_uri_info(&uri_info);
+	artik_release_api_module(utils);
+
+	return ret;
+}
+
+
 static int websocket_parse_uri(const char *uri, char **host, char **path,
 		int *port, bool *use_tls)
 {
-	char *protocol = NULL;
-	char _port[6];
-	char *_path = NULL;
+	artik_utils_module *utils = artik_request_api_module("utils");
+	artik_uri_info uri_info;
+	int ret = -1;
+	int default_port;
 	char *_host = NULL;
+	char *_path = NULL;
 
-	int err = 0;
-	int ret = 0;
+	if (utils->get_uri_info(&uri_info, uri) != S_OK)
+		return -1;
 
-	regex_t preg;
-	int match;
-	size_t nmatch = 0;
-	regmatch_t pmatch[5];
-
-	log_dbg("uri = %s", uri);
-
-	const char *str_request = uri;
-	const char *str_regex = "^(ws[s]?)://([0-9A-Za-z.-]+)"\
-				"(:[0-9]+)?(/[0-9A-Za-z.-_~!$&'()*+,;=:@]*)?$";
-
-	err = regcomp(&preg, str_regex, REG_EXTENDED);
-
-	if (err == 0) {
-		nmatch = preg.re_nsub + 1;
-		if (nmatch == 5) {
-			match = regexec(&preg, str_request, nmatch, pmatch, 0);
-
-			regfree(&preg);
-
-			if (match == 0) {
-
-				int start = pmatch[1].rm_so;
-				int end = pmatch[1].rm_eo;
-				size_t size = end - start;
-
-				protocol = malloc(sizeof(*protocol)*(size+1));
-				if (protocol) {
-					strncpy(protocol, &str_request[start],
-						size);
-					protocol[size] = '\0';
-
-					log_dbg("protocol = %s", protocol);
-
-					if (!strcmp(protocol, "wss"))
-						*use_tls = true;
-					else
-						*use_tls = false;
-
-					log_dbg("use_tls = %d", *use_tls);
-					free(protocol);
-				}
-
-				start = pmatch[2].rm_so;
-				end = pmatch[2].rm_eo;
-				size = end - start;
-
-				_host = malloc(sizeof(*_host)*(size+1));
-				if (_host) {
-					strncpy(_host, &str_request[start],
-						size);
-					_host[size] = '\0';
-					*host = _host;
-
-					log_dbg("host = %s", *host);
-				}
-
-				start = pmatch[3].rm_so;
-				end = pmatch[3].rm_eo;
-				size = end - start;
-
-				if ((size > 0) && (size < sizeof(_port))) {
-					char *p = NULL;
-
-					strncpy(_port, &str_request[start], size);
-					_port[size] = '\0';
-
-					p = strtok(_port, ":");
-					if (p)
-						*port = atoi(p);
-				} else {
-					if (*use_tls == true)
-						*port = 443;
-					else
-						*port = 80;
-				}
-
-				log_dbg("port = %d", *port);
-
-				start = pmatch[4].rm_so;
-				end = pmatch[4].rm_eo;
-				size = end - start;
-
-				_path = malloc(sizeof(*_path)*(size+1));
-				if (_path) {
-					strncpy(_path, &str_request[start],	size);
-					_path[size] = '\0';
-
-					if (strcmp(_path, "") == 0) {
-						*path = strdup("/");
-						free(_path);
-					} else {
-						*path = _path;
-					}
-
-					log_dbg("path = %s", *path);
-				}
-			} else if (match == REG_NOMATCH) {
-				log_err("%s is not a valid websocket uri",
-					str_request);
-				ret = -1;
-			} else {
-				char *text;
-				size_t size;
-
-				size = regerror(err, &preg, NULL, 0);
-				text = malloc(sizeof(*text) * size);
-				if (text) {
-					regerror(err, &preg, text, size);
-					log_err("%s", text);
-					free(text);
-				} else {
-					log_err("No enough memory");
-					ret = -2;
-				}
-			}
-		} else {
-			log_err("No enough memory");
-			ret = -3;
-		}
+	if (strcmp(uri_info.scheme, "wss") == 0) {
+		default_port = 443;
+		*use_tls = true;
+	} else if (strcmp(uri_info.scheme, "ws") == 0) {
+		default_port = 80;
+		*use_tls = false;
+	} else {
+		goto error;
 	}
 
+	if (uri_info.port != -1)
+		*port = uri_info.port;
+	else
+		*port = default_port;
+
+	_host = strdup(uri_info.hostname);
+	if (!_host)
+		goto error;
+
+	_path = strdup(uri_info.path);
+	if (!_path) {
+		free(_host);
+		goto error;
+	}
+
+	*host = _host;
+	*path = _path;
+
+	ret = 1;
+
+error:
+	utils->free_uri_info(&uri_info);
+	artik_release_api_module(utils);
 	return ret;
 }
 
@@ -747,7 +709,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	char *host = NULL;
 	char *path = NULL;
 	int port = 0;
-	int len = 0;
 	bool use_tls = false;
 	struct lws_client_connect_info conn_info;
 	char *hostport = NULL;
@@ -819,80 +780,21 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	char *https_proxy = getenv("https_proxy");
 
 	if (http_proxy || https_proxy) {
-		char *proxy = NULL;
-		char *str_regex = NULL;
-		char *lws_proxy = NULL;
-
-		regex_t preg;
+		char *uri_proxy = NULL;
+		int default_port;
 
 		if (use_tls && https_proxy) {
-			proxy = https_proxy;
-			str_regex = strdup(
-					"^https://([0-9A-Za-z.-]+):([0-9]+)$");
+			uri_proxy = https_proxy;
+			default_port = 443;
 		} else if (!use_tls && http_proxy) {
-			proxy = http_proxy;
-			str_regex = strdup(
-					"^http://([0-9A-Za-z.-]+):([0-9]+)$");
+			uri_proxy = http_proxy;
+			default_port = 80;
 		}
 
-		if (proxy && str_regex && !regcomp(&preg, str_regex, REG_EXTENDED)) {
-			int match;
-			size_t nmatch = 0;
-			regmatch_t pmatch[3];
-
-			nmatch = preg.re_nsub + 1;
-			if (nmatch == 3) {
-				char address[INET6_ADDRSTRLEN + 1] = "";
-				char port[7] = "";
-				int start = 0;
-				int end = 0;
-				size_t size = 0;
-
-				match = regexec(&preg, proxy, nmatch, pmatch, 0);
-				regfree(&preg);
-
-				if (match) {
-					log_err("Wrong websocket proxy");
-					ret = E_WEBSOCKET_ERROR;
-					goto exit;
-				}
-
-				start = pmatch[1].rm_so;
-				end = pmatch[1].rm_eo;
-				size = end - start;
-				if (size < sizeof(address)) {
-					strncpy(address, &proxy[start], size);
-					address[size] = '\0';
-				}
-
-				start = pmatch[2].rm_so;
-				end = pmatch[2].rm_eo;
-				size = end - start;
-				if (size < sizeof(port)) {
-					strncpy(port, &proxy[start], size);
-					port[size] = '\0';
-				}
-
-				if (strlen(address) && strlen(port)) {
-					len = strlen(address) + 1 + strlen(port) + 1;
-
-					lws_proxy = (char *)malloc(len);
-					if (!lws_proxy) {
-						ret = E_NO_MEM;
-						goto exit;
-					}
-					snprintf(lws_proxy,	len, "%s:%s", address, port);
-				}
-
-				if (lws_proxy && lws_set_proxy(context,	lws_proxy) != 0) {
-					ret = E_WEBSOCKET_ERROR;
-					free(lws_proxy);
-					goto exit;
-				}
-
-				if (lws_proxy)
-					free(lws_proxy);
-			}
+		if (uri_proxy) {
+			ret = set_proxy(context, uri_proxy, default_port);
+			if (ret != S_OK)
+				goto exit;
 		}
 	}
 
