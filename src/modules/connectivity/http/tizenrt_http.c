@@ -581,6 +581,7 @@ static pthread_addr_t _http_method_async(void *arg)
 		free_ssl_config(param->ssl);
 
 	free_http_headers(param->headers);
+	free(param->url);
 	free(param);
 
 	return ret;
@@ -605,16 +606,20 @@ static artik_error _http_method_thread(struct _http_param *arg)
 	(void)pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	(void)pthread_attr_setstacksize(&attr, 8192);
 
-	thread_arg = malloc(sizeof(struct _http_param));
+	thread_arg = zalloc(sizeof(struct _http_param));
 	if (!thread_arg)
 		return E_NO_MEM;
 
-	memset(thread_arg, 0, sizeof(struct _http_param));
 	thread_arg->url = strdup(arg->url);
+	if (!thread_arg->url) {
+		free(thread_arg);
+		return E_NO_MEM;
+	}
 
 	if (arg->body) {
 		thread_arg->body = strdup(arg->body);
 		if (!thread_arg->body) {
+			free(thread_arg->url);
 			free(thread_arg);
 			return E_NO_MEM;
 		}
@@ -626,6 +631,7 @@ static artik_error _http_method_thread(struct _http_param *arg)
 		if (thread_arg->body)
 			free(thread_arg->body);
 
+		free(thread_arg->url);
 		free(thread_arg);
 		return E_NO_MEM;
 	}
@@ -637,7 +643,9 @@ static artik_error _http_method_thread(struct _http_param *arg)
 				free(thread_arg->body);
 
 			free_http_headers(thread_arg->headers);
+			free(thread_arg->url);
 			free(thread_arg);
+			return E_NO_MEM;
 		}
 	}
 
@@ -655,6 +663,7 @@ static artik_error _http_method_thread(struct _http_param *arg)
 			free_ssl_config(thread_arg->ssl);
 
 		free_http_headers(thread_arg->headers);
+		free(thread_arg->url);
 		free(thread_arg);
 		return (status == -ENOMEM) ? E_NO_MEM : E_HTTP_ERROR;
 	}
