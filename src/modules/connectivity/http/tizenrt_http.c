@@ -590,9 +590,6 @@ static pthread_addr_t _http_method_async(void *arg)
 
 static artik_error _http_method_thread(struct _http_param *arg)
 {
-#define WEBCLIENT_STACK_SIZE   4096
-#define WEBCLIENT_SCHED_PRI    100
-#define WEBCLIENT_SCHED_POLICY SCHED_RR
 	pthread_attr_t attr;
 	int status;
 	struct sched_param sparam;
@@ -605,10 +602,10 @@ static artik_error _http_method_thread(struct _http_param *arg)
 		return E_HTTP_ERROR;
 	}
 
-	sparam.sched_priority = WEBCLIENT_SCHED_PRI;
+	sparam.sched_priority = 95;
 	(void)pthread_attr_setschedparam(&attr, &sparam);
-	(void)pthread_attr_setschedpolicy(&attr, WEBCLIENT_SCHED_POLICY);
-	(void)pthread_attr_setstacksize(&attr, WEBCLIENT_STACK_SIZE);
+	(void)pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	(void)pthread_attr_setstacksize(&attr, 8192);
 
 	thread_arg = malloc(sizeof(struct _http_param));
 	if (!thread_arg)
@@ -668,10 +665,6 @@ static artik_error _http_method_thread(struct _http_param *arg)
 	pthread_detach(tid);
 
 	return S_OK;
-
-#undef WEBCLIENT_STACK_SIZE
-#undef WEBCLIENT_SCHED_PRI
-#undef WEBCLIENT_SCHED_POLICY
 }
 
 artik_error os_http_get_stream(const char *url, artik_http_headers *headers,
