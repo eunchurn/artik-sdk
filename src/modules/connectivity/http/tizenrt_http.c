@@ -529,8 +529,6 @@ static pthread_addr_t _http_method(void *arg)
 		entity[response.entity_len] = '\0';
 
 		param->response_callback(ret, response.status, entity, param->user_data);
-
-		free(entity);
 	} else {
 		*param->response = (char *)malloc(response.entity_len + 1);
 		if (*param->response == NULL) {
