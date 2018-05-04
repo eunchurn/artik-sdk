@@ -1413,7 +1413,7 @@ artik_error delete_device_async(
 	if (!callback)
 		return E_BAD_ARGS;
 
-	return _delete_device_token(&akc_http_request, access_token, device_id);
+	return _delete_device(&akc_http_request, access_token, device_id);
 }
 
 static artik_error delete_device(
