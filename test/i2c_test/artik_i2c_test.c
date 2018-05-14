@@ -24,19 +24,25 @@
 #include <artik_platform.h>
 #include <artik_i2c.h>
 
-/*
- * This test only works if the CW2015 Linux driver is unbound first:
- * artik520 : $ echo 1-0062 > /sys/bus/i2c/drivers/cw201x/unbind
- * artik1020: $ echo 0-0062 > /sys/bus/i2c/drivers/cw201x/unbind
- * artik710 : $ echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind
- */
+struct i2c_driver_bind {
+	const char instance[16];
+	const char name[16];
+};
 
-const char *cmd_artik520  = "echo 1-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_artik1020 = "echo 0-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_artik710  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_artik530  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_artik305  = "echo 8-0062 > /sys/bus/i2c/drivers/cw201x/unbind";
-const char *cmd_eagleye530 = "echo 6-001a > /sys/bus/i2c/drivers/rt5659/unbind";
+/* This structure must follow the same order as platform ID enum */
+static const struct i2c_driver_bind driver_binds[] = {
+	{ "",       ""       },  /* GENERIC */
+	{ "1-0062", "cw201x" }, /* ARTIK520 */
+	{ "0-0062", "cw201x" }, /* ARTIK1020 */
+	{ "8-0062", "cw201x" }, /* ARTIK710 */
+	{ "8-0062", "cw201x" }, /* ARTIK530 */
+	{ "",       ""       }, /* ARTIK05x */
+	{ "8-0062", "cw201x" }, /* ARTIK305 */
+	{ "6-001a", "rt5659" }, /* EAGLEYE530 */
+};
+
+#define UNBIND_CMD_TPL  "echo %s > /sys/bus/i2c/drivers/%s/unbind"
+#define BIND_CMD_TPL    "echo %s > /sys/bus/i2c/drivers/%s/bind"
 
 static artik_i2c_config config = {
 	1,
@@ -50,6 +56,39 @@ static artik_i2c_config config = {
 
 #define RT5659_REG_DEVICEID 0xff00
 #define RT5659_REG_DUMMY    0xfb00
+
+static void bind_driver(int platid, bool state)
+{
+	char *cmd = NULL;
+	int cmd_len = 0;
+
+	if (platid > EAGLEYE530) {
+		fprintf(stdout, "Invalid platform ID\n");
+		return;
+	}
+
+	if (!strlen(driver_binds[platid].instance) ||
+		!strlen(driver_binds[platid].name))
+		return;
+
+	cmd_len = state ? strlen(BIND_CMD_TPL) : strlen(UNBIND_CMD_TPL);
+	cmd_len += strlen(driver_binds[platid].instance) +
+			strlen(driver_binds[platid].name) + 1;
+
+	cmd = malloc(cmd_len);
+	if (!cmd) {
+		fprintf(stdout, "Failed to allocate memory for unbind command\n");
+		return;
+	}
+
+	snprintf(cmd, cmd_len, state ? BIND_CMD_TPL : UNBIND_CMD_TPL,
+			driver_binds[platid].instance, driver_binds[platid].name);
+
+	if (system(cmd))
+		fprintf(stdout, "Failed to %s the driver\n", state ? "bind" : "unbind");
+
+	free(cmd);
+}
 
 static artik_error i2c_test_cw2015(int platid)
 {
@@ -236,24 +275,8 @@ int main(void)
 {
 	artik_error ret = E_NOT_SUPPORTED;
 	int platid = artik_get_platform();
-	const char *cmd;
 
-	if (platid == ARTIK520)
-		cmd = cmd_artik520;
-	else if (platid == ARTIK710)
-		cmd = cmd_artik710;
-	else if (platid == ARTIK530)
-		cmd = cmd_artik530;
-	else if (platid == ARTIK305)
-		cmd = cmd_artik305;
-	else if (platid == EAGLEYE530)
-		cmd = cmd_eagleye530;
-	else
-		cmd = cmd_artik1020;
-
-	/* Unbind the driver */
-	if (system(cmd))
-		fprintf(stdout, "Failed to unbind the driver\n");
+	bind_driver(platid, false);
 
 	if ((platid == ARTIK520) || (platid == ARTIK1020) ||
 			(platid == ARTIK710) || (platid == ARTIK530) ||
@@ -264,6 +287,8 @@ int main(void)
 	} else {
 		fprintf(stdout, "Test failed - Unsupported platform\n");
 	}
+
+	bind_driver(platid, true);
 
 	return (ret == S_OK) ? 0 : -1;
 }
