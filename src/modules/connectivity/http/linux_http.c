@@ -989,6 +989,8 @@ artik_error os_http_post(const char *url, artik_http_headers *headers,
 
 	if (body)
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (void *)body);
+	else
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0);
 
 #ifndef NDEBUG
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
