@@ -84,8 +84,8 @@ extern "C" {
 	 * \param[in,out] handle Handle value that is needed when you get or
 	 * delete this node. If not defined as a specific value, it is defined
 	 * as the address of the node by default.
-	 * \param[in,out] size_of_node size_of_node specify the real size of the
-	 * node of the generic linked list.
+	 * \param[in] size_of_node size_of_node specify the size in bytes of the
+	 * element to add to the list.
 	 *
 	 * \return Node added on success, NULL otherwise
 	 */
