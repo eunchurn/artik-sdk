@@ -33,7 +33,7 @@ endif()
 
 IF ( CMAKE_SYSROOT )
     SET ( CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT} )
-    SET ( C_CPP_FLAGS "-Werror -Wall -Wpedantic -Wno-unused-parameter -Wno-unused-result --sysroot=${CMAKE_SYSROOT} -Wl,--sysroot=${CMAKE_SYSROOT}" )
+    SET ( C_CPP_FLAGS "-Werror -Wall -Wpedantic -Wno-unused-parameter -Wno-unused-result --sysroot=${CMAKE_SYSROOT}" )
     SET ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CPP_FLAGS}" )
     SET ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CPP_FLAGS}" )
     SET ( NODE_CFLAGS "-I${CMAKE_SYSROOT}/usr/include" )
