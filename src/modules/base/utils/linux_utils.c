@@ -103,9 +103,10 @@ static artik_error parse_uri(const char *uri, uint16_t default_port, artik_uri_i
 	}
 
 	uri_info->scheme = malloc(sizeof(char)*(pmatch[1].rm_eo - pmatch[1].rm_so + 1));
-	if (!uri_info->scheme)
+	if (!uri_info->scheme) {
 		ret = E_NO_MEM;
-
+		goto error;
+	}
 
 	uri_info->hostname = malloc(sizeof(char)*(pmatch[2].rm_eo - pmatch[2].rm_so + 1));
 	if (!uri_info->hostname) {

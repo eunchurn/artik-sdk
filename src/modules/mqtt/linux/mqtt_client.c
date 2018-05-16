@@ -223,7 +223,11 @@ static artik_error tls_write_temp_cert_files(struct mosquitto *mosq,
 			goto exit;
 		}
 
-		(void)write(fd, config->ca_cert.data, config->ca_cert.len);
+		if (write(fd, config->ca_cert.data, config->ca_cert.len) < 0) {
+			close(fd);
+			ret = E_ACCESS_DENIED;
+			goto exit;
+		}
 		close(fd);
 	} else if (config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED) {
 		/* CA cert is mandatory when requesting verification */
@@ -239,7 +243,11 @@ static artik_error tls_write_temp_cert_files(struct mosquitto *mosq,
 			goto exit;
 		}
 
-		write(fd, config->client_cert.data, config->client_cert.len);
+		if (write(fd, config->client_cert.data, config->client_cert.len) < 0) {
+			close(fd);
+			ret = E_ACCESS_DENIED;
+			goto exit;
+		}
 		close(fd);
 	}
 
@@ -251,7 +259,11 @@ static artik_error tls_write_temp_cert_files(struct mosquitto *mosq,
 			goto exit;
 		}
 
-		write(fd, config->client_key.data, config->client_key.len);
+		if (write(fd, config->client_key.data, config->client_key.len) < 0) {
+			close(fd);
+			ret = E_ACCESS_DENIED;
+			goto exit;
+		}
 		close(fd);
 	}
 
