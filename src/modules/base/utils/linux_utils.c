@@ -85,7 +85,7 @@ static void clear_uri_module(void)
 	g_uri.preg = NULL;
 }
 
-static artik_error parse_uri(const char *uri, uint16_t default_port, artik_uri_info *uri_info)
+static artik_error parse_uri(const char *uri, int default_port, artik_uri_info *uri_info)
 {
 	int err;
 	artik_error ret;
