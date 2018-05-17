@@ -17,13 +17,12 @@
  */
 
 #include <signal.h>
-#include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <pthread.h>
+
 
 #include <artik_module.h>
 #include <artik_platform.h>
@@ -48,7 +47,6 @@ static artik_serial_config config = {
 
 static artik_serial_handle handle = NULL;
 static const char *current_test = NULL;
-#define MAX_RX_BUF	64
 
 static void signal_handler(int signum)
 {
@@ -141,6 +139,8 @@ static artik_error test_serial_loopback(int platid)
 			ret);
 		goto exit;
 	}
+
+	sleep(1);
 
 	fprintf(stdout, "TEST: with read\n");
 	len = 128;
