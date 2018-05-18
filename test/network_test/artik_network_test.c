@@ -120,7 +120,7 @@ exit:
 
 }
 
-static artik_error test_get_online_status(void)
+static artik_error test_get_online_status(const char *host, int timeout)
 {
 	artik_network_module *network = (artik_network_module *)
 					artik_request_api_module("network");
@@ -129,7 +129,10 @@ static artik_error test_get_online_status(void)
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
-	ret = network->get_online_status("artik.cloud", 1000, &online_status);
+	fprintf(stdout, "TEST: %s pinging %s with timeout %d ms\n",
+			__func__, host, timeout);
+
+	ret = network->get_online_status(host, timeout, &online_status);
 	if (ret < S_OK)
 		fprintf(stdout, "TEST: %s failed (err=%d)\n", __func__, ret);
 
@@ -248,6 +251,8 @@ int main(int argc, char *argv[])
 	artik_network_interface_t interface = ARTIK_WIFI;
 	artik_network_config config;
 	bool enable_set_config = false;
+	int status_timeout = 10000;
+	char status_host[32] = "artik.cloud";
 
 	memset(&config, 0, sizeof(config));
 
@@ -258,7 +263,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	while ((opt = getopt(argc, argv, "ai:n:g:c:d:e")) != -1) {
+	while ((opt = getopt(argc, argv, "ai:n:g:c:d:et:h:")) != -1) {
 		switch (opt) {
 		case 'a':
 			execute_all_tests = 1;
@@ -291,12 +296,20 @@ int main(int argc, char *argv[])
 		case 'e':
 			interface = ARTIK_ETHERNET;
 			break;
+		case 't':
+			status_timeout = atoi(optarg);
+			break;
+		case 'h':
+			memset(status_host, 0, sizeof(status_host));
+			strncpy(status_host, optarg, sizeof(status_host) - 1);
+			break;
 		default:
 			printf("Usage: network-test"\
 				" [-a execute all tests] [-e for ethernet]"\
 				" (wifi by default) [-i IP address]"\
 				" [-n netmask] [-g gateway address]"\
-				" [-c DNS address 1] [-d DNS address 2]\n");
+				" [-c DNS address 1] [-d DNS address 2]"\
+				" [-h ping host] [-t ping timeout]\n");
 			return 0;
 		}
 	}
@@ -313,7 +326,7 @@ int main(int argc, char *argv[])
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_online_status();
+	ret = test_get_online_status((const char *)status_host, status_timeout);
 	if (ret != S_OK)
 		goto exit;
 
