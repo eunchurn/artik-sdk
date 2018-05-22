@@ -216,8 +216,8 @@ static artik_error test_watch_online_status(void)
 	watch_online_status_t data2 = {0, 0};
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
-	ret = network->add_watch_online_status(&handle, "artik.cloud", 5000, 500, _callback, &data);
-	ret = network->add_watch_online_status(&handle2, "google.com", 5000, 500, _callback, &data2);
+	ret = network->add_watch_online_status(&handle, "artik.cloud", 10000, 2000, _callback, &data);
+	ret = network->add_watch_online_status(&handle2, "baidu.com", 10000, 2000, _callback, &data2);
 
 	loop->add_timeout_callback(&timeout_disconnect_id, 10000, disconnect,
 									NULL);
