@@ -140,28 +140,35 @@ artik_error artik_get_online_status(const char *addr, int timeout, bool *online_
 
 	int err = resolve(addr, &to);
 
-	if (err != 0)
+	if (err != 0) {
+		log_err("Failed to resolve '%s'", addr);
 		return E_NETWORK_ERROR;
+	}
 
 	sock = create_icmp_socket(timeout);
-	if (sock < 0)
+	if (sock < 0) {
+		log_err("Failed to create ICMP socket");
 		return E_NETWORK_ERROR;
+	}
 
 	if (!os_send_echo(sock, (struct sockaddr *)&to, 0)) {
+		log_err("Failed to send ICMP frame");
 		close(sock);
 		return E_NETWORK_ERROR;
 	}
 
 	len = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
 	if (len <= 0) {
-		log_dbg("recvfrom: unable to receive data");
+		log_err("recvfrom: unable to receive data");
 		close(sock);
 		return E_NETWORK_ERROR;
 	}
 	close(sock);
 
-	if (!os_check_echo_response(buf, len, 0))
+	if (!os_check_echo_response(buf, len, 0)) {
+		log_err("Invalid ICMP response");
 		return E_NETWORK_ERROR;
+	}
 
 	*online_status = true;
 	return S_OK;
