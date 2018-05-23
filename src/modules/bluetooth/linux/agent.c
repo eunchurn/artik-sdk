@@ -74,56 +74,61 @@ static const gchar _introspection_xml[] =
 
 static void default_release(void)
 {
-	log_info("Release\n");
+	log_info("Release");
 }
 
-static void default_request_pincode(artik_bt_agent_request_handle handle, char *device)
+static void default_request_pincode(artik_bt_agent_request_handle handle,
+		char *device)
 {
-	log_info("Request pincode (%s)\n", device);
+	log_info("Request pincode (%s)", device);
 
 	bt_agent_send_pincode(handle, DEFAULT_PINCODE);
 }
 
 static void default_display_pincode(char *device, char *pincode)
 {
-	log_info("Display Pincode (%s, %s)\n", device, pincode);
+	log_info("Display Pincode (%s, %s)", device, pincode);
 }
 
-static void default_request_passkey(artik_bt_agent_request_handle handle, char *device)
+static void default_request_passkey(artik_bt_agent_request_handle handle,
+		char *device)
 {
-	log_info("Request passkey (%s) - Not implemented\n", device);
+	log_info("Request passkey (%s) - Not implemented", device);
 	bt_agent_send_error(handle, BT_AGENT_REQUEST_REJECTED, "Not implemented");
 }
 
 static void default_display_passkey(char *device, unsigned int passkey,
 		unsigned int entered)
 {
-	log_info("Display Passkey (%s, %06u, entered %u)\n",
+	log_info("Display Passkey (%s, %06u, entered %u)",
 			device, passkey, entered);
 }
 
-static void default_request_confirmation(artik_bt_agent_request_handle handle, char *device,
+static void default_request_confirmation(artik_bt_agent_request_handle handle,
+		char *device,
 		unsigned int passkey)
 {
-	log_info("Request Confirmation (%s, %06u)\n", device, passkey);
+	log_info("Request Confirmation (%s, %06u)", device, passkey);
 	bt_agent_send_empty_response(handle);
 }
 
-static void default_request_authorization(artik_bt_agent_request_handle handle, char *device)
+static void default_request_authorization(artik_bt_agent_request_handle handle,
+		char *device)
 {
-	log_info("Request Authorization (%s)\n", device);
+	log_info("Request Authorization (%s)", device);
 	bt_agent_send_empty_response(handle);
 }
 
-static void default_authorize_service(artik_bt_agent_request_handle handle, char *device, char *uuid)
+static void default_authorize_service(artik_bt_agent_request_handle handle,
+		char *device, char *uuid)
 {
-	log_info("Authorize service (%s,  %s)\n", device, uuid);
+	log_info("Authorize service (%s,  %s)", device, uuid);
 	bt_agent_send_empty_response(handle);
 }
 
 static void default_cancel(void)
 {
-	log_info("Cancel\n");
+	log_info("Cancel");
 }
 
 static void _agent_callback(artik_bt_event event, void *data)
@@ -331,7 +336,8 @@ static void _handle_authorize_service(GVariant *parameters,
 	authorize_property.device = device;
 	authorize_property.uuid = uuid;
 
-	_agent_callback(BT_EVENT_AGENT_AUTHORIZE_SERVICE, (void *)&authorize_property);
+	_agent_callback(BT_EVENT_AGENT_AUTHORIZE_SERVICE,
+			(void *)&authorize_property);
 
 	g_free(device);
 	g_free(path);
@@ -390,7 +396,7 @@ artik_error bt_agent_register_capability(artik_bt_agent_capability e)
 	_introspection_data = g_dbus_node_info_new_for_xml(_introspection_xml,
 			NULL);
 	if (!_introspection_data) {
-		log_err("Get dbus introspection data node from xml file failed\n");
+		log_err("Get dbus introspection data node from xml file failed");
 		g_free(capa);
 		return E_BT_ERROR;
 	}
@@ -401,14 +407,14 @@ artik_error bt_agent_register_capability(artik_bt_agent_capability e)
 			DBUS_AGENT_PATH, interface,
 			&_interface_vtable, NULL, NULL, &error);
 	if (error) {
-		log_err("g_dbus_connection_register_object failed :%s\n", error->message);
+		log_err("g_dbus_connection_register_object failed :%s", error->message);
 		g_free(capa);
 		g_clear_error(&error);
 		return E_BT_ERROR;
 	}
-	log_dbg("registration id : %d\n", agent_registration_id);
+	log_dbg("registration id : %d", agent_registration_id);
 
-	log_dbg("Register Agent [%s]\n", capa);
+	log_dbg("Register Agent [%s]", capa);
 
 	result = g_dbus_connection_call_sync(hci.conn, DBUS_BLUEZ_BUS,
 			DBUS_BLUEZ_OBJECT_PATH,
@@ -434,7 +440,7 @@ artik_error bt_agent_set_default(void)
 	GVariant *result = NULL;
 	artik_error ret = S_OK;
 
-	log_dbg("Request Default Agent\n");
+	log_dbg("Request Default Agent");
 	result = g_dbus_connection_call_sync(hci.conn, DBUS_BLUEZ_BUS,
 			DBUS_BLUEZ_OBJECT_PATH,
 			DBUS_IF_AGENT_MANGER1, "RequestDefaultAgent",
@@ -457,7 +463,7 @@ artik_error bt_agent_unregister(void)
 	GVariant *result = NULL;
 	artik_error ret = S_OK;
 
-	log_dbg("UnRegister Agent.......\n");
+	log_dbg("UnRegister Agent.......");
 	result = g_dbus_connection_call_sync(hci.conn, DBUS_BLUEZ_BUS,
 			DBUS_BLUEZ_OBJECT_PATH,
 			DBUS_IF_AGENT_MANGER1, "UnregisterAgent",
@@ -470,7 +476,7 @@ artik_error bt_agent_unregister(void)
 
 	g_dbus_connection_unregister_object(hci.conn, agent_registration_id);
 	g_dbus_node_info_unref(_introspection_data);
-	log_dbg("UnRegister Agent success\n");
+	log_dbg("UnRegister Agent success");
 
 	g_variant_unref(result);
 
@@ -478,7 +484,8 @@ exit:
 	return ret;
 }
 
-static artik_error send_response(artik_bt_agent_request_handle handle, GVariant *variant)
+static artik_error send_response(artik_bt_agent_request_handle handle,
+		GVariant *variant)
 {
 	GDBusMethodInvocation *invocation = (GDBusMethodInvocation *)handle;
 
@@ -487,17 +494,20 @@ static artik_error send_response(artik_bt_agent_request_handle handle, GVariant 
 	return S_OK;
 }
 
-artik_error bt_agent_send_pincode(artik_bt_agent_request_handle handle, char *pincode)
+artik_error bt_agent_send_pincode(artik_bt_agent_request_handle handle,
+		char *pincode)
 {
 	return send_response(handle, g_variant_new("(s)", pincode));
 }
 
-artik_error bt_agent_send_passkey(artik_bt_agent_request_handle handle, unsigned int passkey)
+artik_error bt_agent_send_passkey(artik_bt_agent_request_handle handle,
+		unsigned int passkey)
 {
 	return send_response(handle, g_variant_new("(u)", passkey));
 }
 
-artik_error bt_agent_send_error(artik_bt_agent_request_handle handle, artik_bt_agent_request_error e,
+artik_error bt_agent_send_error(artik_bt_agent_request_handle handle,
+		artik_bt_agent_request_error e,
 		const char *err_msg)
 {
 	GDBusMethodInvocation *invocation = (GDBusMethodInvocation *)handle;
