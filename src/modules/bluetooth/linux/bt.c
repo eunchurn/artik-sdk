@@ -106,6 +106,7 @@ artik_error bt_deinit(void)
 		g_error_free(e);
 		return E_BT_ERROR;
 	}
+	hci.conn = NULL;
 
 	_bt_deinit_session();
 
@@ -121,7 +122,7 @@ artik_error _bt_init_session(void)
 
 	hci.session_conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &e);
 	if (e != NULL) {
-		log_err("%s", e->message);
+		log_dbg("%s", e->message);
 		g_error_free(e);
 		return E_BT_ERROR;
 	}
@@ -162,6 +163,9 @@ artik_error _bt_deinit_session(void)
 
 	log_dbg("%s", __func__);
 
+	if (!hci.session_conn)
+		return E_BT_ERROR;
+
 	g_dbus_connection_signal_unsubscribe(hci.session_conn,
 		GPOINTER_TO_INT(g_hash_table_lookup(hci.ses_subscribe_ids,
 			"InterfacesAdded")));
@@ -179,10 +183,11 @@ artik_error _bt_deinit_session(void)
 
 	g_dbus_connection_close_sync(hci.session_conn, NULL, &e);
 	if (e != NULL) {
-		log_err("%s", e->message);
+		log_dbg("%s", e->message);
 		g_error_free(e);
 		return E_BT_ERROR;
 	}
+	hci.session_conn = NULL;
 
 	return S_OK;
 }
