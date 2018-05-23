@@ -128,7 +128,7 @@ artik_error artik_get_online_status(const char *addr, int timeout, bool *online_
 	int sock;
 	struct sockaddr_storage from;
 	struct sockaddr_storage to;
-	size_t len;
+	ssize_t len;
 	socklen_t fromlen = sizeof(from);
 
 	if (!online_status || !addr || !(timeout > 0))
@@ -157,9 +157,13 @@ artik_error artik_get_online_status(const char *addr, int timeout, bool *online_
 		return E_NETWORK_ERROR;
 	}
 
+try_again:
 	len = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
 	if (len <= 0) {
-		log_err("recvfrom: unable to receive data");
+		if (errno == EAGAIN)
+			goto try_again;
+
+		log_err("recvfrom: unable to receive data (err=%d)", errno);
 		close(sock);
 		return E_NETWORK_ERROR;
 	}

@@ -327,7 +327,7 @@ exit:
 	return ret;
 }
 
-bool os_check_echo_response(char *buf, size_t len, uint16_t seqno)
+bool os_check_echo_response(char *buf, ssize_t len, uint16_t seqno)
 {
 	struct iphdr *ip = NULL;
 	struct icmphdr *icp = NULL;
@@ -476,7 +476,7 @@ static int search_node_with_sockaddr(watch_online_node_t *node, struct sockaddr 
 
 static int echo_response_watch(int fd, enum watch_io io, void *user_data)
 {
-	size_t len;
+	ssize_t len;
 	char buf[64];
 	socklen_t fromlen = sizeof(struct sockaddr_storage);
 	struct sockaddr_storage from;

@@ -228,7 +228,7 @@ bool os_send_echo(int sock, const struct sockaddr *to, u16_t seqno)
 	return true;
 }
 
-bool os_check_echo_response(char *buf, size_t len, u16_t seqno)
+bool os_check_echo_response(char *buf, ssize_t len, u16_t seqno)
 {
 	struct ip_hdr *iphdr = NULL;
 	struct icmp_echo_hdr *iecho = NULL;
@@ -365,7 +365,7 @@ static pthread_addr_t watch_online_status_cb(void *arg)
 		} else if (ret) {
 			socklen_t fromlen;
 			struct sockaddr_storage from;
-			size_t len;
+			ssize_t len;
 
 			len = recvfrom(watch_data->sock, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
 			if (len <= 0) {

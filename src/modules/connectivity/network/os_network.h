@@ -47,6 +47,6 @@ artik_error os_dhcp_server_stop(artik_network_dhcp_server_handle handle);
 
 artik_error artik_get_current_public_ip(artik_network_ip *ip);
 bool os_send_echo(int sock, const struct sockaddr *to, uint16_t seqno);
-bool os_check_echo_response(char *buf, size_t len, uint16_t seqno);
+bool os_check_echo_response(char *buf, ssize_t len, uint16_t seqno);
 
 #endif	/* OS_NETWORK_H_ */
