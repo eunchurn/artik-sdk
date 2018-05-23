@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include <artik_time.hh>
 #include <artik_loop.hh>
@@ -26,7 +27,7 @@
 #define MAX_SIZE 128
 
 static unsigned int end = 3;
-const char* hostname = "fr.pool.ntp.org";
+const char *hostname = "fr.pool.ntp.org";
 
 static artik::Time* time = NULL;
 static artik::Alarm *alarm_1 = NULL, *alarm_2 = NULL;
@@ -45,7 +46,7 @@ void sig_handler(int sig) {
   loop->quit();
 }
 
-int main(void) {
+int main(int argc, char **argv) {
   artik_error ret = S_OK;
   artik_msecond inittime = 0, valtime = 0, oldtime = 0, nb_seconds = 1500;
   artik_time val;
@@ -53,6 +54,26 @@ int main(void) {
   artik_time alarm_date;
   char date[MAX_SIZE] = "";
   loop = new artik::Loop;
+  int opt = -1;
+  unsigned int ntp_timeout_ms = 3000;
+
+  while ((opt = getopt(argc, argv, "t:h:?")) != -1) {
+    switch (opt) {
+    case 't':
+      ntp_timeout_ms = (unsigned int)atoi(optarg);
+      break;
+    case 'h':
+      hostname = strndup(optarg, strlen(optarg));
+      break;
+    case '?':
+      printf("Usage: time-test -t <ntp timeout ms> -h <ntp name server>\n");
+      return 0;
+    default:
+      printf("Usage: time-test -t <ntp timeout ms> -h <ntp name server>");
+      printf("-help: give this help list\n");
+      return 0;
+    }
+  }
 
   alarm_date.second = 0;
   alarm_date.minute = 22;
@@ -113,7 +134,7 @@ int main(void) {
 
   loop->run();
 
-  ret = time->sync_ntp(hostname);
+  ret = time->sync_ntp(hostname, ntp_timeout_ms);
   printf("sync_ntp result: (%d)\n", ret);
   printf("Release TIME Module \n");
 

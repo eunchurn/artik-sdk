@@ -25,25 +25,26 @@
 static artik_error artik_time_set_time(artik_time date, artik_time_zone gmt);
 static artik_error artik_time_get_time(artik_time_zone gmt, artik_time *date);
 static artik_error artik_time_get_time_str(char *date_str, int size,
-					   char *const format,
-					   artik_time_zone gmt);
+							char *const format,
+							artik_time_zone gmt);
 static artik_msecond artik_time_get_tick(void);
 static artik_error artik_time_create_alarm_second(artik_time_zone gmt,
-						  artik_msecond sec,
-						  artik_alarm_handle *handle,
-						  alarm_callback func,
-						  void *user_data);
+							artik_msecond sec,
+							artik_alarm_handle *handle,
+							alarm_callback func,
+							void *user_data);
 static artik_error artik_time_create_alarm_date(artik_time_zone gmt,
-						artik_time date,
-						artik_alarm_handle *handle,
-						alarm_callback func,
-						void *user_data);
+							artik_time date,
+							artik_alarm_handle *handle,
+							alarm_callback func,
+							void *user_data);
 static artik_error artik_time_delete_alarm(artik_alarm_handle handle);
 static artik_error artik_time_get_delay_alarm(artik_alarm_handle handle,
-					      artik_msecond *msecond);
-static artik_error artik_time_sync_ntp(const char *hostname);
+							artik_msecond *msecond);
+static artik_error artik_time_sync_ntp(const char *hostname,
+							unsigned int timeout);
 static int artik_time_compare_dates(const artik_time *date1,
-				    const artik_time *date2);
+							const artik_time *date2);
 static artik_error artik_time_convert_timestamp_to_time(const int64_t timestamp,
 							artik_time *date);
 static artik_error artik_time_convert_time_to_timestamp(const artik_time
@@ -124,9 +125,10 @@ static artik_error artik_time_get_delay_alarm(artik_alarm_handle handle,
 	return os_time_get_delay_alarm(handle, msecond);
 }
 
-static artik_error artik_time_sync_ntp(const char *hostname)
+static artik_error artik_time_sync_ntp(const char *hostname,
+						unsigned int timeout)
 {
-	return os_time_sync_ntp(hostname);
+	return os_time_sync_ntp(hostname, timeout);
 }
 
 int artik_time_compare_dates(const artik_time *date1, const artik_time *date2)

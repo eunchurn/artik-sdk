@@ -55,7 +55,6 @@
 #define	FORMAT_NULL ((uint64_t)506381209866536711LL)
 
 #define NTP_PORT 123
-#define NTP_TIMEOUT_SEC 3
 #define EPOCH_BALANCE 2208988800U
 
 #define MAX(a, b)	((a > b) ? a : b)
@@ -428,7 +427,7 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 	return S_OK;
 }
 
-artik_error os_time_sync_ntp(const char *hostname)
+artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout)
 {
 	artik_error ret = S_OK;
 	unsigned char msg[48] = { 010, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -442,7 +441,7 @@ artik_error os_time_sync_ntp(const char *hostname)
 	struct sockaddr saddr;
 	socklen_t saddr_l;
 	struct hostent *host_resolv;
-	struct timeval time_struct = { NTP_TIMEOUT_SEC, 0 };
+	struct timeval time_struct = { 0, timeout * 1000 };
 
 	log_dbg("");
 	if (!hostname)
@@ -454,12 +453,14 @@ artik_error os_time_sync_ntp(const char *hostname)
 		return E_BAD_ARGS;
 	}
 
-	if (setsockopt
-	    (sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&time_struct,
-	     sizeof(time_struct)) < 0) {
-		log_err("Failed to set socket options");
-		ret = E_BAD_ARGS;
-		goto exit;
+	if (timeout) {
+		if (setsockopt
+			(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&time_struct,
+				sizeof(time_struct)) < 0) {
+			log_err("Failed to set socket options");
+			ret = E_BAD_ARGS;
+			goto exit;
+		}
 	}
 
 	memset(&server_addr, 0, sizeof(server_addr));
@@ -493,6 +494,7 @@ artik_error os_time_sync_ntp(const char *hostname)
 		goto exit;
 	}
 
+	time_struct.tv_usec = 0;
 	time_struct.tv_sec = ntohl((time_t) buf[4]) - EPOCH_BALANCE;
 	res = settimeofday(&time_struct, NULL);
 	if (res != 0) {

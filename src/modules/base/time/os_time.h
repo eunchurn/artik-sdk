@@ -40,7 +40,7 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 artik_error os_time_delete_alarm(artik_alarm_handle handle);
 artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 				    artik_msecond *msecond);
-artik_error os_time_sync_ntp(const char *hostname);
+artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout);
 artik_error os_time_convert_timestamp_to_time(const int64_t timestamp,
 					      artik_time *date);
 artik_error os_time_convert_time_to_timestamp(const artik_time *date,

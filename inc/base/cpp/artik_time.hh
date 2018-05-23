@@ -76,7 +76,7 @@ class Time {
   artik_error get_time(artik_time_zone, artik_time*) const;
   artik_error get_time_str(char *, int, char *const, artik_time_zone) const;
   artik_msecond get_tick(void) const;
-  artik_error sync_ntp(const char*);
+  artik_error sync_ntp(const char* hostname, unsigned int timeout);
   Alarm *create_alarm_second(artik_time_zone, artik_msecond, alarm_callback,
       void *);
   Alarm *create_alarm_date(artik_time_zone, artik_time, alarm_callback, void *);

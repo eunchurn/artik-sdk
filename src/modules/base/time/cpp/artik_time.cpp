@@ -115,8 +115,9 @@ artik_msecond artik::Time::get_tick(void) const {
   return this->m_module->get_tick();
 }
 
-artik_error artik::Time::sync_ntp(const char* hostname) {
-  return this->m_module->sync_ntp(hostname);
+artik_error artik::Time::sync_ntp(const char* hostname,
+    unsigned int timeout) {
+  return this->m_module->sync_ntp(hostname, timeout);
 }
 
 artik::Alarm *artik::Time::create_alarm_second(artik_time_zone gmt,

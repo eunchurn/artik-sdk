@@ -264,10 +264,12 @@ extern "C" {
 		 *  \brief Synchronize system date with remote NTP server
 		 *
 		 *  \param[in] hostname Hostname of NTP server.
+		 *  \param[in] timeout_ms Timeout in milliseconds after which the NTP
+		 *             request is considered failed. Value '0' means infinite.
 		 *
 		 *  \return S_OK on success, error code otherwise
 		 */
-		artik_error(*sync_ntp) (const char *hostname);
+		artik_error(*sync_ntp) (const char *hostname, unsigned int timeout);
 		/*!
 		 * \brief Compare two dates
 		 *

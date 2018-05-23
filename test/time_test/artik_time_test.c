@@ -211,7 +211,7 @@ static artik_error test_time_loopback(void)
 	return ret;
 }
 
-artik_error test_time_sync_ntp(void)
+artik_error test_time_sync_ntp(const char *hostname, unsigned int ntp_timeout_ms)
 {
 	artik_error ret;
 	time_t curr_time;
@@ -221,7 +221,7 @@ artik_error test_time_sync_ntp(void)
 	curr_time = time(0);
 	fprintf(stdout, "Current system time: %s", ctime(&curr_time));
 
-	ret = time_module_p->sync_ntp(hostname);
+	ret = time_module_p->sync_ntp(hostname, ntp_timeout_ms);
 	if (ret != S_OK) {
 		fprintf(stdout, "TEST: %s failed: ERROR(%d)\n", __func__,
 			ret);
@@ -236,9 +236,29 @@ artik_error test_time_sync_ntp(void)
 	return ret;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	artik_error ret = S_OK;
+	unsigned int ntp_timeout_ms = 3000;
+	int opt = -1;
+
+	while ((opt = getopt(argc, argv, "t:h:?")) != -1) {
+		switch (opt) {
+		case 't':
+			ntp_timeout_ms = (unsigned int)atoi(optarg);
+			break;
+		case 'h':
+			hostname = strndup(optarg, strlen(optarg));
+			break;
+		case '?':
+			printf("Usage: time-test -t <ntp timeout ms> -h <ntp name server>\n");
+			return 0;
+		default:
+			printf("Usage: time-test -t <ntp timeout ms> -h <ntp name server>\n");
+			printf("-?: give this help list\n");
+			return 0;
+		}
+	}
 
 	time_module_p = (artik_time_module *)artik_request_api_module("time");
 
@@ -254,7 +274,7 @@ int main(void)
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_time_sync_ntp();
+	ret = test_time_sync_ntp(hostname, ntp_timeout_ms);
 
 exit:
 	artik_release_api_module(time_module_p);
