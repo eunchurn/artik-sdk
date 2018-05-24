@@ -89,10 +89,10 @@ artik_error os_adc_get_value(artik_adc_config *config, int *value)
 	size_t readsize;
 	ssize_t nbytes;
 
-	user_data = (artik_adc_user_data_t *)config->user_data;
-
 	if (!config)
 		return E_BAD_ARGS;
+
+	user_data = (artik_adc_user_data_t *)config->user_data;
 
 	if (ioctl(user_data->fd, ANIOC_TRIGGER, 0) < -1) {
 		close(user_data->fd);
