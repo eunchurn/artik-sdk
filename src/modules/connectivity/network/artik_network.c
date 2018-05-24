@@ -157,7 +157,7 @@ artik_error artik_get_online_status(const char *addr, int timeout, bool *online_
 
 	if (timeout > 0) {
 		clock_gettime(CLOCK_MONOTONIC, &ts);
-		start_ms = (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+		start_ms = ((uint64_t)ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
 	}
 
 	*online_status = false;
@@ -187,7 +187,7 @@ try_again:
 		if (errno == EAGAIN) {
 			if (timeout > 0) {
 				clock_gettime(CLOCK_MONOTONIC, &ts);
-				curr_ms = (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+				curr_ms = ((uint64_t)ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
 				if ((curr_ms - start_ms) > timeout) {
 					log_dbg("Timed out waiting for the ping reply");
 					close(sock);
