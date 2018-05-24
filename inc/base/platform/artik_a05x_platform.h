@@ -102,19 +102,32 @@ static const artik_api_module artik_api_a05x_modules[] = {
 #define ARTIK_A05x_XEINT2	59	// GPA0[2]
 
 /* List of available PWM pin IDs */
-#define ARTIK_A05x_XPWMOUT0 0
-#define ARTIK_A05x_XPWMOUT1 1
-#define ARTIK_A05x_XPWMOUT2 2
-#define ARTIK_A05x_XPWMOUT3 3
-#define ARTIK_A05x_XPWMOUT4 4
-#define ARTIK_A05x_XPWMOUT5 5
-#define ARTIK_A05x_XPWMOUT6 6
+#define ARTIK_A05x_XPWMOUT0	0
+#define ARTIK_A05x_XPWMOUT1	1
+#define ARTIK_A05x_XPWMOUT2	2
+#define ARTIK_A05x_XPWMOUT3	3
+#define ARTIK_A05x_XPWMOUT4	4
+#define ARTIK_A05x_XPWMOUT5	5
 
 /* List of available Analog pin IDs */
-#define ARTIK_A05x_XADC0AIN0   0
-#define ARTIK_A05x_XADC0AIN1   1
-#define ARTIK_A05x_XADC0AIN2   2
-#define ARTIK_A05x_XADC0AIN3   3
+#define ARTIK_A05x_XADC0AIN0	0
+#define ARTIK_A05x_XADC0AIN1	1
+#define ARTIK_A05x_XADC0AIN2	2
+#define ARTIK_A05x_XADC0AIN3	3
+
+/* List of available UART IDs */
+#define ARTIK_A05x_XUART0	0
+#define ARTIK_A05x_XUART1	1
+#define ARTIK_A05x_XUART2	2
+#define ARTIK_A05x_XUART3	3
+
+/* List of available I2C IDs */
+#define ARTIK_A05x_XI2C0	0
+#define ARTIK_A05x_XI2C1	1
+
+/* List of available SPI IDs */
+#define ARTIK_A05x_XSPI0	0
+#define ARTIK_A05x_XSPI1	1
 
 #endif
 #endif /* INCLUDE_ARTIK_A05x_PLATFORM_H_ */
