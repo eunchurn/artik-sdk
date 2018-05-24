@@ -24,14 +24,14 @@ artik_ssl_config *copy_ssl_config(artik_ssl_config *from)
 	if (from->client_cert.data) {
 		to->client_cert.len = from->client_cert.len;
 		to->client_cert.data = strndup(from->client_cert.data, from->client_cert.len);
-		if (!to->ca_cert.data)
+		if (!to->client_cert.data)
 			goto cleanup;
 	}
 
 	if (from->client_key.data) {
 		to->client_key.len = from->client_key.len;
 		to->client_key.data = strndup(from->client_key.data, from->client_key.len);
-		if (!to->ca_cert.data)
+		if (!to->client_key.data)
 			goto cleanup;
 	}
 
@@ -71,7 +71,7 @@ artik_http_headers *copy_http_headers(artik_http_headers *from)
 
 		if (from->fields[i].data) {
 			to->fields[i].data = strdup(from->fields[i].data);
-			if (!to->fields[i].name)
+			if (!to->fields[i].data)
 				goto cleanup;
 		}
 	}
