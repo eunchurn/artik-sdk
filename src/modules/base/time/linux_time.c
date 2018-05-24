@@ -441,7 +441,7 @@ artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout)
 	struct sockaddr saddr;
 	socklen_t saddr_l;
 	struct hostent *host_resolv;
-	struct timeval time_struct = { 0, timeout * 1000 };
+	struct timeval time_struct = { timeout / 1000, ((timeout % 1000) * 1000) };
 
 	log_dbg("");
 	if (!hostname)
@@ -454,8 +454,7 @@ artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout)
 	}
 
 	if (timeout) {
-		if (setsockopt
-			(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&time_struct,
+		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&time_struct,
 				sizeof(time_struct)) < 0) {
 			log_err("Failed to set socket options");
 			ret = E_BAD_ARGS;
@@ -494,7 +493,9 @@ artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout)
 		goto exit;
 	}
 
+	time_struct.tv_sec = 0;
 	time_struct.tv_usec = 0;
+
 	time_struct.tv_sec = ntohl((time_t) buf[4]) - EPOCH_BALANCE;
 	res = settimeofday(&time_struct, NULL);
 	if (res != 0) {
