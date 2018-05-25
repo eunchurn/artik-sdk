@@ -37,18 +37,27 @@ extern "C" {
 	 */
 
 	/*!
-	 * \brief ARTIK_LIST_ID type
+	 * \brief Generic linked list structure
+	 *
+	 * Structure containing the data elements
+	 * for a generic linked list.
+	 */
+	typedef struct artik_list artik_list;
+
+	/*!
+	 * \brief ARTIK_LIST_HANDLE type
 	 *
 	 * Defines a node ID for the generic list
 	 */
 	typedef void *ARTIK_LIST_HANDLE;
+
 	/*!
-	 * \brief ARTIK_LIST_FUNCA type
+	 * \brief artik_list_clear_callback type
 	 *
-	 * Defines a node function pointer with only one
-	 * parameter and no return.
+	 * Callback prototype for clear a node.
 	 */
-	typedef void (*ARTIK_LIST_FUNCA) (void *);
+
+	typedef void (*artik_list_clear_callback) (artik_list *);
 	/*!
 	 * \brief ARTIK_LIST_FUNCB type
 	 *
@@ -56,19 +65,20 @@ extern "C" {
 	 */
 	typedef void *(*ARTIK_LIST_FUNCB) (void *, void *);
 
-	/*!
-	 * \brief Generic linked list structure
+	/* \brief artik_list_copy_callback
 	 *
-	 * Structure containing the data elements
-	 * for a generic linked list.
+	 * Callback prototype for copy a node
 	 */
-	typedef struct artik_list {
+	typedef void (*artik_list_copy_callback)(artik_list *dest, artik_list *src);
+
+	struct artik_list {
 		struct artik_list *next;
-		ARTIK_LIST_FUNCA clear;
+		artik_list_clear_callback clear;
+		artik_list_copy_callback copy;
 		ARTIK_LIST_HANDLE handle;
 		unsigned int size_data;
 		void *data;
-	} artik_list;
+	};
 
 	/*!
 	 * \brief ARTIK_LIST_INVALID_HANDLE
@@ -94,7 +104,7 @@ extern "C" {
 	{
 		artik_list *elem = *list;
 
-		if (size_of_node < 0)
+		if (size_of_node < (int)sizeof(artik_list))
 			return NULL;
 
 		while ((elem != NULL) && (elem->next != NULL))
@@ -119,7 +129,7 @@ extern "C" {
 		else
 			elem->handle = (ARTIK_LIST_HANDLE)elem;
 
-		elem->size_data = size_of_node - sizeof(*elem);
+		elem->size_data = size_of_node;
 
 		return elem;
 	}
@@ -137,17 +147,19 @@ extern "C" {
 						 artik_list **dest)
 	{
 		artik_list *elem = list;
-		artik_list **res = dest;
+		artik_list *new_elem = NULL;
 
-		if (!list)
+		if (!list || !dest || *dest)
 			return E_BAD_ARGS;
 
 		while (elem) {
-			if (*res == NULL)
-				*res = (artik_list *)malloc(sizeof(artik_list));
+			new_elem = artik_list_add(dest, elem->handle, elem->size_data);
+			memcpy(new_elem, elem, elem->size_data);
 
-			memcpy(*res, elem, sizeof(artik_list));
-			res = &(*res)->next;
+			if (new_elem->copy)
+				new_elem->copy(new_elem, elem);
+
+			new_elem->next = NULL;
 			elem = elem->next;
 		}
 
@@ -206,8 +218,6 @@ extern "C" {
 			*list = elem->next;
 		if (elem->clear)
 			(*elem->clear) (elem);
-		if (elem->data)
-			free(elem->data);
 		free(elem);
 
 		return S_OK;
@@ -246,8 +256,6 @@ extern "C" {
 			*list = elem->next;
 		if (elem->clear)
 			(*elem->clear) (elem);
-		if (elem->data)
-			free(elem->data);
 		free(elem);
 
 		return S_OK;
@@ -286,8 +294,6 @@ extern "C" {
 			*list = elem->next;
 		if (elem->clear)
 			(*elem->clear) (elem);
-		if (elem->data)
-			free(elem->data);
 		free(elem);
 
 		return S_OK;
@@ -330,8 +336,6 @@ extern "C" {
 			*list = elem->next;
 		if (elem->clear)
 			(*elem->clear) (elem);
-		if (elem->data)
-			free(elem->data);
 		free(elem);
 
 		return S_OK;
@@ -356,8 +360,6 @@ extern "C" {
 			*list = (*list)->next;
 			if (elem->clear)
 				(*elem->clear) (elem);
-			if (elem->data)
-				free(elem->data);
 			free(elem);
 		}
 
