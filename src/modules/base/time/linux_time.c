@@ -431,7 +431,7 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 artik_error os_time_sync_ntp(const char *hostname)
 {
 	artik_error ret = S_OK;
-	unsigned char msg[48] = { 010, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char msg[48] = { 0xe3, 0, 0, 0, 0, 0, 0, 0, 0 };
 	unsigned long buf[1024];
 
 	int sock;
