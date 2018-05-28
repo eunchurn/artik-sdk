@@ -126,7 +126,7 @@ static artik_error init_client_ssl_config(
 	int ret = S_OK;
 	struct http_ssl_config_t *http_ssl_config =
 		(struct http_ssl_config_t *) zalloc(sizeof(struct http_ssl_config_t));
-	*ssl_config = http_ssl_config;
+
 	if (http_ssl_config == NULL) {
 		ret = E_NO_MEM;
 		goto exit;
@@ -366,6 +366,8 @@ static artik_error init_client_ssl_config(
 		mbedtls_ssl_conf_authmode(http_ssl_config->ssl->tls_conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 		break;
 	}
+
+	*ssl_config = http_ssl_config;
 
 	return S_OK;
 
