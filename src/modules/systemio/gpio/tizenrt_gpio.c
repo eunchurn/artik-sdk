@@ -81,7 +81,7 @@ artik_error os_gpio_request(artik_gpio_config *config)
 	user_data->fd = open(path_str, O_RDWR);
 
 	if (user_data->fd < 0) {
-		os_gpio_release(config);
+		free(user_data);
 		return E_ACCESS_DENIED;
 	}
 
@@ -114,7 +114,8 @@ int os_gpio_read(artik_gpio_config *config)
 	if (ioctl(user_data->fd, GPIO_CMD_SET_DIRECTION, GPIO_DIRECTION_IN) < 0)
 		return E_ACCESS_DENIED;
 
-	lseek(user_data->fd, 0, SEEK_SET);
+	if (lseek(user_data->fd, 0, SEEK_SET) == (off_t)-1)
+		return E_ACCESS_DENIED;
 	if (read(user_data->fd, (void *)&buf, sizeof(buf)) < 0)
 		return E_ACCESS_DENIED;
 
@@ -135,7 +136,8 @@ artik_error os_gpio_write(artik_gpio_config *config, int value)
 
 	size_t str_size =  snprintf(str, 4, "%d", value != 0) + 1;
 
-	lseek(user_data->fd, 0, SEEK_SET);
+	if (lseek(user_data->fd, 0, SEEK_SET) == (off_t)-1)
+		return E_ACCESS_DENIED;
 	if (write(user_data->fd, (void *)str, str_size) < 0)
 		return E_ACCESS_DENIED;
 
