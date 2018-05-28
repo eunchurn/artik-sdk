@@ -59,44 +59,31 @@ static void _handle_release(void)
 
 static void _handle_new_connection(GVariant *parameters,
 		GDBusMethodInvocation *invocation) {
-	GVariant *g_property = NULL;
-	GVariant *g_property_dic = NULL;
-	GVariant *value = NULL;
-	gchar *device_path = NULL;
-	gint property_len = 0;
-	gchar *key = NULL;
-	gint i = 0;
-	gint32 fd_handler;
-	gint fd;
+	GVariant *property, *val;
+	GVariantIter *iter;
+	gchar *path = NULL, *key = NULL, *address = NULL;
+	gint fd, fd_handler, version = 0, features = 0;
 	GDBusMessage *message = NULL;
 	GUnixFDList *fd_list = NULL;
 	GError *error = NULL;
-	gint version = 0, features = 0;
-	gchar *address = NULL;
 	artik_bt_spp_connect_property spp_property = {0};
 
-	g_variant_get(parameters, "(&oh@a{sv})", &device_path, &fd_handler,
-			&g_property);
-	property_len = g_variant_n_children(g_property);
-	if (property_len > 0) {
-		for (i = 0; i < property_len; i++) {
-			g_property_dic = g_variant_get_child_value(g_property, i);
-			g_variant_get(g_property_dic, "{&sv}", &key, &value);
-			if (g_strcmp0(key, "Version") == 0)
-				g_variant_get(value, "q", &version);
-			if (g_strcmp0(key, "Features") == 0)
-				g_variant_get(value, "q", &features);
-			g_variant_unref(value);
-			g_variant_unref(g_property_dic);
-		}
+	g_variant_get(parameters, "(&oh@a{sv})", &path, &fd_handler, &property);
+	g_variant_get(property, "a{sv}", &iter);
+	while (g_variant_iter_loop(iter, "{&sv}", &key, &val)) {
+		if (g_strcmp0(key, "Version") == 0)
+			g_variant_get(val, "q", &version);
+		if (g_strcmp0(key, "Features") == 0)
+			g_variant_get(val, "q", &features);
 	}
-	g_variant_unref(g_property);
+	g_variant_iter_free(iter);
+	g_variant_unref(property);
 
 	message = g_dbus_method_invocation_get_message(invocation);
 	fd_list = g_dbus_message_get_unix_fd_list(message);
 	fd = g_unix_fd_list_get(fd_list, fd_handler, &error);
 
-	_get_device_address(device_path, &address);
+	_get_device_address(path, &address);
 
 	spp_property.device_addr = address;
 	spp_property.fd = fd;
@@ -160,12 +147,12 @@ static int _register_spp_object(void)
 			&_interface_vtable, NULL, NULL,
 			&error);
 	if (error) {
-		log_dbg("g_dbus_connection_register_object failed :%s\n",
+		log_dbg("g_dbus_connection_register_object failed :%s",
 			error->message);
 		g_clear_error(&error);
 		return E_BT_ERROR;
 	}
-	log_dbg("registration id : %d\n", registration_id);
+	log_dbg("registration id : %d", registration_id);
 
 	return S_OK;
 }
@@ -221,7 +208,7 @@ artik_error bt_spp_register_profile(artik_bt_spp_profile_option *opt)
 		g_variant_builder_unref(option);
 
 	if (error) {
-		log_dbg("Register profile option failed :%s\n", error->message);
+		log_dbg("Register profile option failed :%s", error->message);
 		g_clear_error(&error);
 		return E_BT_ERROR;
 	}
@@ -248,7 +235,7 @@ artik_error bt_spp_unregister_profile(void)
 		NULL, G_DBUS_CALL_FLAGS_NONE, G_MAXINT, NULL, &error);
 
 	if (error) {
-		log_dbg("Unregister Profile failed :%s\n", error->message);
+		log_dbg("Unregister Profile failed :%s", error->message);
 		g_clear_error(&error);
 		return E_BT_ERROR;
 	}
