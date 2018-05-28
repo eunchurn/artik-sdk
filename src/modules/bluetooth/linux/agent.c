@@ -200,9 +200,11 @@ static void _agent_callback(artik_bt_event event, void *data)
 	}
 }
 
-static void _handle_release(void)
+static void _handle_release(GDBusMethodInvocation *invocation)
 {
 	_agent_callback(BT_EVENT_AGENT_RELEASE, NULL);
+
+	g_dbus_method_invocation_return_value(invocation, NULL);
 }
 
 static void _handle_request_pincode(GVariant *parameters,
@@ -344,9 +346,11 @@ static void _handle_authorize_service(GVariant *parameters,
 	g_free(uuid);
 }
 
-static void _handle_cancel(void)
+static void _handle_cancel(GDBusMethodInvocation *invocation)
 {
 	_agent_callback(BT_EVENT_AGENT_CANCEL, NULL);
+
+	g_dbus_method_invocation_return_value(invocation, NULL);
 }
 
 static void handle_method_call(GDBusConnection *connection,
@@ -356,7 +360,7 @@ static void handle_method_call(GDBusConnection *connection,
 		gpointer user_data)
 {
 	if (g_strcmp0(method_name, "Release") == 0)
-		_handle_release();
+		_handle_release(invocation);
 	else if (g_strcmp0(method_name, "RequestPinCode") == 0)
 		_handle_request_pincode(parameters, invocation);
 	else if (g_strcmp0(method_name, "DisplayPinCode") == 0)
@@ -372,7 +376,7 @@ static void handle_method_call(GDBusConnection *connection,
 	else if (g_strcmp0(method_name, "AuthorizeService") == 0)
 		_handle_authorize_service(parameters, invocation);
 	else if (g_strcmp0(method_name, "Cancel") == 0)
-		_handle_cancel();
+		_handle_cancel(invocation);
 }
 
 static const GDBusInterfaceVTable _interface_vtable = {
