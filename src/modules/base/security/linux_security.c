@@ -186,6 +186,18 @@ static const uint8_t rfc5114_dh2048_224[] = {
 	0x90, 0xD3, 0x19, 0x1F, 0x2B, 0xFA
 };
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+/* Compatibility layer between OpenSSL 1.0.2 and 1.1.0 */
+static EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
+{
+	if (pkey->type != EVP_PKEY_EC)
+		return NULL;
+
+	return pkey->pkey.ec;
+}
+#endif
+
+
 static int (*see_device_init)(const char *id, const char *pwd);
 static int (*see_device_deinit)(void);
 static see_dev *(*see_device_get)(void);
@@ -715,7 +727,7 @@ artik_error os_security_get_ec_pubkey_from_cert(const char *cert, char **key)
 		goto exit;
 	}
 
-	ec_pub = EVP_PKEY_get1_EC_KEY(evp_pub);
+	ec_pub = EVP_PKEY_get0_EC_KEY(evp_pub);
 
 	if (!ec_pub) {
 		ret = E_BAD_ARGS;
@@ -750,8 +762,6 @@ exit:
 		BIO_free(ibio);
 	if (evp_pub)
 		EVP_PKEY_free(evp_pub);
-	if (ec_pub)
-		EC_KEY_free(ec_pub);
 	return ret;
 }
 
@@ -2492,7 +2502,7 @@ artik_error os_security_verify_signature_init(artik_security_handle *handle,
 	BIO *sigbio = NULL;
 	BIO *cabio = NULL;
 	X509 *ca_cert = NULL;
-	X509_STORE_CTX store_ctx;
+	X509_STORE_CTX *store_ctx = NULL;
 	X509_STORE *store = NULL;
 	artik_error ret = S_OK;
 
@@ -2507,7 +2517,11 @@ artik_error os_security_verify_signature_init(artik_security_handle *handle,
 
 	/* Do OpenSSL one-time global initialization stuff */
 	if (!openssl_global_init) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		CRYPTO_malloc_init();
+#else
+		OPENSSL_malloc_init();
+#endif
 		OpenSSL_add_all_algorithms();
 		openssl_global_init = true;
 	}
@@ -2577,26 +2591,43 @@ artik_error os_security_verify_signature_init(artik_security_handle *handle,
 	}
 
 	store = X509_STORE_new();
+	if (!store) {
+		log_dbg("Failed to allocate store");
+		ret = E_SECURITY_CA_VERIF_FAILED;
+		goto exit;
+	}
+
 	X509_STORE_add_cert(store, ca_cert);
-	if (!X509_STORE_CTX_init(&store_ctx, store, node->signer_cert,
+
+	store_ctx = X509_STORE_CTX_new();
+	if (!store_ctx) {
+		log_dbg("Failed to allocate store context");
+		ret = E_SECURITY_CA_VERIF_FAILED;
+		X509_STORE_free(store);
+		goto exit;
+	}
+
+	if (!X509_STORE_CTX_init(store_ctx, store, node->signer_cert,
 				node->p7->d.sign->cert)) {
 		log_dbg("Failed to initialize verification context");
-		ret = E_SECURITY_CA_VERIF_FAILED;
-		goto exit;
-	}
-
-	X509_STORE_CTX_set_purpose(&store_ctx, X509_PURPOSE_CRL_SIGN);
-	if (X509_verify_cert(&store_ctx) <= 0) {
-		log_dbg("Signer certificate verification failed (err=%d)",
-				X509_STORE_CTX_get_error(&store_ctx));
-		X509_STORE_CTX_cleanup(&store_ctx);
 		X509_STORE_free(store);
+		X509_STORE_CTX_free(store_ctx);
+	}
+
+	X509_STORE_CTX_set_purpose(store_ctx, X509_PURPOSE_CRL_SIGN);
+	if (X509_verify_cert(store_ctx) <= 0) {
+		log_dbg("Signer certificate verification failed (err=%d)",
+				X509_STORE_CTX_get_error(store_ctx));
+		X509_STORE_CTX_cleanup(store_ctx);
+		X509_STORE_free(store);
+		X509_STORE_CTX_free(store_ctx);
 		ret = E_SECURITY_CA_VERIF_FAILED;
 		goto exit;
 	}
 
-	X509_STORE_CTX_cleanup(&store_ctx);
+	X509_STORE_CTX_cleanup(store_ctx);
 	X509_STORE_free(store);
+	X509_STORE_CTX_free(store_ctx);
 
 	/* Verify signer attributes */
 	if (!node->signer->auth_attr ||
