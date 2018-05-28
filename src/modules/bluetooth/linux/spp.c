@@ -98,8 +98,6 @@ static void _handle_new_connection(GVariant *parameters,
 
 	_get_device_address(device_path, &address);
 
-	g_free(device_path);
-
 	spp_property.device_addr = address;
 	spp_property.fd = fd;
 	spp_property.version = version;
@@ -137,6 +135,8 @@ static void _handle_method_call(GDBusConnection *connection,
 		_handle_new_connection(parameters, invocation);
 	if (g_strcmp0(method_name, "RequestDisconnection") == 0)
 		_handle_request_disconnection(parameters, invocation);
+
+	g_dbus_method_invocation_return_value(invocation, NULL);
 }
 
 static const GDBusInterfaceVTable _interface_vtable = {
