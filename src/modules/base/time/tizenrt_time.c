@@ -100,8 +100,6 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	};
 	struct timespec stime = { 0, };
 
-	time_t    sec;
-
 	dtime.tm_sec = date.second;
 	dtime.tm_min = date.minute;
 	dtime.tm_hour = date.hour/* - DST_DEF*/;
@@ -114,11 +112,7 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	/*date.msecond;*/
 #endif
 
-	sec = mktime(&dtime);
-	if (sec < 0)
-		return E_BAD_ARGS;
-
-	stime.tv_sec = sec;
+	stime.tv_sec = mktime(&dtime);
 	stime.tv_nsec = 0;
 
 	if (clock_settime(CLOCK_REALTIME, &stime) < 0) {
@@ -138,7 +132,7 @@ artik_error os_time_get_time(artik_time_zone gmt, artik_time *date)
 	if (!date)
 		return E_BAD_ARGS;
 
-	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
+	if (gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
 	ret = os_time_get_sys(&t, gmt, &msecond);
@@ -172,7 +166,7 @@ artik_error os_time_get_time_str(char *date_str, int size,
 	if (!date_str)
 		return E_BAD_ARGS;
 
-	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
+	if (gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
 	fmt = (format == NULL || strlen(format) == 0) ? ARTIK_TIME_DFORMAT :
