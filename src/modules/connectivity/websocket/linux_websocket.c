@@ -605,37 +605,27 @@ static int os_websocket_process_stream(void *user_data)
 	return 1;
 }
 
-static artik_error set_proxy(struct lws_context *context, const char *uri, int default_port)
+#ifndef LIBWEBSOCKETS_VHOST_API
+static artik_error set_proxy(struct lws_context *context, artik_uri_info *uri_proxy)
 {
-	artik_utils_module *utils = artik_request_api_module("utils");
-	artik_uri_info uri_info;
 	artik_error ret = S_OK;
 	char *lws_proxy = NULL;
 	size_t len;
 	int lws_ret;
 
-	if (utils->get_uri_info(&uri_info, uri) != S_OK) {
-		log_err("Wrong websocket proxy (%s)", uri);
-		artik_release_api_module(utils);
-		return E_WEBSOCKET_ERROR;
-	}
-
-	if (uri_info.port == -1)
-		uri_info.port = default_port;
-
-	/* The max length for lws_proxy is strlen(uri_info.hostname) + 6
+	/* The max length for lws_proxy is strlen(uri_proxy.hostname) + 6
 	 * 6 = 1 + 5
 	 *    1 for '\0'
 	 *    5 for the max size of the port (the max value for a port is 65 535)
 	 */
-	len = strlen(uri_info.hostname) + 6;
+	len = strlen(uri_proxy->hostname) + 6;
 	lws_proxy = malloc(sizeof(char)*len);
 	if (!lws_proxy) {
 		ret = E_NO_MEM;
 		goto exit;
 	}
 
-	snprintf(lws_proxy, len, "%s:%d", uri_info.hostname, uri_info.port);
+	snprintf(lws_proxy, len, "%s:%d", uri_proxy->hostname, uri_proxy->port);
 	lws_ret = lws_set_proxy(context, lws_proxy);
 	if (lws_ret != 0) {
 		ret = E_WEBSOCKET_ERROR;
@@ -646,12 +636,9 @@ exit:
 	if (lws_proxy)
 		free(lws_proxy);
 
-	utils->free_uri_info(&uri_info);
-	artik_release_api_module(utils);
-
 	return ret;
 }
-
+#endif
 
 static int websocket_parse_uri(const char *uri, char **host, char **path,
 								int *port, bool *use_tls)
@@ -719,6 +706,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	char *hostport = NULL;
 	artik_loop_module *loop = (artik_loop_module *)
 		artik_request_api_module("loop");
+	artik_utils_module *utils = artik_request_api_module("utils");
 
 	if (!config->uri) {
 		log_err("Undefined uri");
@@ -777,19 +765,13 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 
 	lws_set_log_level(0, NULL);
 
-	context = lws_create_context(&info);
-	if (context == NULL) {
-		log_err("Creating libwebsocket context failed");
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
-
 	/* Check if there is an enabled proxy */
 	char *http_proxy = getenv("http_proxy");
 	char *https_proxy = getenv("https_proxy");
+	char *uri_proxy = NULL;
+	artik_uri_info lws_proxy;
 
 	if (http_proxy || https_proxy) {
-		char *uri_proxy = NULL;
 		int default_port;
 
 		if (use_tls && https_proxy) {
@@ -801,12 +783,35 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		}
 
 		if (uri_proxy) {
-			ret = set_proxy(context, uri_proxy, default_port);
-			if (ret != S_OK)
+			if (utils->get_uri_info(&lws_proxy, uri_proxy) != S_OK) {
+				log_err("Wrong websocket proxy (%s)",  uri_proxy);
+				ret = E_WEBSOCKET_ERROR;
 				goto exit;
+			}
+
+			if (lws_proxy.port == -1)
+				lws_proxy.port = default_port;
+
+#ifdef LIBWEBSOCKETS_VHOST_API
+			info.http_proxy_address = lws_proxy.hostname;
+			info.http_proxy_port = lws_proxy.port;
+#endif
 		}
 	}
 
+	context = lws_create_context(&info);
+	if (context == NULL) {
+		log_err("Creating libwebsocket context failed");
+		ret = E_WEBSOCKET_ERROR;
+		goto exit;
+	}
+
+#ifndef LIBWEBSOCKETS_VHOST_API
+	if (uri_proxy)
+		set_proxy(context, &lws_proxy);
+#endif
+
+	utils->free_uri_info(&lws_proxy);
 	memset(&conn_info, 0, sizeof(conn_info));
 
 	if (host) {
@@ -908,6 +913,8 @@ exit:
 		free(path);
 	if (hostport)
 		free(hostport);
+
+	artik_release_api_module(utils);
 
 	return ret;
 }
