@@ -114,11 +114,11 @@ artik_error artik_get_current_public_ip(artik_network_ip *ip)
 	ssl.ca_cert.len = sizeof(geoipdb_root_ca);
 
 	/* Perform the request */
-	ret = http->get("https://geoip-db.com/json/", NULL, &response, NULL, &ssl);
+	ret = http->get("http://geoip.nekudo.com/api", NULL, &response, NULL, &ssl);
 	if (ret != S_OK)
 		goto exit;
 
-	point = strstr(response, "\"IPv4\":\"");
+	point = strstr(response, "\"ip\":\"");
 	if (point != NULL) {
 		token = strtok(point, delimiter);
 		for (i = 0; token != NULL && i < 2; i++) {
