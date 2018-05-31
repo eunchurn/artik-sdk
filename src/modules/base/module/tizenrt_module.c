@@ -193,7 +193,7 @@ bool os_is_module_available(artik_module_id_t id)
 			artik_api_module *p_module = (artik_api_module *)
 				artik_api_modules[plat].modules;
 
-			for (; p_module->id >= 0; p_module++) {
+			for (; p_module->name; p_module++) {
 				if (p_module->id == id)
 					return true;
 			}
