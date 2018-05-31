@@ -229,7 +229,7 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle, artik_msecond *ms
 	return E_NOT_SUPPORTED;
 }
 
-artik_error os_time_sync_ntp(const char *hostname)
+artik_error os_time_sync_ntp(const char *hostname, unsigned int timeout)
 {
 	return E_NOT_SUPPORTED;
 }
