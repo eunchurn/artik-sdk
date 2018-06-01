@@ -162,7 +162,7 @@ typedef int artik_error;
  *  \brief An error occurred with the LWM2M service
  */
 #define E_LWM2M_ERROR		(-6000)
-
+#define E_LWM2M_DISCONNECTION_ERROR	(-6001)
 /*!
  *  \brief An error occurred with the MQTT
  */
@@ -229,6 +229,7 @@ static const artik_error_msg_string error_msg_strings[] = {
 	{E_ZIGBEE_NETWORK_EXIST, "Network has existed"},
 	{E_INVALID_VALUE, "Invalid value"},
 	{E_LWM2M_ERROR, "LWM2M error"},
+	{E_LWM2M_DISCONNECTION_ERROR, "LWM2M disconnection"},
 	{E_MQTT_ERROR, "MQTT error"},
 	{E_NETWORK_ERROR, "Network error"},
 	{E_SECURITY_ERROR, "Security error"},

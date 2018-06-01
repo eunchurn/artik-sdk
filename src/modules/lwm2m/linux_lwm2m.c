@@ -39,6 +39,7 @@ typedef struct {
 	artik_loop_module *loop_module;
 	artik_security_module *security_module;
 	artik_security_handle security_handle;
+	bool connected;
 } lwm2m_node;
 
 typedef struct {
@@ -54,20 +55,47 @@ static int on_lwm2m_service_callback(void *user_data)
 {
 	lwm2m_node *node = (lwm2m_node *)user_data;
 	int timeout;
+	artik_error err;
 
 	timeout = lwm2m_client_service(node->client, 1000);
 	if (timeout < LWM2M_CLIENT_OK) {
 		log_dbg("");
-		if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
-			artik_error err = (timeout == LWM2M_CLIENT_QUIT) ?
-						E_INTERRUPTED : E_LWM2M_ERROR;
-			node->callbacks[ARTIK_LWM2M_EVENT_ERROR]((void *)(intptr_t)err,
-					node->callbacks_params[
-						ARTIK_LWM2M_EVENT_ERROR]);
+		switch (timeout) {
+		case LWM2M_CLIENT_QUIT:
+			if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
+				err = E_INTERRUPTED;
+				node->callbacks[ARTIK_LWM2M_EVENT_ERROR]((void *)(intptr_t)err,
+				node->callbacks_params[ARTIK_LWM2M_EVENT_ERROR]);
+			}
 			return 0;
+		case LWM2M_CLIENT_ERROR:
+			if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
+				err = E_LWM2M_ERROR;
+				node->callbacks[ARTIK_LWM2M_EVENT_ERROR]((void *)(intptr_t)err,
+				node->callbacks_params[ARTIK_LWM2M_EVENT_ERROR]);
+			}
+			return 0;
+		case LWM2M_CLIENT_DISCONNECTED:
+			if (node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT] &&
+				(node->connected != false)) {
+				err = E_LWM2M_DISCONNECTION_ERROR;
+				node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT]((void *)(intptr_t)err,
+				node->callbacks_params[ARTIK_LWM2M_EVENT_DISCONNECT]);
+				node->connected = false;
+			}
+			return 1;
+		default:
+			break;
 		}
 	}
 
+	if (node->callbacks[ARTIK_LWM2M_EVENT_CONNECT] &&
+		(node->connected != true)) {
+		err = S_OK;
+		node->callbacks[ARTIK_LWM2M_EVENT_CONNECT]((void *)(intptr_t)err,
+		node->callbacks_params[ARTIK_LWM2M_EVENT_CONNECT]);
+		node->connected = true;
+	}
 	return 1;
 }
 
@@ -506,6 +534,8 @@ artik_error os_lwm2m_client_connect(artik_lwm2m_handle handle)
 
 	if (!node)
 		return E_BAD_ARGS;
+
+	node->connected = false;
 
 	/* Start timeout callback to service the LWM2M library */
 	ret = node->loop_module->add_idle_callback(&node->service_cbk_id,

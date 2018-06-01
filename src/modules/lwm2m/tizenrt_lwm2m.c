@@ -47,6 +47,7 @@ typedef struct {
 	bool use_se;
 	pthread_t thread_id;
 	pthread_mutex_t mutex;
+	bool connected;
 } lwm2m_node;
 
 typedef struct {
@@ -61,24 +62,60 @@ static artik_list *nodes = NULL;
 static void *_lwm2m_service_thread(void *user_data)
 {
 	lwm2m_node *node = (lwm2m_node *)user_data;
-	int timeout;
+	int timeout = 0;
+	artik_error err = S_OK;
 
 	log_dbg("");
 	while (node->state == LWM2M_CONNECT) {
-		timeout = lwm2m_client_service(node->client, 100);
+		timeout = lwm2m_client_service(node->client, 1000);
 
-		if (timeout < LWM2M_CLIENT_OK) {
+		switch (timeout) {
+		case LWM2M_CLIENT_QUIT:
 			pthread_mutex_lock(&(node->mutex));
 			node->state = LWM2M_EXIT;
 			if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
-				artik_error err = (timeout == LWM2M_CLIENT_QUIT)
-					? E_INTERRUPTED : E_LWM2M_ERROR;
+				err = E_INTERRUPTED;
 				node->callbacks[ARTIK_LWM2M_EVENT_ERROR](
 					(void *)err,
 					node->callbacks_params[
 						ARTIK_LWM2M_EVENT_ERROR]);
 			}
 			pthread_mutex_unlock(&(node->mutex));
+			break;
+		case LWM2M_CLIENT_ERROR:
+			pthread_mutex_lock(&(node->mutex));
+			node->state = LWM2M_EXIT;
+			if (node->callbacks[ARTIK_LWM2M_EVENT_ERROR]) {
+				err = E_LWM2M_ERROR;
+				node->callbacks[ARTIK_LWM2M_EVENT_ERROR](
+					(void *)err,
+					node->callbacks_params[
+						ARTIK_LWM2M_EVENT_ERROR]);
+			}
+			pthread_mutex_unlock(&(node->mutex));
+			break;
+		case LWM2M_CLIENT_DISCONNECTED:
+			if (node->connected) {
+				pthread_mutex_lock(&(node->mutex));
+				node->state = LWM2M_EXIT;
+				if (node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT]) {
+					err = E_LWM2M_DISCONNECTION_ERROR;
+					node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT](
+						(void *)err,
+						node->callbacks_params[
+							ARTIK_LWM2M_EVENT_DISCONNECT]);
+				}
+				pthread_mutex_unlock(&(node->mutex));
+			}
+			break;
+		default:
+			if (node->callbacks[ARTIK_LWM2M_EVENT_CONNECT] && (!node->connected)) {
+				err = S_OK;
+				node->callbacks[ARTIK_LWM2M_EVENT_CONNECT]((void *)(intptr_t)err,
+				node->callbacks_params[ARTIK_LWM2M_EVENT_CONNECT]);
+				node->connected = true;
+			}
+			break;
 		}
 	}
 
@@ -216,6 +253,7 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	memset(objects, 0, sizeof(object_container_t));
 	memset(server, 0, sizeof(object_security_server_t));
 	node->state = LWM2M_INIT;
+	node->connected = false;
 
 	/* Fill up server object based on passed config */
 	strncpy(server->serverUri, config->server_uri, LWM2M_MAX_STR_LEN);
@@ -364,7 +402,6 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	}
 
 	node->container = objects;
-	log_dbg("node->container %p", node->container);
 	*handle = (artik_lwm2m_handle)node;
 	pthread_mutexattr_destroy(&mutexattr);
 

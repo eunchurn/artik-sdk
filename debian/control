@@ -124,7 +124,7 @@ Package: libartik-sdk-lwm2m
 Architecture: any-arm arm64
 Depends: ${shlibs:Depends}, ${misc:Depends},
 	libartik-sdk-base,
-	wakaama-client (>= 1.5), wakaama-client (<< 1.6)
+	wakaama-client (>= 1.6), wakaama-client (<< 1.7)
 Description: Package containing APIs for communicating with other devices over LWM2M
 
 Package: libartik-sdk-lwm2m-dev

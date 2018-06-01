@@ -169,6 +169,13 @@ static void on_error(void *data, void *user_data)
 	loop->quit();
 }
 
+static void on_connection(void *data, void *user_data)
+{
+	artik_error err = (artik_error)(intptr_t)data;
+
+	fprintf(stdout, "Connection status: %s \r\n", error_msg(err));
+}
+
 static void on_execute_resource(void *data, void *user_data)
 {
 	char *uri = (char *)(((artik_lwm2m_resource_t *)data)->uri);
@@ -389,6 +396,10 @@ artik_error test_lwm2m_default(void)
 			(void *)client_h);
 	lwm2m->set_callback(client_h, ARTIK_LWM2M_EVENT_RESOURCE_CHANGED,
 			on_changed_resource,
+			(void *)client_h);
+	lwm2m->set_callback(client_h, ARTIK_LWM2M_EVENT_CONNECT, on_connection,
+			(void *)client_h);
+	lwm2m->set_callback(client_h, ARTIK_LWM2M_EVENT_DISCONNECT, on_connection,
 			(void *)client_h);
 
 	fprintf(stdout, "TEST: %s add watch\n", __func__);

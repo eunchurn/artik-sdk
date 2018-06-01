@@ -189,7 +189,7 @@ This package contains development files for building programs against the ARTIK 
 %package lwm2m
 Group: Development/Libraries
 Requires: %{name}-base = %{version}-%{release}
-Requires: wakaama-client = 1.5
+Requires: wakaama-client = 1.6
 Provides: %{name}-lwm2m.so.%{version}
 Provides: %{name}-lwm2m.so.1
 Summary: Package containing APIs for communicating with other devices over LWM2M
