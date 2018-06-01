@@ -88,8 +88,9 @@ artik_error os_adc_get_value(artik_adc_config *config, int *value)
 	struct adc_msg_s sample[S5J_ADC_MAX_CHANNELS];
 	size_t readsize;
 	ssize_t nbytes;
+	int nsamples;
 
-	if (!config)
+	if (!config || !value)
 		return E_BAD_ARGS;
 
 	user_data = (artik_adc_user_data_t *)config->user_data;
@@ -107,7 +108,7 @@ artik_error os_adc_get_value(artik_adc_config *config, int *value)
 		return E_BUSY;
 	}
 
-	int nsamples = nbytes / sizeof(struct adc_msg_s);
+	nsamples = nbytes / sizeof(struct adc_msg_s);
 
 	if (nsamples * sizeof(struct adc_msg_s) == nbytes)
 		*value = sample[config->pin_num].am_data;
