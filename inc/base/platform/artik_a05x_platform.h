@@ -25,7 +25,7 @@
  *
  */
 
-#ifdef __TINYARA__
+#ifdef __TIZENRT__
 #include <artik_adc.h>
 #include <artik_gpio.h>
 #include <artik_i2c.h>
