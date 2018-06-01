@@ -116,10 +116,10 @@ static const artik_api_module artik_api_a05x_modules[] = {
 #define ARTIK_A05x_XADC0AIN3	3
 
 /* List of available UART IDs */
-#define ARTIK_A05x_XUART0	0
-#define ARTIK_A05x_XUART1	1
-#define ARTIK_A05x_XUART2	2
-#define ARTIK_A05x_XUART3	3
+#define ARTIK_A05x_XUART0	1
+#define ARTIK_A05x_XUART1	2
+#define ARTIK_A05x_XUART2	3
+#define ARTIK_A05x_XUART3	4
 
 /* List of available I2C IDs */
 #define ARTIK_A05x_XI2C0	0
