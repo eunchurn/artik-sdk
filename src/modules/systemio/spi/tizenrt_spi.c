@@ -41,7 +41,7 @@ artik_error os_spi_request(artik_spi_config *config)
 	if (config->max_speed > _SPI_MAX_FREQUENCY)
 		return E_BAD_ARGS;
 
-	spi = up_spiinitialize(config->bus);
+	spi = up_spiinitialize((int)config->bus);
 	if (spi == NULL)
 		return E_BAD_ARGS;
 
@@ -61,6 +61,9 @@ artik_error os_spi_request(artik_spi_config *config)
 
 artik_error os_spi_release(artik_spi_config *config)
 {
+	if (!config)
+		return E_BAD_ARGS;
+
 	if (!sdev)
 		return E_NOT_INITIALIZED;
 
@@ -71,6 +74,9 @@ artik_error os_spi_release(artik_spi_config *config)
 
 artik_error os_spi_read(artik_spi_config *config, char *buf, int len)
 {
+	if (!config || !buf || (len <= 0))
+		return E_BAD_ARGS;
+
 	if (!sdev)
 		return E_NOT_INITIALIZED;
 
@@ -85,11 +91,15 @@ artik_error os_spi_read(artik_spi_config *config, char *buf, int len)
 	SPI_SELECT(sdev, config->cs, FALSE);
 
 	SPI_LOCK(sdev, FALSE);
+
 	return S_OK;
 }
 
 artik_error os_spi_write(artik_spi_config *config, char *buf, int len)
 {
+	if (!config || !buf || (len <= 0))
+		return E_BAD_ARGS;
+
 	if (!sdev)
 		return E_NOT_INITIALIZED;
 
@@ -102,12 +112,16 @@ artik_error os_spi_write(artik_spi_config *config, char *buf, int len)
 	SPI_SELECT(sdev, config->cs, FALSE);
 
 	SPI_LOCK(sdev, FALSE);
+
 	return S_OK;
 }
 
 artik_error os_spi_read_write(artik_spi_config *config, char *tx_buf,
 		char *rx_buf, int len)
 {
+	if (!config || !tx_buf || !rx_buf || (len <= 0))
+		return E_BAD_ARGS;
+
 	if (!sdev)
 		return E_NOT_INITIALIZED;
 
@@ -122,5 +136,6 @@ artik_error os_spi_read_write(artik_spi_config *config, char *tx_buf,
 	SPI_SELECT(sdev, config->cs, FALSE);
 
 	SPI_LOCK(sdev, FALSE);
+
 	return S_OK;
 }
