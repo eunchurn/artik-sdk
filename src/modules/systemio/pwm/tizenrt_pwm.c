@@ -91,16 +91,16 @@ artik_error os_pwm_enable(artik_pwm_config *config, bool state)
 artik_error os_pwm_set_period(artik_pwm_config *config, unsigned int value)
 {
 #ifdef CONFIG_PWM
-	struct pwm_info_s *info = NULL;
+	struct pwm_info_s info;
 
 	if (ioctl((int)config->user_data, PWMIOC_GETCHARACTERISTICS,
-					(unsigned long)((uintptr_t)info)) < 0)
+					(unsigned long)((uintptr_t)&info)) < 0)
 		return E_ACCESS_DENIED;
 
-	info->frequency = value;
+	info.frequency = value;
 
 	if (ioctl((int)config->user_data, PWMIOC_SETCHARACTERISTICS,
-					(unsigned long)((uintptr_t)info)) < 0)
+					(unsigned long)((uintptr_t)&info)) < 0)
 		return E_ACCESS_DENIED;
 
 	return S_OK;
@@ -118,16 +118,16 @@ artik_error os_pwm_set_polarity(artik_pwm_config *config,
 artik_error os_pwm_set_duty_cycle(artik_pwm_config *config, unsigned int value)
 {
 #ifdef CONFIG_PWM
-	struct pwm_info_s *info = NULL;
+	struct pwm_info_s info;
 
 	if (ioctl((int)config->user_data, PWMIOC_GETCHARACTERISTICS,
-					(unsigned long)((uintptr_t)info)) < 0)
+					(unsigned long)((uintptr_t)&info)) < 0)
 		return E_ACCESS_DENIED;
 
-	info->duty = value * 65536 / 100;
+	info.duty = value * 65536 / 100;
 
 	if (ioctl((int)config->user_data, PWMIOC_SETCHARACTERISTICS,
-					(unsigned long)((uintptr_t)info)) < 0)
+					(unsigned long)((uintptr_t)&info)) < 0)
 		return E_ACCESS_DENIED;
 
 	return S_OK;
