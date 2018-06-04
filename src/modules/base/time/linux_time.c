@@ -55,7 +55,7 @@
 #define	FORMAT_NULL ((uint64_t)506381209866536711LL)
 
 #define NTP_PORT 123
-#define NTP_TIMEOUT_SEC 3
+#define NTP_TIMEOUT_SEC 10
 #define EPOCH_BALANCE 2208988800U
 
 #define MAX(a, b)	((a > b) ? a : b)
