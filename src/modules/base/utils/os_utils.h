@@ -22,7 +22,7 @@
 #include "artik_utils.h"
 #include "artik_error.h"
 
-artik_error os_get_uri_info(artik_uri_info *handle, const char *uri);
+artik_error os_get_uri_info(artik_uri_info *uri_info, const char *uri);
 artik_error os_free_uri_info(artik_uri_info *uri_info);
 
 #endif /* _OS_URI_H_ */

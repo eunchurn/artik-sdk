@@ -69,6 +69,8 @@ CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/tizenrt_time.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/artik_security.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt_security.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt/mbedtls_pkcs7_parser.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/utils/artik_utils.c
+CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/utils/tizenrt_utils.c
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/artik_adc.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/tizenrt_adc.c

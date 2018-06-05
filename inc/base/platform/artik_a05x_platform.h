@@ -41,6 +41,7 @@
 #include <artik_lwm2m.h>
 #include <artik_mqtt.h>
 #include <artik_time.h>
+#include <artik_utils.h>
 
 /* List of modules available for the platform */
 static const artik_api_module artik_api_a05x_modules[] = {
@@ -64,6 +65,7 @@ static const artik_api_module artik_api_a05x_modules[] = {
 	{ARTIK_MODULE_LWM2M, (char *)"lwm2m", (char *)&lwm2m_module},
 	{ARTIK_MODULE_MQTT, (char *)"mqtt", (char *)&mqtt_module},
 	{ARTIK_MODULE_TIME, (char *)"time", (char *)&time_module},
+	{ARTIK_MODULE_UTILS, (char *)"utils", (char *)&utils_module},
 	{(artik_module_id_t)-1, NULL, (char *)NULL},
 };
 
