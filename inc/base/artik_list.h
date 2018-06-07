@@ -94,7 +94,7 @@ extern "C" {
 	{
 		artik_list *elem = *list;
 
-		if (size_of_node < 0)
+		if (size_of_node < (int)sizeof(artik_list))
 			return NULL;
 
 		while ((elem != NULL) && (elem->next != NULL))
