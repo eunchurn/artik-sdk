@@ -35,7 +35,9 @@ artik_error os_spi_request(artik_spi_config *config)
 	if (!config)
 		return E_BAD_ARGS;
 
-	if (config->bits_per_word != 8)
+	if (config->bits_per_word != 8
+		&& config->bits_per_word != 16
+		&& config->bits_per_word != 32)
 		return E_BAD_ARGS;
 
 	if (config->max_speed > _SPI_MAX_FREQUENCY)
