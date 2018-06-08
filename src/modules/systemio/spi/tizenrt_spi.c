@@ -86,6 +86,10 @@ artik_error os_spi_read(artik_spi_config *config, char *buf, int len)
 
 	SPI_LOCK(sdev, TRUE);
 
+	SPI_SETFREQUENCY(sdev, config->max_speed);
+	SPI_SETBITS(sdev, config->bits_per_word);
+	SPI_SETMODE(sdev, config->mode);
+
 	SPI_SELECT(sdev, config->cs, TRUE);
 
 	SPI_RECVBLOCK(sdev, buf, len);
@@ -106,6 +110,10 @@ artik_error os_spi_write(artik_spi_config *config, char *buf, int len)
 		return E_NOT_INITIALIZED;
 
 	SPI_LOCK(sdev, TRUE);
+
+	SPI_SETFREQUENCY(sdev, config->max_speed);
+	SPI_SETBITS(sdev, config->bits_per_word);
+	SPI_SETMODE(sdev, config->mode);
 
 	SPI_SELECT(sdev, config->cs, TRUE);
 
@@ -130,10 +138,13 @@ artik_error os_spi_read_write(artik_spi_config *config, char *tx_buf,
 	rx_buf[0] |= _SPI_READ_MASK;
 	SPI_LOCK(sdev, TRUE);
 
+	SPI_SETFREQUENCY(sdev, config->max_speed);
+	SPI_SETBITS(sdev, config->bits_per_word);
+	SPI_SETMODE(sdev, config->mode);
+
 	SPI_SELECT(sdev, config->cs, TRUE);
 
-	SPI_SNDBLOCK(sdev, tx_buf, len);
-	SPI_RECVBLOCK(sdev, rx_buf, len);
+	SPI_EXCHANGE(sdev, tx_buf, rx_buf, len);
 
 	SPI_SELECT(sdev, config->cs, FALSE);
 
