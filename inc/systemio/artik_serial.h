@@ -222,7 +222,7 @@ typedef struct {
 	 *
 	 *  \param[out] buff Preallocated buffer filled by the function
 	 *              with the received data.
-	 *  \param[in/out] len Maximum number of bytes to read. The
+	 *  \param[in,out] len Maximum number of bytes to read. The
 	 *                 function then fills up the variable with the
 	 *                 number of bytes that were actually read.
 	 *
@@ -240,7 +240,7 @@ typedef struct {
 	 *             function.
 	 *  \param[in] msg Buffer containing data to write to the serial
 	 *             port.
-	 *  \param[in/out] len Length of the data to write. The
+	 *  \param[in,out] len Length of the data to write. The
 	 *                 function then fills up the variable with the
 	 *                 number of bytes that were actually written.
 	 *
