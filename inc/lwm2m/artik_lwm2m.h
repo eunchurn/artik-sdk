@@ -295,7 +295,7 @@ typedef struct {
 	 * \param[in] uri URI of resource to read
 	 * \param[in] buffer pointer to a preallocated data buffer that will be
 	 *            filled by the function with the resource data
-	 * \param[inout] length pointer to a variable containing the length of
+	 * \param[in,out] length pointer to a variable containing the length of
 	 *               the preallocated
 	 * data buffer. Upon successful read, the function fills this value with
 	 *              the actual

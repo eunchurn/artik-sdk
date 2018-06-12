@@ -170,7 +170,7 @@ typedef struct {
 	artik_error(*destroy_client)(artik_mqtt_handle handle);
 	/**
 	 * Set the WILLTOPIC and WILLMSG for connection.
-	 * \param[in/out] config Pointer of artik_mqtt_config structure
+	 * \param[in,out] config Pointer of artik_mqtt_config structure
 	 *                configuring mqtt instance
 	 * \param[in] willtopic WILLTOPIC to be set
 	 * \param[in] willmsg WILLMSG to be set
@@ -184,7 +184,7 @@ typedef struct {
 	/**
 	 * Free the will message memory which is allocated by
 	 * <set_willmsg>.
-	 * \param[in/out] config Pointer of artik_mqtt_config structure
+	 * \param[in,out] config Pointer of artik_mqtt_config structure
 	 *                configuring mqtt instance
 	 * \return S_OK on success, otherwise a negative error value.
 	 */
