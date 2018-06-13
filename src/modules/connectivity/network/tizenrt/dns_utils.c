@@ -45,7 +45,7 @@ bool dns_add_nameserver(struct sockaddr *sockaddr, socklen_t addrlen)
 	for (; i < DNS_MAX_SERVERS; i++) {
 		const ip_addr_t *ip = dns_getserver(i);
 
-		if (ip != IP_ADDR_ANY)
+		if (!ip_addr_isany_val(*ip))
 			continue;
 
 		if (sockaddr->sa_family == AF_INET) {

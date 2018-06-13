@@ -705,7 +705,6 @@ artik_error os_get_network_config(
 
 	dns.count = 0;
 	dns.dns_addr = config->dns_addr;
-	printf("config->dns_addr %p\n", config->dns_addr);
 	if (!dns_foreach_nameserver(add_nameserver, &dns)) {
 		log_dbg("Failed to get DNS servers.");
 		close(sockfd);
@@ -757,17 +756,17 @@ artik_error os_set_network_config(artik_network_config *config, artik_network_in
 	}
 
 	if (!inet_pton(AF_INET, config->ip_addr.address, &host_addr)) {
-		log_dbg("Failed to convert host ip addresse into a network address structure.");
+		log_dbg("Failed to convert host ip address into a network address structure.");
 		return E_BAD_ARGS;
 	}
 
 	if (!inet_pton(AF_INET, config->gw_addr.address, &gw_addr)) {
-		log_dbg("Failed to convert gw ip addresse into a network address structure.");
+		log_dbg("Failed to convert gw ip address into a network address structure.");
 		return E_BAD_ARGS;
 	}
 
 	if (!inet_pton(AF_INET, config->netmask.address, &netmask_addr)) {
-		log_dbg("Failed to convert netmask addresse into a network address structure.");
+		log_dbg("Failed to convert netmask address into a network address structure.");
 		return E_BAD_ARGS;
 	}
 
@@ -775,12 +774,12 @@ artik_error os_set_network_config(artik_network_config *config, artik_network_in
 		if (config->dns_addr[i].address[0] == '\0')
 			continue;
 
-		if (!inet_pton(AF_INET, config->dns_addr[i].address, dns + count)) {
+		if (!inet_pton(AF_INET, config->dns_addr[i].address, &dns[count])) {
 			log_dbg("Failed to convert dns address into a network address structure.");
 			return E_BAD_ARGS;
 		}
 
-		count++;
+		dns_setserver(count++, NULL);
 	}
 
 	if (netlib_set_ipv4addr("wl1", &host_addr) != OK) {
