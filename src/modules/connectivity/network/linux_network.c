@@ -1187,12 +1187,20 @@ artik_error os_set_network_config(artik_network_config *config,
 		artik_network_interface_t interface)
 {
 	artik_error ret = S_OK;
-	const char *_interface = interface == ARTIK_WIFI ? "wlan0" : "eth0";
+	char *_interface;
 	struct in_addr addr;
+
+	if (!config)
+		return E_BAD_ARGS;
+
+	if (((int)interface < 0) || ((int)interface > ARTIK_ETHERNET))
+		return E_BAD_ARGS;
+
+	_interface = (interface == ARTIK_WIFI) ? "wlan0" : "eth0";
 
 	if (check_network_config(config) < 0) {
 		log_err("Wrong network config");
-		return E_NETWORK_ERROR;
+		return E_BAD_ARGS;
 	}
 
 	/* Set IP address */
@@ -1266,14 +1274,17 @@ artik_error os_get_network_config(artik_network_config *config,
 {
 	artik_error ret = S_OK;
 	uint8_t mac[IFHWADDRLEN];
-	const char *_interface = interface == ARTIK_WIFI ? "wlan0" : "eth0";
+	char *_interface;
 	struct in_addr addr;
 	struct in_addr dnsAddr[MAX_DNS_ADDRESSES] = { 0 };
 
-	if (!config) {
-		log_err("config is NULL");
+	if (!config)
 		return E_BAD_ARGS;
-	}
+
+	if (((int)interface < 0) || ((int)interface > ARTIK_ETHERNET))
+		return E_BAD_ARGS;
+
+	_interface = (interface == ARTIK_WIFI) ? "wlan0" : "eth0";
 
 	/* Get IP address */
 	if (get_ipv4addr(_interface, &addr) == ERROR) {
