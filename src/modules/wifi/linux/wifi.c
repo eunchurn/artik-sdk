@@ -126,12 +126,22 @@ static void _atomac(char *str_mac, macaddr *mac)
 		mac[i] = strtol(strtok(NULL, ":"), NULL, 16);
 }
 
-static bool _is_unicode(const char *buf)
+static bool _is_unicode(const char *buf, int len)
 {
+	bool isunicode = false;
+	int i = 0;
+
 	if (!buf)
 		return false;
 
-	return (buf[0] == '\\');
+	for (i = 0; i < len; i++) {
+		if (buf[i] == '\\') {
+			isunicode = true;
+			break;
+		}
+	}
+
+	return isunicode;
 }
 
 static void _get_ini_string_value(char *buf, char *key, char *value)
@@ -281,7 +291,7 @@ int wifi_get_scan_result(wifi_scan_bssinfo **bssinfo)
 		if (eol < 0)
 			break;
 
-		if (_is_unicode(pos)) {
+		if (_is_unicode(pos, eol)) {
 			len_ssid = (eol > (SSID_LENGTH * 4)) ? (SSID_LENGTH * 4) : eol;
 			memset(buf_ssid, 0, sizeof(buf_ssid));
 			strncpy(buf_ssid, pos, len_ssid);
