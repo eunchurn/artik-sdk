@@ -121,7 +121,7 @@ artik_module_ops os_request_api_module(const char *name)
 {
 	artik_list *node = NULL;
 	void *dl_handle = NULL;
-	void *dl_symbol = NULL;
+	void *dl_symbol = INVALID_MODULE;
 	char str_buf[MAX_STR_LEN] = {0, };
 	char *module_name = NULL;
 	char *error_msg;
@@ -214,6 +214,9 @@ artik_error os_release_api_module(const artik_module_ops module)
 	artik_error ret = S_OK;
 	void *dl_handle = NULL;
 	char *module_name = NULL;
+
+	if (!module)
+		return E_BAD_ARGS;
 
 	mutex_lock();
 
