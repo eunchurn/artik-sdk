@@ -35,46 +35,28 @@
 static const char *libname = "libmosquitto";
 
 typedef struct {
-	artik_list	  node;
-	/**< user configuration data */
+	artik_list node;
 	artik_mqtt_config *config;
-	/**< user configuration data */
 	artik_loop_module *loop;
-	/**< mqtt implementation library name */
-	const char	  *libname;
-	/**< mqtt library version */
-	int		  version;
-	/**< mqtt library client pointer */
-	void		  *mosq;
-	/**< glib loop id for artik-api glib mechanism */
-	int		  watch_id;
+	const char *libname;
+	int version;
+	void *mosq;
+	int watch_id;
 	int periodic_id;
 
-	/**< on_connect data user transfer to the call back function */
 	void *data_cb_connect;
-	/**< on_disconnect data user transfer to the call back function */
 	void *data_cb_disconnect;
-	/**< on_subscribe data user transfer to the call back function */
 	void *data_cb_subscribe;
-	/**< on_unsubscribe data user transfer to the call back function */
 	void *data_cb_unsubscribe;
-	/**< on_publish data user transfer to the call back function */
 	void *data_cb_publish;
-	/**< on_message data user transfer to the call back function */
 	void *data_cb_message;
 
-	/**< on_connect call back function */
 	connect_callback on_connect;
-	/**< on_disconnect call back function */
 	disconnect_callback on_disconnect;
-	/**< on_subscribe call back function */
 	subscribe_callback on_subscribe;
 	unsubscribe_callback on_unsubscribe;
-	/**< on_publish call back function */
 	publish_callback on_publish;
-	/**< on_message call back function */
 	message_callback on_message;
-
 } mqtt_handle_client;
 
 static artik_list *requested_node = NULL;
