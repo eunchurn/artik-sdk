@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
 	memset(&config, 0, sizeof(artik_mqtt_config));
 	config.client_id = "sub_client";
 	config.block = true;
+	config.keep_alive_time = 5000;
 	memset(&subscribe_msg, 0, sizeof(artik_mqtt_msg));
 	subscribe_msg.topic = sub_topic;
 	subscribe_msg.qos = 0;
