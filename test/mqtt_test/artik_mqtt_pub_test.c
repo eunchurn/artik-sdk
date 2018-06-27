@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
 	memset(&config, 0, sizeof(artik_mqtt_config));
 	config.client_id = "pub_client";
 	config.block = true;
+	config.keep_alive_time = 5000;
 
 	memset(&publish_msg, 0, sizeof(artik_mqtt_msg));
 	publish_msg.topic = pub_topic;

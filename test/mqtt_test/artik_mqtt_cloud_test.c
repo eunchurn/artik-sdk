@@ -171,6 +171,7 @@ int main(int argc, char *argv[])
 	config.block = true;
 	config.user_name = device_id;
 	config.pwd = token;
+	config.keep_alive_time = 5000;
 
 	/* TLS configuration  */
 	memset(&ssl, 0, sizeof(artik_ssl_config));
