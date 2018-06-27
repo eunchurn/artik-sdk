@@ -48,6 +48,7 @@ typedef struct {
 	void		  *mosq;
 	/**< glib loop id for artik-api glib mechanism */
 	int		  watch_id;
+	int periodic_id;
 
 	/**< on_connect data user transfer to the call back function */
 	void *data_cb_connect;
@@ -409,6 +410,8 @@ void mqtt_client_destroy_client(artik_mqtt_handle handle_client)
 	if (client) {
 		if (client->watch_id > 0)
 			client->loop->remove_fd_watch(client->watch_id);
+		if (client->periodic_id > 0)
+			client->loop->remove_periodic_callback(client->periodic_id);
 
 		mosquitto_destroy((struct mosquitto *) client->mosq);
 		mosquitto_lib_cleanup();
@@ -637,6 +640,29 @@ static int loop_handler(int fd, enum watch_io io, void *handle_client)
 	return 1;
 }
 
+static int misc_handler(void *handle_client)
+{
+	mqtt_handle_client *client = (mqtt_handle_client *)
+		artik_list_get_by_handle(requested_node,
+			(ARTIK_LIST_HANDLE)handle_client);
+	int rc = 0;
+
+	log_dbg("");
+
+	if (!client || !client->mosq)
+		return 0;
+
+	rc = mosquitto_loop_misc(client->mosq);
+	if (rc != MOSQ_ERR_SUCCESS) {
+		log_dbg("mosquitto_loop_misc returned %d", rc);
+		loop_handle_mosquitto_error(client, rc);
+		client->periodic_id = 0;
+		return 0;
+	}
+
+	return 1;
+}
+
 int mqtt_client_connect(artik_mqtt_handle handle_client, const char *host,
 		int port)
 {
@@ -670,10 +696,15 @@ int mqtt_client_connect(artik_mqtt_handle handle_client, const char *host,
 		return -MQTT_ERROR_LIB;
 	}
 
+	/* Add callback for handling socket events */
 	client->loop->add_fd_watch(socket_fd,
 			WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP |
 			WATCH_IO_NVAL,
 			loop_handler, client, &client->watch_id);
+
+	/* Add periodic callback for handling pings */
+	client->loop->add_periodic_callback(&client->periodic_id,
+			client->config->keep_alive_time / 2, misc_handler, client);
 
 	return MQTT_ERROR_SUCCESS;
 }
