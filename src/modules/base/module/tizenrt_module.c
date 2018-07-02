@@ -70,10 +70,10 @@ artik_error os_get_api_version(artik_api_version *version)
 artik_module_ops os_request_api_module(const char *name)
 {
 	int i = 0, plat = 0;
-	artik_module_ops ops = (artik_module_ops)NULL;
+	artik_module_ops ops = (artik_module_ops)INVALID_MODULE;
 
-	if ((os_get_platform() == -1) || !name)
-		return NULL;
+	if ((os_get_platform() < 0) || !name)
+		return INVALID_MODULE;
 
 	while (artik_api_modules[plat].modules) {
 		if (artik_api_modules[plat].id == os_get_platform()) {
