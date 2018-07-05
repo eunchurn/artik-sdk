@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef __TINYARA_SECURITY_H__
-#define __TINYARA_SECURITY_H__
+#ifndef __TIZENRT_SECURITY_H__
+#define __TIZENRT_SECURITY_H__
 
 #include <artik_error.h>
 #include <artik_list.h>
@@ -52,4 +52,4 @@ typedef struct {
 
 artik_error pkcs7_get_signed_data(mbedtls_asn1_buf *buf, mbedtls_x509_crt *rootCA, signed_data *sig_data);
 
-#endif /* __TINYARA_SECURITY_H__ */
+#endif /* __TIZENRT_SECURITY_H__ */

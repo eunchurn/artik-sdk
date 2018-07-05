@@ -16,8 +16,8 @@
  *
  */
 
-#ifndef __TINYARA_HTTP_H__
-#define __TINYARA_HTTP_H__
+#ifndef __TIZENRT_HTTP_H__
+#define __TIZENRT_HTTP_H__
 
 typedef void (*wget_callback_stream_t)(FAR char **buffer, int offset,
 				int datend, FAR int *buflen, FAR void *arg);
@@ -26,4 +26,4 @@ int wget(FAR const char *url, int *status, FAR char *buffer, int buflen,
 		wget_callback_stream_t callback, FAR void *arg, int with_tls,
 		void *tls_conf);
 
-#endif /* __TINYARA_HTTP_H__ */
+#endif /* __TIZENRT_HTTP_H__ */

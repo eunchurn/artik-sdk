@@ -58,7 +58,7 @@ CFLAGS += -I$(ARTIK_SDK_DIR)/inc/connectivity
 CFLAGS += -I$(ARTIK_SDK_DIR)/inc/lwm2m
 CFLAGS += -I$(ARTIK_SDK_DIR)/inc/mqtt
 CFLAGS += -I$(TOPDIR)/../apps/include/netutils
-CFLAGS += -D__TINYARA__
+CFLAGS += -D__TIZENRT__
 
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/artik_log.c
 CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/tizenrt_log.c
