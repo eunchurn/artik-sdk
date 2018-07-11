@@ -626,7 +626,7 @@ artik_error os_http_get_stream_async(const char *url,
 
 	log_dbg("");
 
-	if (!url) {
+	if (!url || !stream_callback || !response_callback) {
 		log_err("Bad arguments");
 		return E_BAD_ARGS;
 	}
@@ -834,7 +834,7 @@ artik_error os_http_get_async(const char *url, artik_http_headers *headers,
 
 	log_dbg("");
 
-	if (!url) {
+	if (!url || !callback) {
 		log_err("Bad arguments");
 		return E_BAD_ARGS;
 	}
@@ -1043,7 +1043,7 @@ artik_error os_http_post_async(const char *url, artik_http_headers *headers,
 
 	log_dbg("");
 
-	if (!url) {
+	if (!url || !callback) {
 		log_err("Bad arguments");
 		return E_BAD_ARGS;
 	}
@@ -1248,7 +1248,7 @@ artik_error os_http_put_async(const char *url, artik_http_headers *headers,
 
 	log_dbg("");
 
-	if (!url) {
+	if (!url || !callback) {
 		log_err("Bad arguments");
 		return E_BAD_ARGS;
 	}
@@ -1450,7 +1450,7 @@ artik_error os_http_delete_async(const char *url, artik_http_headers *headers,
 
 	log_dbg("");
 
-	if (!url) {
+	if (!url || !callback) {
 		log_err("Bad arguments");
 		return E_BAD_ARGS;
 	}
