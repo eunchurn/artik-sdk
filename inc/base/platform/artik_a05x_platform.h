@@ -128,6 +128,8 @@ static const artik_api_module artik_api_a05x_modules[] = {
 /* List of available SPI IDs */
 #define ARTIK_A05x_XSPI0	0
 #define ARTIK_A05x_XSPI1	1
+#define ARTIK_A05x_XSPI2	2
+#define ARTIK_A05x_XSPI3	3
 
 #endif
 #endif /* INCLUDE_ARTIK_A05x_PLATFORM_H_ */
