@@ -206,10 +206,10 @@ artik_error os_serial_write(artik_serial_config *config,
 artik_error os_serial_set_received_callback(artik_serial_config *config,
 			artik_serial_callback callback, void *user_data)
 {
-	return S_OK;
+	return E_NOT_SUPPORTED;
 }
 
 artik_error os_serial_unset_received_callback(artik_serial_config *config)
 {
-	return S_OK;
+	return E_NOT_SUPPORTED;
 }
