@@ -415,6 +415,7 @@ static artik_error _artik_cloud_del(artik_cloud_http_request *akc_http_request,
 		if (status != 200) {
 			log_err("HTTP error %d", status);
 			ret = E_HTTP_ERROR;
+			goto exit;
 		}
 
 		artik_release_api_module(http);
@@ -446,7 +447,6 @@ static artik_error _artik_cloud_del(artik_cloud_http_request *akc_http_request,
 exit:
 	artik_release_api_module(http);
 	return ret;
-
 }
 
 static artik_error _artik_cloud_put(
@@ -469,6 +469,7 @@ static artik_error _artik_cloud_put(
 		if (status != 200) {
 			log_err("HTTP error %d", status);
 			ret = E_HTTP_ERROR;
+			goto exit;
 		}
 
 		artik_release_api_module(http);
@@ -524,6 +525,7 @@ static artik_error _artik_cloud_post(
 		if (status != 200) {
 			log_err("HTTP error %d", status);
 			ret = E_HTTP_ERROR;
+			goto exit;
 		}
 
 		artik_release_api_module(http);
@@ -577,6 +579,7 @@ static artik_error _artik_cloud_get(
 		if (status != 200) {
 			log_err("HTTP error %d", status);
 			ret = E_HTTP_ERROR;
+			goto exit;
 		}
 
 		artik_release_api_module(http);
@@ -654,7 +657,7 @@ artik_error get_current_user_profile_async(const char
 
 	log_dbg("");
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_current_user_profile(&akc_http_request, access_token);
@@ -671,7 +674,7 @@ artik_error get_current_user_profile(const char *access_token,
 
 	log_dbg("");
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_current_user_profile(&akc_http_request, access_token);
@@ -691,7 +694,7 @@ static artik_error _get_user_devices(
 
 	log_dbg("");
 
-	if (!access_token || !user_id)
+	if (!access_token || !user_id || count <= 0 || offset < 0)
 		return E_BAD_ARGS;
 
 	headers.fields = fields;
@@ -724,7 +727,7 @@ artik_error get_user_devices_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_user_devices(&akc_http_request, access_token, count, properties,
@@ -743,7 +746,7 @@ artik_error get_user_devices(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_user_devices(&akc_http_request, access_token, count,
@@ -765,7 +768,7 @@ static artik_error _get_user_devices_types(
 
 	log_dbg("");
 
-	if (!access_token || !user_id)
+	if (!access_token || !user_id || count <= 0 || offset < 0)
 		return E_BAD_ARGS;
 
 	headers.fields = fields;
@@ -797,7 +800,7 @@ artik_error get_user_device_types_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_user_devices_types(&akc_http_request, access_token, count,
@@ -816,7 +819,7 @@ artik_error get_user_device_types(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_user_devices_types(&akc_http_request, access_token, count,
@@ -933,7 +936,7 @@ artik_error get_device_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device(&akc_http_request, access_token, device_id, properties);
@@ -950,7 +953,7 @@ artik_error get_device(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device(&akc_http_request, access_token, device_id, properties);
@@ -998,7 +1001,7 @@ artik_error get_device_token_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device_token(&akc_http_request, access_token, device_id);
@@ -1015,7 +1018,7 @@ artik_error get_device_token(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device_token(&akc_http_request, access_token, device_id);
@@ -1085,7 +1088,7 @@ artik_error add_device_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _add_device(&akc_http_request, access_token, user_id, dt_id, name);
@@ -1102,7 +1105,7 @@ artik_error add_device(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _add_device(&akc_http_request, access_token, user_id, dt_id, name);
@@ -1170,7 +1173,7 @@ artik_error send_message_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _send_message(&akc_http_request, access_token, device_id, message);
@@ -1187,7 +1190,7 @@ artik_error send_message(const char *access_token, const char *device_id,
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _send_message(&akc_http_request, access_token, device_id, message);
@@ -1250,7 +1253,7 @@ artik_error send_action_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _send_action(&akc_http_request, access_token, device_id, action);
@@ -1267,7 +1270,7 @@ artik_error send_action(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _send_action(&akc_http_request, access_token, device_id, action);
@@ -1320,7 +1323,7 @@ artik_error update_device_token_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _update_device_token(&akc_http_request, access_token, device_id);
@@ -1337,7 +1340,7 @@ artik_error update_device_token(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _update_device_token(&akc_http_request, access_token, device_id);
@@ -1389,7 +1392,7 @@ artik_error delete_device_token_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _delete_device_token(&akc_http_request, access_token, device_id);
@@ -1406,7 +1409,7 @@ artik_error delete_device_token(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _delete_device_token(&akc_http_request, access_token, device_id);
@@ -1457,7 +1460,7 @@ artik_error delete_device_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _delete_device(&akc_http_request, access_token, device_id);
@@ -1474,7 +1477,7 @@ static artik_error delete_device(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _delete_device(&akc_http_request, access_token, device_id);
@@ -1494,7 +1497,7 @@ static artik_error _get_device_properties(
 
 	log_dbg("");
 
-	if (!device_id)
+	if (!access_token || !device_id)
 		return E_BAD_ARGS;
 
 	headers.fields = fields;
@@ -1526,7 +1529,7 @@ static artik_error get_device_properties_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device_properties(&akc_http_request, access_token, device_id, timestamp);
@@ -1543,7 +1546,7 @@ static artik_error get_device_properties(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _get_device_properties(&akc_http_request, access_token, device_id, timestamp);
@@ -1611,7 +1614,7 @@ static artik_error set_device_server_properties_async(
 		ssl
 	};
 
-	if (!callback)
+	if (!callback || !ssl)
 		return E_BAD_ARGS;
 
 	return _set_device_server_properties(&akc_http_request, access_token, device_id, data);
@@ -1628,7 +1631,7 @@ static artik_error set_device_server_properties(
 		ssl
 	};
 
-	if (!response)
+	if (!response || !ssl)
 		return E_BAD_ARGS;
 
 	return _set_device_server_properties(&akc_http_request, access_token, device_id, data);
@@ -1919,8 +1922,7 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 				unsigned int pong_timeout,
 				artik_ssl_config *ssl_config)
 {
-	artik_websocket_module *websocket = (artik_websocket_module *)
-					artik_request_api_module("websocket");
+	artik_websocket_module *websocket;
 	artik_error ret = S_OK;
 	artik_websocket_config config;
 	cloud_node *node;
@@ -1931,6 +1933,11 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 
 	log_dbg("");
 
+	if (!handle || !access_token || !ssl_config || !device_id)
+		return E_BAD_ARGS;
+
+	websocket = (artik_websocket_module *)
+					artik_request_api_module("websocket");
 	if (!websocket)
 		return E_NOT_SUPPORTED;
 
@@ -1941,8 +1948,10 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 	int len = 6 + strlen(host) + 1 + strlen(port) + strlen(path) + 1;
 
 	config.uri = malloc(len);
-	if (!config.uri)
+	if (!config.uri) {
+		artik_release_api_module(websocket);
 		return E_NO_MEM;
+	}
 
 	snprintf(config.uri, len, "wss://%s:%s%s", host, port, path);
 
@@ -2017,11 +2026,11 @@ artik_error websocket_send_message(artik_websocket_handle handle, char *message)
 
 	log_dbg("");
 
+	if (!node || !message)
+		return E_BAD_ARGS;
+
 	if (!websocket)
 		return E_NOT_SUPPORTED;
-
-	if (!node)
-		return E_BAD_ARGS;
 
 	snprintf(message_buffer, ARTIK_CLOUD_WEBSOCKET_STR_MAX,
 		ARTIK_CLOUD_WEBSOCKET_SEND_MESSAGE_BODY, node->data.device_id,
