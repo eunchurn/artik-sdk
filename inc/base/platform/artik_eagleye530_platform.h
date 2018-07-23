@@ -64,7 +64,7 @@ static const artik_api_module artik_api_eagleye530_modules[] = {
 #define ARTIK_EAGLEYE530_AGPIO0     161
 
 /* List of available UART IDs */
-#define ARTIK_EAGLEYE530_UART0      4
+#define ARTIK_EAGLEYE530_UART0      2
 
 /* List of available PWMIO IDs */
 #define ARTIK_EAGLEYE530_PWM0       ((0 << 8) | 0)
