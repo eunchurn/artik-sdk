@@ -402,8 +402,7 @@ int wifi_connect(const char *ssid, const char *psk, int save_profile)
 		return WIFI_ERROR_CONNECT_INVALID_SSID;
 
 	if (psk && (os_strlen(psk) > 0) && ((os_strlen(psk) < MIN_AP_WPA2PASS_LEN) ||
-			(os_strlen(psk) > MAX_AP_WPA2PASS_LEN) ||
-			(os_strchr(psk, ' '))))
+			(os_strlen(psk) > MAX_AP_WPA2PASS_LEN)))
 		return WIFI_ERROR_CONNECT_INVALID_PSK;
 
 	buf = os_malloc(len);

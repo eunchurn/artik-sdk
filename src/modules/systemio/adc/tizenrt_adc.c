@@ -56,12 +56,16 @@ artik_error os_adc_request(artik_adc_config *config)
 		return E_NO_MEM;
 	}
 
-	snprintf(user_data->path, MAX_SIZE, "/dev/adc0");
+	snprintf(user_data->path, MAX_SIZE, "/dev/adc%d", config->pin_num);
 
 	config->user_data = user_data;
 	user_data->fd = open(user_data->path, O_RDONLY);
+	if (user_data->fd < 0) {
+		free(user_data);
+		return E_BAD_ARGS;
+	}
 
-	return (user_data->fd < 0) ? E_BUSY : S_OK;
+	return S_OK;
 }
 
 artik_error os_adc_release(artik_adc_config *config)

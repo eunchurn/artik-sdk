@@ -108,6 +108,9 @@ int os_gpio_read(artik_gpio_config *config)
 	os_gpio_data *user_data = config->user_data;
 	char buf[4];
 
+	if (config->dir != GPIO_IN)
+		return E_ACCESS_DENIED;
+
 	if (ioctl(user_data->fd, GPIO_CMD_SET_DIRECTION, GPIO_DIRECTION_IN) < 0)
 		return E_ACCESS_DENIED;
 
@@ -122,6 +125,9 @@ artik_error os_gpio_write(artik_gpio_config *config, int value)
 {
 	os_gpio_data *user_data = config->user_data;
 	char str[4];
+
+	if (config->dir != GPIO_OUT)
+		return E_ACCESS_DENIED;
 
 	if (ioctl(user_data->fd, GPIO_CMD_SET_DIRECTION,
 		GPIO_DIRECTION_OUT) < 0)

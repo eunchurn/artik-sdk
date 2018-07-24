@@ -54,7 +54,6 @@
 }
 #endif
 
-
 struct time_parser_s {
 	char format_link[LEN_FORM];
 	char *format_mod;
@@ -100,6 +99,33 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	};
 	struct timespec stime = { 0, };
 
+	if ((gmt < ARTIK_TIME_UTC) || (gmt > ARTIK_TIME_GMT12))
+		return E_BAD_ARGS;
+
+	if ((int)date.second < 0 || (int)date.second > 59)
+		return E_BAD_ARGS;
+
+	if ((int)date.minute < 0 || (int)date.minute > 59)
+		return E_BAD_ARGS;
+
+	if ((int)date.hour < 0 || (int)date.hour > 23)
+		return E_BAD_ARGS;
+
+	if ((int)date.day < 1 || (int)date.day > 31)
+		return E_BAD_ARGS;
+
+	if ((int)date.month < 1 || (int)date.month > 12)
+		return E_BAD_ARGS;
+
+	if ((int)date.year < EPOCH_DEF)
+		return E_BAD_ARGS;
+
+	if ((int)date.day_of_week < 0 || (int)date.day_of_week > 6)
+		return E_BAD_ARGS;
+
+	if ((int)date.msecond < 0)
+		return E_BAD_ARGS;
+
 	dtime.tm_sec = date.second;
 	dtime.tm_min = date.minute;
 	dtime.tm_hour = date.hour/* - DST_DEF*/;
@@ -132,13 +158,12 @@ artik_error os_time_get_time(artik_time_zone gmt, artik_time *date)
 	if (!date)
 		return E_BAD_ARGS;
 
-	if (gmt > ARTIK_TIME_GMT12)
+	if ((gmt < ARTIK_TIME_UTC) || (gmt > ARTIK_TIME_GMT12))
 		return E_BAD_ARGS;
 
 	ret = os_time_get_sys(&t, gmt, &msecond);
 	if (ret != S_OK)
 		return ret;
-
 
 	t.tm_hour = (t.tm_hour + gmt) % 24;
 	t.tm_mon++;
@@ -150,6 +175,7 @@ artik_error os_time_get_time(artik_time_zone gmt, artik_time *date)
 	date->day = (unsigned int)t.tm_mday;
 	date->month = (unsigned int)t.tm_mon;
 	date->year = (unsigned int)t.tm_year;
+	date->day_of_week = (unsigned int)t.tm_wday;
 
 	date->msecond = msecond;
 
@@ -166,7 +192,7 @@ artik_error os_time_get_time_str(char *date_str, int size,
 	if (!date_str)
 		return E_BAD_ARGS;
 
-	if (gmt > ARTIK_TIME_GMT12)
+	if ((gmt < ARTIK_TIME_UTC) || (gmt > ARTIK_TIME_GMT12))
 		return E_BAD_ARGS;
 
 	fmt = (format == NULL || strlen(format) == 0) ? ARTIK_TIME_DFORMAT :

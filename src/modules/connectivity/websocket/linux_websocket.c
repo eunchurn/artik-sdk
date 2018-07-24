@@ -403,8 +403,8 @@ void ssl_ctx_info_callback(const SSL *ssl, int where, int ret)
 		log_dbg("%s", SSL_state_string_long(ssl));
 }
 
-SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
-						artik_ssl_config *ssl_config, char *host)
+artik_error setup_ssl_ctx(SSL_CTX **pctx, os_websocket_security_data **security_data,
+			artik_ssl_config *ssl_config, char *host)
 {
 	artik_error ret = S_OK;
 	SSL_CTX *ssl_ctx = NULL;
@@ -430,13 +430,14 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 	method = (SSL_METHOD *)SSLv23_client_method();
 	if (method == NULL) {
 		log_err("problem creating ssl method\n");
-		return NULL;
+		return E_NO_MEM;
 	}
 
 	/* Create an SSL Context */
 	ssl_ctx = SSL_CTX_new(method);
 	if (ssl_ctx == NULL) {
 		log_err("problem creating ssl context\n");
+		ret = E_NO_MEM;
 		goto exit;
 	}
 
@@ -453,6 +454,13 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
 		SSL_CTX_set_default_verify_paths(ssl_ctx);
 		SSL_CTX_load_verify_locations(ssl_ctx, "/etc/pki/tls/cert.pem", NULL);
+	}
+
+	if ((!ssl_config->ca_cert.data || !ssl_config->ca_cert.len)
+		&& ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED) {
+		log_err("No root CA set");
+		ret = E_BAD_ARGS;
+		goto exit;
 	}
 
 	if (ssl_config->ca_cert.data && ssl_config->ca_cert.len &&
@@ -474,13 +482,16 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 			/* Look for UNIX style ending first */
 			end = strstr(start, PEM_END_CERTIFICATE_UNIX);
 			if (end) {
-				end += strlen(PEM_END_CERTIFICATE_UNIX);
+				end += strlen(PEM_END_CERTIFICATE_UNIX) + 1;
 			} else {
 				/* If not found, check for Windows stye ending */
 				end = strstr(start, PEM_END_CERTIFICATE_WIN);
-				if (!end)
-					break;
-				end += strlen(PEM_END_CERTIFICATE_WIN);
+				if (!end) {
+					log_dbg("Do not find PEM_END");
+					ret = E_BAD_ARGS;
+					goto exit;
+				}
+				end += strlen(PEM_END_CERTIFICATE_WIN) + 1;
 			}
 
 			/* Convert CA certificate string into a BIO */
@@ -492,7 +503,7 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 			if (!x509_cert) {
 				log_err("Failed to extract cert from the bio");
 				BIO_free(bio);
-				ret = E_WEBSOCKET_ERROR;
+				ret = E_BAD_ARGS;
 				goto exit;
 			}
 
@@ -512,7 +523,7 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 
 			remain -= end - start;
 			start = end;
-		} while (remain);
+		} while (remain > 0);
 
 		SSL_CTX_set_cert_store(ssl_ctx, keystore);
 	}
@@ -588,7 +599,8 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 			}
 		}
 
-		return ssl_ctx;
+		*pctx = ssl_ctx;
+		return ret;
 	}
 
 	*security_data = malloc(sizeof(os_websocket_security_data));
@@ -665,6 +677,8 @@ SSL_CTX *setup_ssl_ctx(os_websocket_security_data **security_data,
 		goto exit;
 	}
 
+	*pctx = ssl_ctx;
+
 exit:
 	/* Clean up allocated memories and handle */
 	if (pk)
@@ -676,13 +690,10 @@ exit:
 	if (raw_key)
 		free(raw_key);
 
-	if (ret != S_OK) {
-		if (ssl_ctx != NULL)
-			SSL_CTX_free(ssl_ctx);
-		return NULL;
-	}
+	if (ret != S_OK && ssl_ctx != NULL)
+		SSL_CTX_free(ssl_ctx);
 
-	return ssl_ctx;
+	return ret;
 }
 
 static int os_websocket_process_stream(void *user_data)
@@ -866,12 +877,9 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	info.gid = -1;
 	info.uid = -1;
 
-	info.provided_client_ssl_ctx = setup_ssl_ctx(&sec_data,
-		&config->ssl_config, host);
-	if (info.provided_client_ssl_ctx == NULL) {
-		ret = E_WEBSOCKET_ERROR;
+	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &sec_data, &config->ssl_config, host);
+	if (ret != S_OK)
 		goto exit;
-	}
 
 	lws_set_log_level(0, NULL);
 
@@ -1140,6 +1148,15 @@ artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
 
 	log_dbg("");
 
+	if (data[FD_CLOSE].callback)
+		loop->remove_fd_watch(data[FD_CLOSE].watch_id);
+
+	if (data[FD_CONNECT].callback)
+		loop->remove_fd_watch(data[FD_CONNECT].watch_id);
+
+	if (data[FD_ERROR].callback)
+		loop->remove_fd_watch(data[FD_ERROR].watch_id);
+
 	data[FD_CLOSE].callback = callback;
 	data[FD_CLOSE].user_data = user_data;
 	data[FD_CONNECT].callback = callback;
@@ -1148,6 +1165,9 @@ artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
 	data[FD_ERROR].user_data = user_data;
 	data[FD_CONNECTION_ERROR].callback = callback;
 	data[FD_CONNECTION_ERROR].user_data = user_data;
+
+	if (!callback)
+		return S_OK;
 
 	ret = loop->add_fd_watch(fds->fdset[FD_CLOSE], WATCH_IO_IN,
 		os_websocket_close_callback, (void *)data,
@@ -1273,8 +1293,14 @@ artik_error os_websocket_set_receive_callback(artik_websocket_config *config,
 
 	log_dbg("");
 
+	if (data[FD_RECEIVE].callback)
+		loop->remove_fd_watch(data[FD_RECEIVE].watch_id);
+
 	data[FD_RECEIVE].callback = callback;
 	data[FD_RECEIVE].user_data = user_data;
+
+	if (!callback)
+		return S_OK;
 
 	ret = loop->add_fd_watch(fds->fdset[FD_RECEIVE], WATCH_IO_IN,
 		os_websocket_receive_callback, (void *)config,

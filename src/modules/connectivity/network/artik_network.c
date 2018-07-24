@@ -118,7 +118,7 @@ artik_error artik_get_current_public_ip(artik_network_ip *ip)
 	if (ret != S_OK)
 		goto exit;
 
-	point = strstr(response, "\"ip\":\"");
+	point = strstr(response, "\"ip\":");
 	if (point != NULL) {
 		token = strtok(point, delimiter);
 		for (i = 0; token != NULL && i < 2; i++) {

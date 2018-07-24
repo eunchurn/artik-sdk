@@ -40,6 +40,9 @@ artik_error os_spi_request(artik_spi_config *config)
 		&& config->bits_per_word != 32)
 		return E_BAD_ARGS;
 
+	if (config->mode >= SPI_MODE_INVALID)
+		return E_BAD_ARGS;
+
 	if (config->max_speed > _SPI_MAX_FREQUENCY)
 		return E_BAD_ARGS;
 

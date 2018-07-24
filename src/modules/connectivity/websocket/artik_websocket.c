@@ -57,13 +57,18 @@ typedef struct {
 static artik_list *requested_node = NULL;
 
 artik_error artik_websocket_request(artik_websocket_handle *handle,
-				    artik_websocket_config *config)
+					artik_websocket_config *config)
 {
-	websocket_node *node = (websocket_node *) artik_list_add(
-				&requested_node, 0, sizeof(websocket_node));
+	websocket_node *node;
 
+	if (!handle || !config || !config->uri)
+		return E_BAD_ARGS;
+
+	node = (websocket_node *) artik_list_add(
+				&requested_node, 0, sizeof(websocket_node));
 	if (!node)
 		return E_NO_MEM;
+
 	node->node.handle = (ARTIK_LIST_HANDLE)node;
 	if (config != NULL)
 		memcpy(&node->config, config, sizeof(node->config));
