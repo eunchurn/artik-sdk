@@ -65,7 +65,7 @@ static const artik_api_module artik_api_a305_modules[] = {
 #define ARTIK_A305_AGPIO0	161
 
 /* List of available UART IDs */
-#define ARTIK_A305_UART0	2
+#define ARTIK_A305_UART0	4
 
 /* List of available PWMIO IDs */
 #define ARTIK_A305_PWM0		((0 << 8) | 2)
