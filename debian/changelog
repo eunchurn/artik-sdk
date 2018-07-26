@@ -1,3 +1,9 @@
+artik-sdk (1.8-3) unstable; urgency=medium
+
+  * Update version to 1.8.3
+
+ -- Gregory Lemercier <g.lemercier@samsung.com>  Thu, 26 Jul 2018 12:00:00 +0200
+
 artik-sdk (1.8-2) unstable; urgency=medium
 
   * Update version to 1.8.2
