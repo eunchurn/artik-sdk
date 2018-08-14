@@ -1179,6 +1179,7 @@ artik_error os_dhcp_server_stop(artik_network_dhcp_server_handle handle)
 	}
 
 exit:
+	artik_list_delete_node(&requested_node, (artik_list *)dhcp_server);
 
 	return ret;
 }
