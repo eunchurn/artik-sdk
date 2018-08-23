@@ -8,6 +8,15 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 	export NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
+OS_VERSION=$(shell cat /etc/os-release)
+
+ifeq ($(findstring 18.04, $(OS_VERSION)), 18.04)
+       ZIGBEE_TYPE ?= "DUMMY"
+else
+       ZIGBEE_TYPE ?= "PRO"
+endif
+
+
 %:
 	dh $@ --parallel --fail-missing --builddirectory=build
 
@@ -17,7 +26,8 @@ override_dh_auto_configure:
 		-DCMAKE_CXX_COMPILER=$(CROSS_COMPILE)g++ \
 		-DCMAKE_SYSROOT=$(SYSROOT) \
 		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_BUILD_TEST=1
+		-DCMAKE_BUILD_TEST=1 \
+		-DCMAKE_ZIGBEE_TYPE=$(ZIGBEE_TYPE)
 
 override_dh_shlibdeps:
 	#dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info

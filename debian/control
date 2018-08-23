@@ -14,7 +14,6 @@ Build-Depends: debhelper (>=10.2.1),
 	wakaama-client-dev,
 	libssl-dev,
 	libcunit1-dev,
-	libzigbee-dev
 Standards-Version: 3.9.6
 Homepage: https://artik.io
 
