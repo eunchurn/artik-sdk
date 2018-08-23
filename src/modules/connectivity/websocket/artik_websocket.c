@@ -39,6 +39,7 @@ static artik_error artik_websocket_set_receive_callback(artik_websocket_handle
 					artik_websocket_callback callback,
 					void *user_data);
 static artik_error artik_websocket_close_stream(artik_websocket_handle handle);
+static artik_error artik_websocket_release(artik_websocket_handle handle);
 
 const artik_websocket_module websocket_module = {
 	artik_websocket_request,
@@ -46,7 +47,8 @@ const artik_websocket_module websocket_module = {
 	artik_websocket_write_stream,
 	artik_websocket_set_connection_callback,
 	artik_websocket_set_receive_callback,
-	artik_websocket_close_stream
+	artik_websocket_close_stream,
+	artik_websocket_release
 };
 
 typedef struct {
@@ -171,7 +173,20 @@ artik_error artik_websocket_close_stream(artik_websocket_handle handle)
 	if (ret != S_OK)
 		log_err("close stream failed: %d\n", ret);
 
+	return ret;
+}
+
+artik_error artik_websocket_release(artik_websocket_handle handle)
+{
+	websocket_node *node = (websocket_node *)artik_list_get_by_handle(
+				requested_node, (ARTIK_LIST_HANDLE) handle);
+
+	log_dbg("");
+
+	if (!node)
+		return E_BAD_ARGS;
+
 	artik_list_delete_node(&requested_node, (artik_list *)node);
 
-	return ret;
+	return S_OK;
 }

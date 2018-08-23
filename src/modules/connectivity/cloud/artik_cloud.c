@@ -2009,6 +2009,7 @@ exit:
 
 	if (ret != S_OK && *handle != NULL) {
 		websocket->websocket_close_stream(*handle);
+		websocket->websocket_release(*handle);
 		*handle = NULL;
 	}
 
@@ -2111,6 +2112,10 @@ artik_error websocket_close_stream(artik_websocket_handle handle)
 		goto exit;
 
 	ret = websocket->websocket_close_stream(handle);
+	if (ret != S_OK)
+		goto exit;
+
+	ret = websocket->websocket_release(handle);
 
 exit:
 	artik_release_api_module(websocket);

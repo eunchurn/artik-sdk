@@ -140,10 +140,6 @@ static void pong_timeout_callback(void *user_data);
 
 void lws_cleanup(artik_websocket_config *config)
 {
-	if (config->private_data == NULL) {
-		log_err("Cleaning unopened session");
-		return;
-	}
 	void *protocol = (void *)lws_get_protocol(
 					ARTIK_WEBSOCKET_INTERFACE->wsi);
 
@@ -1320,6 +1316,9 @@ artik_error os_websocket_close_stream(artik_websocket_config *config)
 	artik_error ret = S_OK;
 
 	log_dbg("");
+
+	if (config->private_data == NULL)
+		return E_NOT_CONNECTED;
 
 	lws_cleanup(config);
 

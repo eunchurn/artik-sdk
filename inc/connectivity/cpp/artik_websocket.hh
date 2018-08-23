@@ -56,6 +56,7 @@ class Websocket {
   artik_error set_receive_callback(artik_websocket_callback callback,
       void *user_data);
   artik_error close_stream();
+  artik_error release();
 
  private:
   // Disable copy constructor and assignement operator

@@ -191,6 +191,7 @@ int main(int argc, char *argv[]) {
 exit:
 
   websocket->close_stream();
+  websocket->release();
 
   printf("TEST FINISHED: WEBSOCKET_CPP_TEST\n");
 

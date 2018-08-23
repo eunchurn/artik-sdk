@@ -62,3 +62,6 @@ artik_error artik::Websocket::close_stream() {
   return this->m_module->websocket_close_stream(this->m_handle);
 }
 
+artik_error artik::Websocket::release() {
+  return this->m_module->websocket_release(this->m_handle);
+}

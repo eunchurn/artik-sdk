@@ -195,7 +195,18 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error(*websocket_close_stream) (artik_websocket_handle
-					      handle);
+						  handle);
+
+	/*!
+	 * \brief Release websocket handle requested with \ref websocket_request
+	 *
+	 * \param[in] handle Handle value returned by \ref websocket_request
+	 *             function
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error(*websocket_release) (artik_websocket_handle
+						  handle);
 } artik_websocket_module;
 
 extern const artik_websocket_module websocket_module;

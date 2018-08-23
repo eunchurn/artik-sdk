@@ -199,6 +199,7 @@ static artik_error test_websocket_write(char *root_ca, char *client_cert,
 	loop->run();
 
 	websocket->websocket_close_stream(handle);
+	websocket->websocket_release(handle);
 
 	fprintf(stdout, "TEST: %s finished\n", __func__);
 
