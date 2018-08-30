@@ -1500,6 +1500,9 @@ static artik_error _get_device_properties(
 	if (!access_token || !device_id)
 		return E_BAD_ARGS;
 
+	if (akc_http_request->ssl_config->se_config.use_se)
+		return E_NOT_SUPPORTED;
+
 	headers.fields = fields;
 	headers.num_fields = ARRAY_SIZE(fields);
 
