@@ -25,9 +25,9 @@ artik::Uri::Uri(const char *uri) {
     reinterpret_cast<artik_utils_module*>(artik_request_api_module("utils"));
 
   err = m_module->get_uri_info(&m_info, uri);
-  artik_release_api_module(reinterpret_cast<void*>(m_module));
   if (err != S_OK) {
-     artik_throw(artik::ArtikBadArgsException());
+    artik_release_api_module(reinterpret_cast<void*>(m_module));
+    artik_throw(artik::ArtikBadArgsException());
   }
 }
 
