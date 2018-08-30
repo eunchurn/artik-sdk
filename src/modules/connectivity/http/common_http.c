@@ -35,6 +35,7 @@ artik_ssl_config *copy_ssl_config(artik_ssl_config *from)
 	}
 
 	to->verify_cert = from->verify_cert;
+	to->secure      = from->secure;
 
 	return to;
 

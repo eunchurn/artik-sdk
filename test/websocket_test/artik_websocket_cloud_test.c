@@ -127,8 +127,8 @@ static artik_error test_websocket_read(int timeout_ms,
 	/* Open websocket to ARTIK Cloud and register device to
 	 * receive messages from cloud
 	 */
-	ret = cloud->websocket_open_stream(&handle, access_token, device_id, 20, 5,
-					&ssl_config);
+	ret = cloud->websocket_open_stream(&handle, access_token, device_id,
+					    10000, 5000, &ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 			ret);
@@ -186,8 +186,8 @@ static artik_error test_websocket_write(int timeout_ms,
 	/* Open websocket to ARTIK Cloud and register device to receive message
 	 * from cloud
 	 */
-	ret = cloud->websocket_open_stream(&handle, access_token, device_id, 20, 5,
-		&ssl_config);
+	ret = cloud->websocket_open_stream(&handle, access_token, device_id,
+					    10000, 5000, &ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 			ret);

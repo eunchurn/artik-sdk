@@ -281,6 +281,16 @@ static artik_error convert_pem_to_der(const char *pem_data,
 	return os_security_convert_pem_to_der(pem_data, der_data, length);
 }
 
+static artik_error load_openssl_engine(void)
+{
+	return os_security_load_openssl_engine();
+}
+
+static artik_error unload_openssl_engine(void)
+{
+	return os_security_unload_openssl_engine();
+}
+
 EXPORT_API const artik_security_module security_module = {
 	.request                    = request,
 	.release                    = release,
@@ -316,5 +326,7 @@ EXPORT_API const artik_security_module security_module = {
 	.verify_signature_init      = verify_signature_init,
 	.verify_signature_update    = verify_signature_update,
 	.verify_signature_final     = verify_signature_final,
-	.convert_pem_to_der         = convert_pem_to_der
+	.convert_pem_to_der         = convert_pem_to_der,
+	.load_openssl_engine        = load_openssl_engine,
+	.unload_openssl_engine      = unload_openssl_engine
 };

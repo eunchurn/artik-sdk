@@ -33,6 +33,7 @@
 #include "linux_security.h"
 #include "os_security.h"
 
+#define ARTIK_SE_ENGINE_NAME	"artiksee"
 #define COOKIE_SECURITY        "SEC"
 #define COOKIE_SIGVERIF        "SIG"
 #define PEM_BEGIN_CRT          "-----BEGIN CERTIFICATE-----"
@@ -207,6 +208,8 @@ static artik_list *requested_node = NULL;
 static artik_list *verify_nodes = NULL;
 static int *dev_debug;
 static bool openssl_global_init = false;
+static ENGINE *openssl_engine   = NULL;
+static int openssl_engine_refcnt = 0;
 
 static char *strnstr(const char *haystack, const char *needle, size_t len)
 {
@@ -2931,3 +2934,80 @@ exit:
 		EC_KEY_free(ec_key);
 	return ret;
 }
+
+artik_error os_security_load_openssl_engine(void)
+{
+	char *load_dir = NULL;
+
+	openssl_engine_refcnt++;
+
+	if (openssl_engine != NULL)
+		return S_OK;
+
+	/* First try to load and init the OpenSSL SE engine */
+	ENGINE_load_dynamic();
+
+	load_dir = getenv("OPENSSL_ENGINES");
+	if (!load_dir)
+		load_dir = ENGINESDIR;
+
+	openssl_engine = ENGINE_by_id("dynamic");
+	ENGINE_ctrl_cmd_string(openssl_engine, "ID", ARTIK_SE_ENGINE_NAME, 0);
+	ENGINE_ctrl_cmd_string(openssl_engine, "DIR_LOAD", "2", 0);
+	ENGINE_ctrl_cmd_string(openssl_engine, "DIR_ADD", load_dir, 0);
+	ENGINE_ctrl_cmd_string(openssl_engine, "LIST_ADD", "1", 0);
+	ENGINE_ctrl_cmd_string(openssl_engine, "LOAD", NULL, 0);
+
+	if (!openssl_engine || !ENGINE_init(openssl_engine)) {
+		if (openssl_engine)
+			ENGINE_free(openssl_engine);
+		openssl_engine = NULL;
+		log_err("openssl engine init failed");
+		openssl_engine_refcnt--;
+		return E_ACCESS_DENIED;
+	}
+	if (!ENGINE_set_default(openssl_engine, ENGINE_METHOD_RAND |
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+			ENGINE_METHOD_ECDSA)) {
+#else
+			ENGINE_METHOD_EC)) {
+#endif
+			ENGINE_finish(openssl_engine);
+			ENGINE_free(openssl_engine);
+			openssl_engine = NULL;
+			openssl_engine_refcnt--;
+			log_err("openssl set default engine failed");
+			return E_ACCESS_DENIED;
+		}
+
+	return S_OK;
+}
+
+artik_error os_security_unload_openssl_engine(void)
+{
+	/* Unload the engine and clean up */
+	openssl_engine_refcnt--;
+
+	if (openssl_engine && !openssl_engine_refcnt) {
+		OBJ_cleanup();
+		EVP_cleanup();
+		ENGINE_unregister_ciphers(openssl_engine);
+		ENGINE_unregister_digests(openssl_engine);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ENGINE_unregister_ECDSA(openssl_engine);
+		ENGINE_unregister_ECDH(openssl_engine);
+#else
+		ENGINE_unregister_EC(openssl_engine);
+#endif
+		ENGINE_unregister_pkey_meths(openssl_engine);
+		ENGINE_unregister_RAND(openssl_engine);
+		ENGINE_remove(openssl_engine);
+		ENGINE_cleanup();
+		ENGINE_finish(openssl_engine);
+		ENGINE_free(openssl_engine);
+		openssl_engine = NULL;
+	}
+
+	return S_OK;
+}
+

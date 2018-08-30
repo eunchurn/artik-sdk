@@ -350,7 +350,7 @@ static artik_error test_websocket_sdr(void)
 	 * from cloud
 	 */
 	ret = cloud->websocket_open_stream(&handle, sdr_access_token,
-						sdr_device_id, 20, 5, &ssl_config);
+						sdr_device_id, 10000, 5000, &ssl_config);
 	if (ret != S_OK) {
 		fprintf(stderr, "TEST failed, could not open Websocket (%d)\n",
 									ret);

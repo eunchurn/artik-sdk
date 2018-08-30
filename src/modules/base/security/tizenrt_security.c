@@ -1375,3 +1375,13 @@ artik_error os_security_get_ec_pubkey_from_cert(const char *cert, char **key)
 	mbedtls_x509_crt_free(&x509_cert);
 	return S_OK;
 }
+
+artik_error os_security_load_openssl_engine(void)
+{
+	return E_NOT_SUPPORTED;
+}
+
+artik_error os_security_unload_openssl_engine(void)
+{
+	return E_NOT_SUPPORTED;
+}

@@ -129,5 +129,6 @@ artik_error os_security_verify_signature_update(artik_security_handle handle,
 artik_error os_security_verify_signature_final(artik_security_handle handle);
 artik_error os_security_convert_pem_to_der(const char *pem_data,
 		unsigned char **der_data, unsigned int *length);
-
+artik_error os_security_load_openssl_engine(void);
+artik_error os_security_unload_openssl_engine(void);
 #endif  /* __OS_SECURITY_H__ */

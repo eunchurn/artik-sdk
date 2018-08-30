@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/eventfd.h>
 #include <openssl/ssl.h>
+#include <openssl/engine.h>
 #include <libwebsockets.h>
 #include <errno.h>
 #include <regex.h>
@@ -29,6 +30,7 @@
 #include <artik_module.h>
 #include <artik_loop.h>
 #include <artik_websocket.h>
+#include <artik_security.h>
 #include <artik_utils.h>
 #include "os_websocket.h"
 
@@ -334,6 +336,9 @@ int lws_callback(struct lws *wsi, enum lws_callback_reasons reason,
 	case LWS_CALLBACK_OPENSSL_LOAD_EXTRA_SERVER_VERIFY_CERTS:
 		log_dbg("LWS_CALLBACK_OPENSSL_LOAD_EXTRA_SERVER_VERIFY_CERTS");
 		break;
+	case LWS_CALLBACK_OPENSSL_LOAD_EXTRA_CLIENT_VERIFY_CERTS:
+		log_dbg("LWS_CALLBACK_OPENSSL_LOAD_EXTRA_CLIENT_VERIFY_CERTS");
+		break;
 
 	default:
 		log_dbg("reason = %d", reason);
@@ -343,6 +348,16 @@ int lws_callback(struct lws *wsi, enum lws_callback_reasons reason,
 	artik_release_api_module(loop);
 
 	return 0;
+}
+
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+	return 1;
+}
+
+static int verify_cert_cb(X509_STORE_CTX *ctx, void *arg)
+{
+	return 1;
 }
 
 void ssl_ctx_info_callback(const SSL *ssl, int where, int ret)
@@ -388,6 +403,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 	SSL_CTX *ssl_ctx = NULL;
 
 	const SSL_METHOD *method;
+	artik_security_module *security = NULL;
 	BIO *bio = NULL;
 	X509 *x509_cert = NULL;
 	EVP_PKEY *pk = NULL;
@@ -417,6 +433,16 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		goto exit;
 	}
 
+	if (ssl_config->secure) {
+		security = (artik_security_module *)
+			artik_request_api_module("security");
+		if (security->load_openssl_engine() != S_OK) {
+			log_err("Failed to load openssl engine");
+			ret = E_WEBSOCKET_ERROR;
+			goto exit;
+		}
+	}
+
 	/* Set options for TLS */
 	SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_COMPRESSION);
 	SSL_CTX_set_options(ssl_ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
@@ -427,9 +453,10 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		X509_VERIFY_PARAM_set1_host(param, host, 0);
 		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
 	} else {
-		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, NULL);
+		SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_NONE, verify_callback);
 		SSL_CTX_set_default_verify_paths(ssl_ctx);
-		SSL_CTX_load_verify_locations(ssl_ctx, "/etc/pki/tls/cert.pem", NULL);
+		SSL_CTX_load_verify_locations(ssl_ctx, NULL, "/etc/ssl/certs/");
+		SSL_CTX_set_cert_verify_callback(ssl_ctx, verify_cert_cb, NULL);
 	}
 
 	if ((!ssl_config->ca_cert.data || !ssl_config->ca_cert.len)
@@ -530,9 +557,6 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 			ret = E_WEBSOCKET_ERROR;
 			goto exit;
 		}
-
-		*pctx = ssl_ctx;
-		return ret;
 	}
 
 	log_dbg("");
@@ -548,9 +572,24 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		}
 
 		log_dbg("");
+		if (ssl_config->secure) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+			ENGINE *engine = ENGINE_get_default_ECDSA();
+#else
+			ENGINE *engine = ENGINE_get_default_EC();
+#endif
+			if (!engine) {
+				ret = E_WEBSOCKET_ERROR;
+				goto exit;
+			}
 
-		/* Extract EVP key from the BIO */
-		pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
+			pk = ENGINE_load_private_key(engine,
+					"ec256://ARTIK/0", NULL, NULL);
+		} else {
+			/* Extract EVP key from the BIO */
+			pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
+		}
+
 		if (!pk) {
 			BIO_free(bio);
 			ret = E_WEBSOCKET_ERROR;
@@ -558,8 +597,6 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		}
 
 		BIO_free(bio);
-
-		log_dbg("");
 
 		/* Set private key to context */
 		if (!SSL_CTX_use_PrivateKey(ssl_ctx, pk)) {
@@ -574,12 +611,20 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 			ret = E_WEBSOCKET_ERROR;
 			goto exit;
 		}
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		if (ssl_config->secure)
+			SSL_CTX_set1_curves_list(ssl_ctx, "brainpoolP256r1:prime256v1");
+#endif
+		SSL_CTX_set1_sigalgs_list(ssl_ctx, "ECDSA+SHA256");
 	}
 
 	*pctx = ssl_ctx;
 
 exit:
 	/* Clean up allocated memories and handle */
+	if (security)
+		artik_release_api_module(security);
 	if (pk)
 		EVP_PKEY_free(pk);
 	if (x509_cert)
@@ -590,6 +635,19 @@ exit:
 
 	return ret;
 }
+
+static void release_openssl_engine(void)
+{
+	artik_security_module *security = (artik_security_module *)
+		artik_request_api_module("security");
+
+	if (security->unload_openssl_engine() != S_OK)
+		log_err("Failed to unload openssl engine");
+
+	if (security)
+		artik_release_api_module(security);
+}
+
 
 static int os_websocket_process_stream(void *user_data)
 {
@@ -758,6 +816,9 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	info.protocols = interface->protocols;
 	info.gid = -1;
 	info.uid = -1;
+#ifdef LIBWEBSOCKETS_VHOST_API
+	info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+#endif
 
 	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &config->ssl_config, host);
 	if (ret != S_OK)
@@ -793,7 +854,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 				lws_proxy.port = default_port;
 
 #ifdef LIBWEBSOCKETS_VHOST_API
-			info.http_proxy_address = lws_proxy.hostname;
+			info.http_proxy_address = strdup(lws_proxy.hostname);
 			info.http_proxy_port = lws_proxy.port;
 #endif
 		}
@@ -810,8 +871,9 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	if (uri_proxy)
 		set_proxy(context, &lws_proxy);
 #endif
+	if (uri_proxy)
+		utils->free_uri_info(&lws_proxy);
 
-	utils->free_uri_info(&lws_proxy);
 	memset(&conn_info, 0, sizeof(conn_info));
 
 	if (host) {
@@ -830,7 +892,7 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	conn_info.address = host ? host : "";
 	conn_info.port = port;
 	conn_info.path = path ? path : "";
-	conn_info.host = hostport ? hostport : "";
+	conn_info.host = host ? host : "";
 	conn_info.origin = host ? host : "";
 	conn_info.protocol = ARTIK_WEBSOCKET_PROTOCOL_NAME;
 	conn_info.ietf_version_or_minus_one = -1;
@@ -1221,6 +1283,8 @@ artik_error os_websocket_close_stream(artik_websocket_config *config)
 
 	if (config->private_data == NULL)
 		return E_NOT_CONNECTED;
+	if (config->ssl_config.secure)
+		release_openssl_engine();
 
 	lws_cleanup(config);
 

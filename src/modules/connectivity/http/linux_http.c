@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <curl/curl.h>
 #include <openssl/ssl.h>
+#include <openssl/engine.h>
 #include <artik_log.h>
 #include <pthread.h>
 
@@ -87,6 +88,7 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 {
 	CURLcode ret = CURLE_OK;
 	artik_ssl_config *ssl_config = (artik_ssl_config *)parm;
+	artik_security_module *security = NULL;
 	SSL_CTX *ctx = (SSL_CTX *)sslctx;
 	BIO *b64 = NULL;
 	X509 *x509_cert = NULL;
@@ -96,6 +98,16 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 	int remain = 0;
 
 	log_dbg("");
+
+	if (ssl_config->secure) {
+		security = (artik_security_module *)
+			artik_request_api_module("security");
+		if (security->load_openssl_engine() != S_OK) {
+			log_err("Failed to load openssl engine");
+			ret = CURLE_SSL_CERTPROBLEM;
+			goto exit;
+		}
+	}
 
 	if (ssl_config->ca_cert.data && ssl_config->ca_cert.len &&
 		ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED) {
@@ -200,17 +212,34 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 
 		log_dbg("");
 
-		/* Extract EVP key from the BIO */
-		pk = PEM_read_bio_PrivateKey(b64, NULL, 0, NULL);
+		if (ssl_config->secure) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+			ENGINE *engine = ENGINE_get_default_ECDSA();
+#else
+			ENGINE *engine = ENGINE_get_default_EC();
+#endif
+			if (!engine) {
+				ret = CURLE_SSL_CERTPROBLEM;
+				goto exit;
+			}
+
+			pk = ENGINE_load_private_key(engine,
+					"ec256://ARTIK/0", NULL, NULL);
+			log_dbg("");
+		} else {
+			/* Extract EVP key from the BIO */
+			pk = PEM_read_bio_PrivateKey(b64, NULL, 0, NULL);
+			log_dbg("");
+		}
+
 		if (!pk) {
+			log_dbg("");
 			BIO_free(b64);
 			ret = CURLE_SSL_CERTPROBLEM;
 			goto exit;
 		}
 
 		BIO_free(b64);
-
-		log_dbg("");
 
 		/* Set private key to context */
 		if (!SSL_CTX_use_PrivateKey(ctx, pk)) {
@@ -225,9 +254,18 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 			ret = CURLE_SSL_CERTPROBLEM;
 			goto exit;
 		}
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		if (ssl_config->secure)
+			SSL_CTX_set1_curves_list(ctx, "brainpoolP256r1:prime256v1");
+#endif
+		SSL_CTX_set1_sigalgs_list(ctx, "ECDSA+SHA256");
 	}
 
 exit:
+	if (security)
+		artik_release_api_module(security);
+
+
 	if (pk)
 		EVP_PKEY_free(pk);
 
@@ -235,6 +273,20 @@ exit:
 		X509_free(x509_cert);
 
 	return ret;
+
+}
+
+static void release_openssl_engine(void)
+{
+	artik_security_module *security = (artik_security_module *)
+		artik_request_api_module("security");
+
+	if (security->unload_openssl_engine() != S_OK)
+		log_err("Failed to unload openssl engine");
+
+
+	if (security)
+		artik_release_api_module(security);
 
 }
 
@@ -542,6 +594,9 @@ exit:
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
 
+	if (ssl->secure)
+		release_openssl_engine();
+
 	mutex_unlock();
 
 	if (h_list)
@@ -698,6 +753,9 @@ exit:
 
 	mutex_unlock();
 
+	if (ssl->secure)
+		release_openssl_engine();
+
 	if (h_list)
 		curl_slist_free_all(h_list);
 
@@ -847,6 +905,9 @@ exit:
 
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
+
+	if (ssl->secure)
+		release_openssl_engine();
 
 	mutex_unlock();
 
@@ -998,6 +1059,9 @@ exit:
 
 	mutex_unlock();
 
+	if (ssl->secure)
+		release_openssl_engine();
+
 	if (h_list)
 		curl_slist_free_all(h_list);
 
@@ -1142,6 +1206,9 @@ exit:
 	curl_global_cleanup();
 
 	mutex_unlock();
+
+	if (ssl->secure)
+		release_openssl_engine();
 
 	if (h_list)
 		curl_slist_free_all(h_list);

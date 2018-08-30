@@ -1,6 +1,14 @@
 CMAKE_MINIMUM_REQUIRED	( VERSION 2.8 )
 PROJECT			( artikio-api C )
 
+FIND_PACKAGE ( PkgConfig )
+FIND_PACKAGE ( OpenSSL )
+if (OPENSSL_VERSION LESS "1.1.0")
+else()
+    PKG_GET_VARIABLE ( ENGINESDIR libcrypto enginesdir)
+    ADD_DEFINITIONS ( "-DENGINESDIR=\"${ENGINESDIR}\"")
+endif()
+
 ADD_SUBDIRECTORY ( base )
 ADD_SUBDIRECTORY ( bluetooth )
 ADD_SUBDIRECTORY ( connectivity )

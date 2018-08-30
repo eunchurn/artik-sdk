@@ -1252,6 +1252,18 @@ typedef struct {
 	 */
 	artik_error(*get_certificate_pem_chain) (artik_security_handle handle,
 			const char *cert_name, artik_list**chain);
+	/*!
+	 *  \brief Loads the openssl engine for the process
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error(*load_openssl_engine)(void);
+	/*!
+	 *  \brief Releases the openssl engine for the process
+	 *
+	 *  \return S_OK on success, error code otherwise
+	 */
+	artik_error(*unload_openssl_engine)(void);
 } artik_security_module;
 
 extern const artik_security_module security_module;
