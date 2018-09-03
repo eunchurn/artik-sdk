@@ -59,6 +59,8 @@
 
 #define MAX(a, b)	((a > b) ? a : b)
 
+#define	GMT_MAX_LEN	30
+
 typedef struct {
 	char format_link[LEN_FORM];
 	char *format_mod;
@@ -111,6 +113,8 @@ static artik_error os_time_get_sys(struct tm *time, artik_time_zone gmt)
 
 artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 {
+	char gmtname[GMT_MAX_LEN];
+
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
@@ -138,30 +142,36 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	if ((int)date.msecond < 0)
 		return E_BAD_ARGS;
 
-	struct tm dtime;
-	struct timespec stime;
+	struct tm str_time;
 	time_t sec = 0;
+	struct timespec time_spec;
 
-	memset(&dtime, 0, sizeof(dtime));
-	memset(&stime, 0, sizeof(stime));
-	memcpy(&dtime, &date, sizeof(date));
 
-	dtime.tm_year -= EPOCH_DEF;
-	dtime.tm_mon--;
-	dtime.tm_hour -= gmt;
+	memset(&str_time, 0, sizeof(str_time));
+	memset(&time_spec, 0, sizeof(time_spec));
 
-	if (dtime.tm_hour < 0)
-		dtime.tm_hour = 23;
+	str_time.tm_sec = date.second;
+	str_time.tm_min = date.minute;
+	str_time.tm_hour = date.hour;
+	str_time.tm_min = date.minute;
+	str_time.tm_mday = date.day;
+	str_time.tm_mon = date.month--;
+	str_time.tm_year = date.year-EPOCH_DEF;
+	str_time.tm_wday = date.day_of_week;
 
-	sec = timegm(&dtime);
+	snprintf(gmtname, GMT_MAX_LEN, "GMT-%d", gmt);
+	setenv("TZ", gmtname, 1);
+	tzset();
+
+	sec = mktime(&str_time);
 
 	if (sec < 0)
 		return E_BAD_ARGS;
 
-	stime.tv_sec = sec;
-	stime.tv_nsec = 0;
+	time_spec.tv_sec = sec;
+	time_spec.tv_nsec = 0;
 
-	if (clock_settime(CLOCK_REALTIME, &stime) < 0) {
+	if (clock_settime(CLOCK_REALTIME, &time_spec) < 0) {
 		perror(strerror(errno));
 		return E_BAD_ARGS;
 	}
