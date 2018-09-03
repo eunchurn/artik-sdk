@@ -154,6 +154,12 @@ artik_error os_serial_request(artik_serial_config *config)
 		tty.c_cflag |= CSTOPB;
 	/* Configure data bits */
 	switch (config->data_bits) {
+	case ARTIK_SERIAL_DATA_5BIT:
+		tty.c_cflag |= CS5;
+		break;
+	case ARTIK_SERIAL_DATA_6BIT:
+		tty.c_cflag |= CS6;
+		break;
 	case ARTIK_SERIAL_DATA_7BIT:
 		tty.c_cflag |= CS7;
 		break;

@@ -113,6 +113,8 @@ typedef enum {
  *  Type for specifying the data bit length of the SERIAL module.
  */
 typedef enum {
+	ARTIK_SERIAL_DATA_5BIT,
+	ARTIK_SERIAL_DATA_6BIT,
 	ARTIK_SERIAL_DATA_7BIT,
 	ARTIK_SERIAL_DATA_8BIT
 } artik_serial_data_bits_t;
