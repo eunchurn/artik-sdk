@@ -542,6 +542,30 @@ artik_error os_time_convert_time_to_timestamp(const artik_time *date,
 {
 	struct tm rtime;
 
+	if ((int)date->second < 0 || (int)date->second > 59)
+		return E_BAD_ARGS;
+
+	if ((int)date->minute < 0 || (int)date->minute > 59)
+		return E_BAD_ARGS;
+
+	if ((int)date->hour < 0 || (int)date->hour > 23)
+		return E_BAD_ARGS;
+
+	if ((int)date->day < 1 || (int)date->day > 31)
+		return E_BAD_ARGS;
+
+	if ((int)date->month < 1 || (int)date->month > 12)
+		return E_BAD_ARGS;
+
+	if ((int)date->year < EPOCH_DEF)
+		return E_BAD_ARGS;
+
+	if ((int)date->day_of_week < 0 || (int)date->day_of_week > 6)
+		return E_BAD_ARGS;
+
+	if ((int)date->msecond < 0)
+		return E_BAD_ARGS;
+
 	memset(&rtime, 0, sizeof(rtime));
 
 	rtime.tm_sec = (int)date->second;
