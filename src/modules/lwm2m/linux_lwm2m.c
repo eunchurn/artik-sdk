@@ -22,6 +22,9 @@
 #include <artik_log.h>
 #include <artik_utils.h>
 
+#include <openssl/ssl.h>
+#include <openssl/engine.h>
+
 #include <artik_lwm2m.h>
 #include <artik_list.h>
 #include "os_lwm2m.h"
@@ -254,6 +257,88 @@ static bool check_lwm2m_uri(const char *uri)
 	return ret;
 }
 
+static bool ssl_context_callback(void *ssl_ctx, void *user_data)
+{
+	X509 *cert = NULL;
+	BIO *b64 = NULL;
+	EVP_PKEY *pkey = NULL;
+	artik_security_module *security = NULL;
+	artik_ssl_config *ssl = user_data;
+	SSL_CTX *ctx = (SSL_CTX *)ssl_ctx;
+	bool ret = false;
+
+	security = (artik_security_module *)
+		artik_request_api_module("security");
+	if (security->load_openssl_engine() != S_OK) {
+		log_dbg("Failed to load openssl engine");
+		goto exit;
+	}
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	ENGINE *engine = ENGINE_get_default_ECDSA();
+#else
+	ENGINE *engine = ENGINE_get_default_EC();
+#endif
+
+	if (!engine) {
+		log_dbg("Failed to get default engine");
+		goto exit;
+	}
+
+	pkey = ENGINE_load_private_key(engine, "ec256://ARTIK/0", NULL, NULL);
+	if (!pkey) {
+		log_dbg("Failed to load private key from artiksee");
+		goto exit;
+	}
+
+	b64 = BIO_new(BIO_s_mem());
+	if (!b64) {
+		log_dbg("Failed to allocate memory");
+		goto exit;
+	}
+
+	BIO_write(b64, ssl->client_cert.data, ssl->client_cert.len);
+
+	cert = PEM_read_bio_X509(b64, NULL, NULL, NULL);
+	if (!cert) {
+		log_dbg("Failed to parse client certificate");
+		goto exit;
+
+	}
+
+	if (!SSL_CTX_use_certificate(ctx, cert)) {
+		log_dbg("Failed to set client certificate");
+		goto exit;
+	}
+
+	if (!SSL_CTX_use_PrivateKey(ctx, pkey)) {
+		log_dbg("Failed to set client private key");
+		goto exit;
+	}
+
+	if (!SSL_CTX_check_private_key(ctx)) {
+		log_dbg("Failed to check private key");
+		goto exit;
+	}
+
+	ret = true;
+
+exit:
+	if (security)
+		artik_release_api_module(security);
+
+	if (pkey)
+		EVP_PKEY_free(pkey);
+
+	if (!cert)
+		X509_free(cert);
+
+	if (b64)
+		BIO_free(b64);
+
+	return ret;
+}
+
 artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 				artik_lwm2m_config *config)
 {
@@ -395,7 +480,13 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	node->container = objects;
 
 	/* Configure the client */
-	node->client = lwm2m_client_start(node->container, node->container->server->serverCertificate, false);
+	if (config->ssl_config)
+		node->client = lwm2m_client_start(node->container,
+				node->container->server->serverCertificate,
+				ssl_context_callback, config->ssl_config);
+	else
+		node->client = lwm2m_client_start(node->container,
+				node->container->server->serverCertificate, NULL, NULL);
 	if (!node->client) {
 		log_dbg("lwm2m_client error");
 		return E_BAD_ARGS;
