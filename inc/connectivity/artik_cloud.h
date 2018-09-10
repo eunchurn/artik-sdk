@@ -703,7 +703,7 @@ typedef struct {
 	/*!
 	 *  \brief Start Secure Device Registration process
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration
 	 *  \param[in] device_type_id Device Type ID of the device to
 	 *             register
 	 *  \param[in] vendor_id Vendor ID of the device to register
@@ -720,14 +720,14 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_start_registration)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *device_type_id,
 					const char *vendor_id,
 					char **response);
 	/*!
 	 *  \brief Start Secure Device Registration process asynchronously
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration
 	 *  \param[in] device_type_id Device Type ID of the device to
 	 *             register
 	 *  \param[in] vendor_id Vendor ID of the device to register
@@ -739,7 +739,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_start_registration_async)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *device_type_id,
 					const char *vendor_id,
 					artik_cloud_callback callback,
@@ -747,7 +747,7 @@ typedef struct {
 	/*!
 	 *  \brief Get Secure Device Registration process status
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
 	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[out] response Pointer to a string allocated and filled up
@@ -760,13 +760,13 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_registration_status)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *reg_id,
 					char **response);
 	/*!
 	 *  \brief Get Secure Device Registration process status asynchronously
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
 	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[in] callback Function called upon receiving response
@@ -777,14 +777,14 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_registration_status_async)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *reg_id,
 					artik_cloud_callback callback,
 					void *user_data);
 	/*!
 	 *  \brief Complete Secure Device Registration process
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
 	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[in] reg_nonce Registration nonce returned by \ref
@@ -797,14 +797,14 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_complete_registration)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *reg_id,
 					const char *reg_nonce,
 					char **response);
 	/*!
 	 *  \brief Complete Secure Device Registration process asynchronously
 	 *
-	 *  \param[in] Certificate identifier
+	 *  \param[in] Secure element configuration.
 	 *  \param[in] reg_id Registration ID (rid) returned by \ref
 	 *             sdr_start_registration or \ref sdr_start_registration_async
 	 *  \param[in] reg_nonce Registration nonce returned by \ref
@@ -817,7 +817,7 @@ typedef struct {
 	 *  \return S_OK on success, error code otherwise
 	 */
 	artik_error (*sdr_complete_registration_async)(
-					const char *cert_name,
+					artik_secure_element_config * se_config,
 					const char *reg_id,
 					const char *reg_nonce,
 					artik_cloud_callback callback,

@@ -396,6 +396,46 @@ void ssl_ctx_info_callback(const SSL *ssl, int where, int ret)
 		log_dbg("%s", SSL_state_string_long(ssl));
 }
 
+
+static char *create_key_uri(artik_secure_element_config *se_config)
+{
+	const char *prefix;
+	char *engine_key_uri;
+
+	switch (se_config->key_algo) {
+	case RSA_1024:
+		prefix = "rsa1024://";
+		break;
+	case RSA_2048:
+		prefix = "rsa2048://";
+		break;
+	case ECC_BRAINPOOL_P256R1:
+		prefix = "bp256://";
+		break;
+	case ECC_SEC_P256R1:
+		prefix = "ec256://";
+		break;
+	case ECC_SEC_P384R1:
+		prefix = "ec384://";
+		break;
+	case ECC_SEC_P521R1:
+		prefix = "ec521://";
+		break;
+	default:
+		log_dbg("algo %d not supported", se_config->key_algo);
+		return NULL;
+	}
+
+	engine_key_uri = malloc(strlen(prefix) + strlen(se_config->key_id) + 1);
+	if (!engine_key_uri)
+		return NULL;
+
+	strcpy(engine_key_uri, prefix);
+	strcat(engine_key_uri, se_config->key_id);
+
+	return engine_key_uri;
+}
+
 artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		char *host)
 {
@@ -411,6 +451,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 	X509_STORE *keystore = NULL;
 	char *start = NULL, *end = NULL;
 	int remain = 0;
+	char *uri = NULL;
 
 	log_dbg("");
 
@@ -433,7 +474,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		goto exit;
 	}
 
-	if (ssl_config->secure) {
+	if (ssl_config->se_config) {
 		security = (artik_security_module *)
 			artik_request_api_module("security");
 		if (security->load_openssl_engine() != S_OK) {
@@ -572,7 +613,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		}
 
 		log_dbg("");
-		if (ssl_config->secure) {
+		if (ssl_config->se_config) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 			ENGINE *engine = ENGINE_get_default_ECDSA();
 #else
@@ -583,8 +624,15 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 				goto exit;
 			}
 
+			uri = create_key_uri(ssl_config->se_config);
+			if (!uri) {
+				ret = E_WEBSOCKET_ERROR;
+				goto exit;
+			}
+
 			pk = ENGINE_load_private_key(engine,
-					"ec256://ARTIK/0", NULL, NULL);
+					uri, NULL, NULL);
+			free(uri);
 		} else {
 			/* Extract EVP key from the BIO */
 			pk = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
@@ -613,7 +661,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 		}
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-		if (ssl_config->secure)
+		if (ssl_config->se_config)
 			SSL_CTX_set1_curves_list(ssl_ctx, "brainpoolP256r1:prime256v1");
 #endif
 		SSL_CTX_set1_sigalgs_list(ssl_ctx, "ECDSA+SHA256");
@@ -1015,7 +1063,7 @@ artik_error os_websocket_write_stream(artik_websocket_config *config,
 
 	memcpy(websocket_buf + LWS_SEND_BUFFER_PRE_PADDING, message, len);
 	ARTIK_WEBSOCKET_INTERFACE->container.send_message = websocket_buf +
-	    LWS_SEND_BUFFER_PRE_PADDING;
+		LWS_SEND_BUFFER_PRE_PADDING;
 	ARTIK_WEBSOCKET_INTERFACE->container.send_message_len = len;
 	lws_callback_on_writable(ARTIK_WEBSOCKET_INTERFACE->wsi);
 
@@ -1283,7 +1331,8 @@ artik_error os_websocket_close_stream(artik_websocket_config *config)
 
 	if (config->private_data == NULL)
 		return E_NOT_CONNECTED;
-	if (config->ssl_config.secure)
+
+	if (config->ssl_config.se_config)
 		release_openssl_engine();
 
 	lws_cleanup(config);

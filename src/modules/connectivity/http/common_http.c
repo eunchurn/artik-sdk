@@ -35,7 +35,18 @@ artik_ssl_config *copy_ssl_config(artik_ssl_config *from)
 	}
 
 	to->verify_cert = from->verify_cert;
-	to->secure      = from->secure;
+
+	if (from->se_config && from->se_config->key_id) {
+		to->se_config = malloc(sizeof(artik_secure_element_config));
+		if (!to->se_config)
+			goto cleanup;
+
+		to->se_config->key_id = strdup(from->se_config->key_id);
+		if (!to->se_config->key_id)
+			goto cleanup;
+
+		to->se_config->key_algo = from->se_config->key_algo;
+	}
 
 	return to;
 
@@ -93,6 +104,13 @@ void free_ssl_config(artik_ssl_config *ssl)
 
 	if (ssl->client_key.data)
 		free(ssl->client_key.data);
+
+	if (ssl->se_config) {
+		if (ssl->se_config->key_id)
+			free((char *)ssl->se_config->key_id);
+
+		free(ssl->se_config);
+	}
 
 	free(ssl);
 }

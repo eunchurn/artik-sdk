@@ -84,6 +84,45 @@ static void mutex_unlock(void)
 	pthread_mutex_unlock(&lock);
 }
 
+static char *create_key_uri(artik_secure_element_config *se_config)
+{
+	const char *prefix;
+	char *engine_key_uri;
+
+	switch (se_config->key_algo) {
+	case RSA_1024:
+		prefix = "rsa1024://";
+		break;
+	case RSA_2048:
+		prefix = "rsa2048://";
+		break;
+	case ECC_BRAINPOOL_P256R1:
+		prefix = "bp256://";
+		break;
+	case ECC_SEC_P256R1:
+		prefix = "ec256://";
+		break;
+	case ECC_SEC_P384R1:
+		prefix = "ec384://";
+		break;
+	case ECC_SEC_P521R1:
+		prefix = "ec521://";
+		break;
+	default:
+		log_dbg("algo %d not supported", se_config->key_algo);
+		return NULL;
+	}
+
+	engine_key_uri = malloc(strlen(prefix) + strlen(se_config->key_id) + 1);
+	if (!engine_key_uri)
+		return NULL;
+
+	strcpy(engine_key_uri, prefix);
+	strcat(engine_key_uri, se_config->key_id);
+
+	return engine_key_uri;
+}
+
 static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 {
 	CURLcode ret = CURLE_OK;
@@ -96,10 +135,11 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 	X509_STORE *keystore = NULL;
 	char *start = NULL, *end = NULL;
 	int remain = 0;
+	char *uri = NULL;
 
 	log_dbg("");
 
-	if (ssl_config->secure) {
+	if (ssl_config->se_config) {
 		security = (artik_security_module *)
 			artik_request_api_module("security");
 		if (security->load_openssl_engine() != S_OK) {
@@ -200,7 +240,41 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 
 	log_dbg("");
 
-	if (ssl_config->client_key.data && ssl_config->client_key.len) {
+	if (ssl_config->se_config && ssl_config->se_config->key_id) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		ENGINE *engine = ENGINE_get_default_ECDSA();
+#else
+		ENGINE *engine = ENGINE_get_default_EC();
+#endif
+		if (!engine) {
+			ret = CURLE_SSL_CERTPROBLEM;
+			goto exit;
+		}
+
+		uri = create_key_uri(ssl_config->se_config);
+		if (!uri) {
+			ret = CURLE_SSL_CERTPROBLEM;
+			goto exit;
+		}
+
+		pk = ENGINE_load_private_key(engine,
+									 uri, NULL, NULL);
+		free(uri);
+
+		if (!pk) {
+			log_dbg("");
+			ret = CURLE_SSL_CERTPROBLEM;
+			goto exit;
+		}
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		if (ssl_config->se_config)
+			SSL_CTX_set1_curves_list(ctx, "brainpoolP256r1:prime256v1");
+#endif
+		SSL_CTX_set1_sigalgs_list(ctx, "ECDSA+SHA256");
+	} else if (ssl_config->client_key.data && ssl_config->client_key.len) {
+		log_dbg("");
+
 		/* Convert key string into a BIO */
 		b64 = BIO_new(BIO_s_mem());
 		if (!BIO_write(b64, ssl_config->client_key.data,
@@ -210,38 +284,18 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 			goto exit;
 		}
 
-		log_dbg("");
-
-		if (ssl_config->secure) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-			ENGINE *engine = ENGINE_get_default_ECDSA();
-#else
-			ENGINE *engine = ENGINE_get_default_EC();
-#endif
-			if (!engine) {
-				ret = CURLE_SSL_CERTPROBLEM;
-				goto exit;
-			}
-
-			pk = ENGINE_load_private_key(engine,
-					"ec256://ARTIK/0", NULL, NULL);
-			log_dbg("");
-		} else {
-			/* Extract EVP key from the BIO */
-			pk = PEM_read_bio_PrivateKey(b64, NULL, 0, NULL);
-			log_dbg("");
-		}
-
+		/* Extract EVP key from the BIO */
+		pk = PEM_read_bio_PrivateKey(b64, NULL, 0, NULL);
+		BIO_free(b64);
 		if (!pk) {
 			log_dbg("");
-			BIO_free(b64);
 			ret = CURLE_SSL_CERTPROBLEM;
 			goto exit;
 		}
+	}
 
-		BIO_free(b64);
-
-		/* Set private key to context */
+	/* Set private key to context */
+	if (pk) {
 		if (!SSL_CTX_use_PrivateKey(ctx, pk)) {
 			ret = CURLE_SSL_CERTPROBLEM;
 			goto exit;
@@ -249,16 +303,11 @@ static CURLcode ssl_ctx_callback(CURL *curl, void *sslctx, void *parm)
 
 		log_dbg("");
 
-		/* Check certificate/key pair validity */
+	/* Check certificate/key pair validity */
 		if (!SSL_CTX_check_private_key(ctx)) {
 			ret = CURLE_SSL_CERTPROBLEM;
 			goto exit;
 		}
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-		if (ssl_config->secure)
-			SSL_CTX_set1_curves_list(ctx, "brainpoolP256r1:prime256v1");
-#endif
-		SSL_CTX_set1_sigalgs_list(ctx, "ECDSA+SHA256");
 	}
 
 exit:
@@ -357,18 +406,8 @@ static int os_http_process_get_stream(void *user_data)
 	if (interface->headers)
 		free(interface->headers);
 
-	if (interface->ssl) {
-		if (interface->ssl->ca_cert.data)
-			free(interface->ssl->ca_cert.data);
-
-		if (interface->ssl->client_cert.data)
-			free(interface->ssl->client_cert.data);
-
-		if (interface->ssl->client_key.data)
-			free(interface->ssl->client_key.data);
-
-		free(interface->ssl);
-	}
+	if (interface->ssl)
+		free_ssl_config(interface->ssl);
 
 	free(interface);
 
@@ -399,6 +438,9 @@ static int os_http_process_get(void *user_data)
 
 	if (interface->headers)
 		free(interface->headers);
+
+	if (interface->ssl)
+		free_ssl_config(interface->ssl);
 
 	free(interface);
 
@@ -433,6 +475,9 @@ static int os_http_process_post(void *user_data)
 	if (interface->body)
 		free(interface->body);
 
+	if (interface->ssl)
+		free_ssl_config(interface->ssl);
+
 	free(interface);
 
 	return 0;
@@ -466,6 +511,9 @@ static int os_http_process_put(void *user_data)
 	if (interface->body)
 		free(interface->body);
 
+	if (interface->ssl)
+		free_ssl_config(interface->ssl);
+
 	free(interface);
 
 	return 0;
@@ -495,6 +543,9 @@ static int os_http_process_delete(void *user_data)
 
 	if (interface->headers)
 		free(interface->headers);
+
+	if (interface->ssl)
+		free_ssl_config(interface->ssl);
 
 	free(interface);
 
@@ -594,7 +645,7 @@ exit:
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
 
-	if (ssl->secure)
+	if (ssl && ssl->se_config)
 		release_openssl_engine();
 
 	mutex_unlock();
@@ -753,7 +804,7 @@ exit:
 
 	mutex_unlock();
 
-	if (ssl->secure)
+	if (ssl && ssl->se_config)
 		release_openssl_engine();
 
 	if (h_list)
@@ -906,7 +957,7 @@ exit:
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
 
-	if (ssl->secure)
+	if (ssl && ssl->se_config)
 		release_openssl_engine();
 
 	mutex_unlock();
@@ -1059,7 +1110,7 @@ exit:
 
 	mutex_unlock();
 
-	if (ssl->secure)
+	if (ssl && ssl->se_config)
 		release_openssl_engine();
 
 	if (h_list)
@@ -1207,7 +1258,7 @@ exit:
 
 	mutex_unlock();
 
-	if (ssl->secure)
+	if (ssl && ssl->se_config)
 		release_openssl_engine();
 
 	if (h_list)

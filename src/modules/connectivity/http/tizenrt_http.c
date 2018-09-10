@@ -173,7 +173,7 @@ static artik_error init_client_ssl_config(
 
 	mbedtls_ssl_config_init(http_ssl_config->ssl->tls_conf);
 	mbedtls_ssl_config_defaults(http_ssl_config->ssl->tls_conf, MBEDTLS_SSL_IS_CLIENT,
-				    MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+					MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	mbedtls_entropy_init(http_ssl_config->entropy);
 	mbedtls_ctr_drbg_init(http_ssl_config->ctr_drbg);
 
@@ -201,13 +201,12 @@ static artik_error init_client_ssl_config(
 //	mbedtls_debug_set_threshold(MBED_DEBUG_LEVEL);
 #endif
 
-	if (a_ssl_config->secure) {
+	if (a_ssl_config->se_config) {
 		artik_security_handle handle;
 		artik_error err = S_OK;
 		unsigned char *se_cert = NULL;
 		unsigned int se_cert_len = 0;
 		artik_security_module *security = NULL;
-		artik_list *pem_chain = NULL;
 
 		security = (artik_security_module *)
 				artik_request_api_module("security");
@@ -236,8 +235,8 @@ static artik_error init_client_ssl_config(
 			goto exit;
 		}
 
-		err = security->get_certificate_pem_chain(handle, "ARTIK", &pem_chain);
-		if (err != S_OK || !pem_chain || !artik_list_size(pem_chain)) {
+		err = security->get_certificate(handle, a_ssl_config->se_config->key_id, ARTIK_SECURITY_CERT_TYPE_PEM, &se_cert, &se_cert_len);
+		if (err != S_OK || !se_cert || se_cert_len == 0) {
 			log_err("Failed to get certificate chain (err=%d)\n", err);
 			ret = E_ACCESS_DENIED;
 			goto exit;
@@ -251,12 +250,10 @@ static artik_error init_client_ssl_config(
 		mbedtls_x509_crt_init(http_ssl_config->cert);
 		mbedtls_pk_init(http_ssl_config->pkey);
 
-		/* Use the first certificate in the chain, it must be the device cert */
-		se_cert = (unsigned char *)artik_list_get_by_pos(pem_chain, 0)->data;
-		se_cert_len = strlen((const char *)se_cert) + 1;
+		/* Use the device cert */
 		ret = mbedtls_x509_crt_parse(http_ssl_config->cert, se_cert,
 				se_cert_len);
-		artik_list_delete_all(&pem_chain);
+		free(se_cert);
 		if (ret) {
 			log_err("Failed to parse device certificate (err=%d)", ret);
 			ret = E_BAD_ARGS;

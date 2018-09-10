@@ -334,7 +334,6 @@ static artik_error ssl_setup(websocket_t *ws, artik_ssl_config *ssl_config)
 	int ret = 0;
 	artik_security_module *security = NULL;
 	artik_security_handle handle;
-	artik_list *pem_chain = NULL;
 
 	log_dbg("");
 
@@ -370,7 +369,9 @@ static artik_error ssl_setup(websocket_t *ws, artik_ssl_config *ssl_config)
 		}
 	}
 
-	if (ssl_config->secure) {
+	if (ssl_config->se_config) {
+		unsigned char *se_cert;
+		unsigned int se_cert_len;
 		security = (artik_security_module *)artik_request_api_module("security");
 		ws->tls_cred->use_se = true;
 
@@ -381,17 +382,16 @@ static artik_error ssl_setup(websocket_t *ws, artik_ssl_config *ssl_config)
 			goto exit;
 		}
 
-		ret = security->get_certificate_pem_chain(handle, "ARTIK", &pem_chain);
-		if (ret != S_OK || !pem_chain || !artik_list_size(pem_chain)) {
+		ret = security->get_certificate(handle, ssl_config->se_config->key_id, ARTIK_SECURITY_CERT_TYPE_PEM, &se_cert, &se_cert_len);
+		if (ret != S_OK || !se_cert || se_cert_len == 0) {
 			log_err("Failed to get device certificate (err=%d)", ret);
 			artik_release_api_module(handle);
 			goto exit;
 		}
 
 		/* Use the first certificate in the chain, it must be the device cert */
-		ws->tls_cred->dev_cert = (unsigned char *)strdup((
-				char *)artik_list_get_by_pos(pem_chain, 0)->data);
-		artik_list_delete_all(&pem_chain);
+		ws->tls_cred->dev_cert = (unsigned char *)strdup((char *)se_cert);
+		free(se_cert);
 		if (ws->tls_cred->dev_cert == NULL) {
 			ret = -1;
 			log_err("Failed to malloc (err=%d)\n", ret);
@@ -448,8 +448,6 @@ static artik_error ssl_setup(websocket_t *ws, artik_ssl_config *ssl_config)
 	return S_OK;
 
 exit:
-	if (pem_chain)
-		free(pem_chain);
 
 	ssl_cleanup(ws);
 	return ret;
@@ -629,6 +627,3 @@ artik_error os_websocket_close_stream(artik_websocket_config *config)
 
 	return S_OK;
 }
-
-
-

@@ -295,14 +295,25 @@ error:
 
 static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 {
+	artik_secure_element_config *se_config = NULL;
 	artik_security_module *security = NULL;
 	artik_security_handle sec_handle = NULL;
 
-	ssl->secure = true;
+	se_config =  malloc(sizeof(artik_secure_element_config));
+	if (!se_config) {
+		fprintf(stderr, "Failed to allocate memory\n");
+		return E_SECURITY_ERROR;
+	}
+
+	se_config->key_id = cert_name;
+	se_config->key_algo = ECC_SEC_P256R1;
+	ssl->se_config = se_config;
+
 	security = (artik_security_module *)artik_request_api_module("security");
 	if (security->request(&sec_handle) != S_OK) {
 		fprintf(stderr, "Failed to request security module");
 		artik_release_api_module(security);
+		free(se_config);
 		return E_SECURITY_ERROR;
 	}
 
@@ -328,6 +339,8 @@ error:
 		free(ssl->client_cert.data);
 	if (ssl->client_key.data)
 		free(ssl->client_key.data);
+	if (ssl->se_config)
+		free(ssl->se_config);
 	security->release(&sec_handle);
 	artik_release_api_module(security);
 	return E_SECURITY_ERROR;
@@ -465,6 +478,8 @@ exit:
 		free(ssl_config.client_cert.data);
 	if (ssl_config.client_key.data)
 		free(ssl_config.client_key.data);
+	if (ssl_config.se_config)
+		free(ssl_config.se_config);
 
 	return ret;
 }

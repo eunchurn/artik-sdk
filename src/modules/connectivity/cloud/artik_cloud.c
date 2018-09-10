@@ -292,32 +292,32 @@ static artik_error set_device_server_properties_async(
 	void *user_data,
 	artik_ssl_config *ssl);
 static artik_error sdr_start_registration(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *device_type_id,
 	const char *vendor_id,
 	char **response);
 static artik_error sdr_start_registration_async(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *device_type_id,
 	const char *vendor_id,
 	artik_cloud_callback callback,
 	void *user_data);
 static artik_error sdr_registration_status(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *reg_id,
 	char **response);
 static artik_error sdr_registration_status_async(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *reg_id,
 	artik_cloud_callback callback,
 	void *user_data);
 static artik_error sdr_complete_registration(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *reg_id,
 	const char *reg_nonce,
 	char **response);
 static artik_error sdr_complete_registration_async(
-	const char *cert_name,
+	artik_secure_element_config * se_config,
 	const char *reg_id,
 	const char *reg_nonce,
 	artik_cloud_callback callback,
@@ -640,7 +640,7 @@ static artik_error _get_current_user_profile(
 	fields[0].data = bearer;
 
 	return _artik_cloud_get(akc_http_request,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_SELF_USER : ARTIK_CLOUD_URL_SELF_USER, &headers);
 }
 
@@ -706,7 +706,7 @@ static artik_error _get_user_devices(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_USER_DEVICES : ARTIK_CLOUD_URL_USER_DEVICES,
 		 user_id, count, properties ? "true" : "false", offset);
 
@@ -779,7 +779,7 @@ static artik_error _get_user_devices_types(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_USER_DEVICE_TYPES :
 		ARTIK_CLOUD_URL_USER_DEVICE_TYPES,
 		user_id, count, shared ? "true" : "false", offset);
@@ -1067,7 +1067,7 @@ static artik_error _add_device(
 
 
 	ret = _artik_cloud_post(akc_http_request,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_ADD_DEVICE : ARTIK_CLOUD_URL_ADD_DEVICE,
 		&headers, body);
 
@@ -1152,7 +1152,7 @@ artik_error _send_message(
 	snprintf(body, body_len, ARTIK_CLOUD_MESSAGE_BODY, device_id, message);
 
 	ret = _artik_cloud_post(akc_http_request,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_MESSAGES : ARTIK_CLOUD_URL_MESSAGES,
 		&headers, body);
 
@@ -1232,7 +1232,7 @@ static artik_error _send_action(
 	snprintf(body, body_len, ARTIK_CLOUD_ACTION_BODY, device_id, action);
 
 	ret = _artik_cloud_post(akc_http_request,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_MESSAGES : ARTIK_CLOUD_URL_MESSAGES,
 		&headers, body);
 
@@ -1302,7 +1302,7 @@ artik_error _update_device_token(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_UPDATE_DEVICE_TOKEN :
 		ARTIK_CLOUD_URL_UPDATE_DEVICE_TOKEN, device_id);
 
@@ -1371,7 +1371,7 @@ static artik_error _delete_device_token(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE_TOKEN :
 		ARTIK_CLOUD_URL_DELETE_DEVICE_TOKEN,
 		device_id);
@@ -1440,7 +1440,7 @@ static artik_error _delete_device(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_DELETE_DEVICE : ARTIK_CLOUD_URL_DELETE_DEVICE,
 		 device_id);
 
@@ -1508,7 +1508,7 @@ static artik_error _get_device_properties(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		 ARTIK_CLOUD_SECURE_URL_GET_DEVICE_PROPS :
 		 ARTIK_CLOUD_URL_GET_DEVICE_PROPS,
 		device_id, timestamp ? "true" : "false");
@@ -1580,7 +1580,7 @@ static artik_error _set_device_server_properties(
 
 	/* Build up url with parameters */
 	snprintf(url, ARTIK_CLOUD_URL_MAX,
-		akc_http_request->ssl_config->secure ?
+		akc_http_request->ssl_config->se_config ?
 		ARTIK_CLOUD_SECURE_URL_SET_DEVICE_SERV_PROPS :
 		ARTIK_CLOUD_URL_SET_DEVICE_SERV_PROPS, device_id);
 
@@ -1681,7 +1681,8 @@ static artik_error _sdr_start_registration(
 	return ret;
 }
 
-static artik_error _sdr_fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
+static artik_error _sdr_fill_ssl_config(
+	artik_ssl_config *ssl, artik_secure_element_config *se_config)
 {
 	artik_security_module *security = NULL;
 	artik_security_handle sec_handle = NULL;
@@ -1689,7 +1690,10 @@ static artik_error _sdr_fill_ssl_config(artik_ssl_config *ssl, const char *cert_
 
 	memset(ssl, 0, sizeof(artik_ssl_config));
 	ssl->verify_cert = ARTIK_SSL_VERIFY_NONE;
-	ssl->secure = true;
+	ssl->se_config = se_config;
+
+	if (!se_config || !se_config->key_id)
+		return E_BAD_ARGS;
 
 	security = (artik_security_module *)artik_request_api_module("security");
 	ret = security->request(&sec_handle);
@@ -1699,20 +1703,12 @@ static artik_error _sdr_fill_ssl_config(artik_ssl_config *ssl, const char *cert_
 		return E_SECURITY_ERROR;
 	}
 
-	ret = security->get_certificate(sec_handle, cert_name,
+	ret = security->get_certificate(sec_handle, se_config->key_id,
 			ARTIK_SECURITY_CERT_TYPE_PEM,
 			(unsigned char **)&ssl->client_cert.data,
 			&ssl->client_cert.len);
 	if (ret != S_OK) {
 		log_err("Failed to get certificate from the security module (%d)", ret);
-		goto error;
-	}
-
-	ret = security->get_publickey(sec_handle, ECC_SEC_P256R1, cert_name,
-			(unsigned char **)&ssl->client_key.data,
-			&ssl->client_key.len);
-	if (ret != S_OK) {
-		log_err("Failed to get private key from the security module (%d)", ret);
 		goto error;
 	}
 
@@ -1731,9 +1727,10 @@ error:
 }
 
 static artik_error sdr_start_registration_async(
-	const char *cert_name, const char *device_type_id, const char *vendor_id,
+	artik_secure_element_config *se_config, const char *device_type_id, const char *vendor_id,
 	artik_cloud_callback callback, void *user_data)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		NULL,
@@ -1745,7 +1742,10 @@ static artik_error sdr_start_registration_async(
 	if (!callback)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_start_registration(&akc_http_request,
 									device_type_id,
 									vendor_id);
@@ -1753,9 +1753,10 @@ static artik_error sdr_start_registration_async(
 }
 
 static artik_error sdr_start_registration(
-	const char *cert_name, const char *device_type_id, const char *vendor_id,
+	artik_secure_element_config *se_config, const char *device_type_id, const char *vendor_id,
 	char **response)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		response,
@@ -1767,7 +1768,11 @@ static artik_error sdr_start_registration(
 	if (!response)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_start_registration(&akc_http_request,
 								   device_type_id,
 								   vendor_id);
@@ -1800,9 +1805,10 @@ static artik_error _sdr_registration_status(
 }
 
 static artik_error sdr_registration_status_async(
-	const char *cert_name, const char *reg_id,
+	artik_secure_element_config *se_config, const char *reg_id,
 	artik_cloud_callback callback, void *user_data)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		NULL,
@@ -1814,14 +1820,18 @@ static artik_error sdr_registration_status_async(
 	if (!callback)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_registration_status(&akc_http_request, reg_id);
 }
 
 static artik_error sdr_registration_status(
-	const char *cert_name, const char *reg_id,
+	artik_secure_element_config *se_config, const char *reg_id,
 	char **response)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		response,
@@ -1833,7 +1843,10 @@ static artik_error sdr_registration_status(
 	if (!response)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_registration_status(&akc_http_request, reg_id);
 }
 
@@ -1882,9 +1895,10 @@ static artik_error _sdr_complete_registration(
 }
 
 static artik_error sdr_complete_registration_async(
-	const char *cert_name, const char *reg_id, const char *reg_nonce,
+	artik_secure_element_config *se_config, const char *reg_id, const char *reg_nonce,
 	artik_cloud_callback callback, void *user_data)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		NULL,
@@ -1896,14 +1910,18 @@ static artik_error sdr_complete_registration_async(
 	if (!callback)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_complete_registration(&akc_http_request, reg_id, reg_nonce);
 }
 
 static artik_error sdr_complete_registration(
-	const char *cert_name, const char *reg_id, const char *reg_nonce,
+	artik_secure_element_config *se_config, const char *reg_id, const char *reg_nonce,
 	char **response)
 {
+	artik_error ret;
 	artik_ssl_config ssl;
 	artik_cloud_http_request akc_http_request = {
 		response,
@@ -1915,7 +1933,10 @@ static artik_error sdr_complete_registration(
 	if (!response)
 		return E_BAD_ARGS;
 
-	_sdr_fill_ssl_config(&ssl, cert_name);
+	ret = _sdr_fill_ssl_config(&ssl, se_config);
+	if (ret != S_OK)
+		return ret;
+
 	return _sdr_complete_registration(&akc_http_request, reg_id, reg_nonce);
 }
 
@@ -1970,7 +1991,7 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 	artik_websocket_config config;
 	cloud_node *node;
 	char port[4];
-	char *host = (ssl_config != NULL && ssl_config->secure) ?
+	char *host = (ssl_config != NULL && ssl_config->se_config) ?
 			ARTIK_CLOUD_SECURE_WEBSOCKET_HOST :	ARTIK_CLOUD_WEBSOCKET_HOST;
 	char *path = ARTIK_CLOUD_WEBSOCKET_PATH;
 
@@ -2001,7 +2022,7 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 	if (ssl_config != NULL)
 		config.ssl_config = *ssl_config;
 	else {
-		config.ssl_config.secure = false;
+		config.ssl_config.se_config = NULL;
 		config.ssl_config.verify_cert = ARTIK_SSL_VERIFY_NONE;
 		config.ssl_config.client_cert.data = NULL;
 		config.ssl_config.client_cert.len = 0;

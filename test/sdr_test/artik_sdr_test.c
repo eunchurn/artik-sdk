@@ -68,6 +68,7 @@ static artik_error test_cloud_sdr_registration(void)
 	artik_cloud_module *cloud = (artik_cloud_module *)
 					artik_request_api_module("cloud");
 	artik_error ret = S_OK;
+	artik_secure_element_config se_config;
 	char *response = NULL;
 	char *reg_id = NULL;
 	char *reg_nonce = NULL;
@@ -78,8 +79,11 @@ static artik_error test_cloud_sdr_registration(void)
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
+	se_config.key_id = "ARTIK/0";
+	se_config.key_algo = ECC_SEC_P256R1;
+
 	/* Start registration process */
-	ret = cloud->sdr_start_registration("ARTIK/0", sdr_device_type_id,
+	ret = cloud->sdr_start_registration(&se_config, sdr_device_type_id,
 			sdr_vendor_id, &response);
 	if (ret != S_OK) {
 		if (response)
@@ -111,7 +115,7 @@ static artik_error test_cloud_sdr_registration(void)
 
 	/* Wait for user to enter the PIN */
 	while (true) {
-		ret = cloud->sdr_registration_status("ARTIK/0", reg_id, &response);
+		ret = cloud->sdr_registration_status(&se_config, reg_id, &response);
 		if (ret != S_OK) {
 			fprintf(stdout,
 				"TEST: %s failed to get status (err=%d)\n",
@@ -159,7 +163,7 @@ static artik_error test_cloud_sdr_registration(void)
 	}
 
 	/* Finalize the registration */
-	ret = cloud->sdr_complete_registration("ARTIK/0", reg_id, reg_nonce, &response);
+	ret = cloud->sdr_complete_registration(&se_config, reg_id, reg_nonce, &response);
 	if (ret != S_OK) {
 		fprintf(stdout,
 			"TEST: %s Complete registration failed (err=%d)\n",
@@ -289,12 +293,23 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 {
 	artik_security_module *security = NULL;
 	artik_security_handle sec_handle = NULL;
+	artik_secure_element_config *se_config = NULL;
 
-	ssl->secure = true;
+	se_config =  malloc(sizeof(artik_secure_element_config));
+	if (!se_config) {
+		fprintf(stderr, "Failed to allocate memory\n");
+		return E_SECURITY_ERROR;
+	}
+
+	se_config->key_id = cert_name;
+	se_config->key_algo = ECC_SEC_P256R1;
+	ssl->se_config = se_config;
+
 	security = (artik_security_module *)artik_request_api_module("security");
 	if (security->request(&sec_handle) != S_OK) {
 		fprintf(stderr, "Failed to request security module");
 		artik_release_api_module(security);
+		free(se_config);
 		return E_SECURITY_ERROR;
 	}
 
@@ -320,6 +335,8 @@ error:
 		free(ssl->client_cert.data);
 	if (ssl->client_key.data)
 		free(ssl->client_key.data);
+	if (ssl->se_config)
+		free(ssl->se_config);
 	security->release(&sec_handle);
 	artik_release_api_module(security);
 	return E_SECURITY_ERROR;
@@ -386,6 +403,9 @@ static artik_error test_websocket_sdr(void)
 	loop->run();
 
 	cloud->websocket_close_stream(handle);
+
+	if (ssl_config.se_config)
+		free(ssl_config.se_config);
 
 	fprintf(stdout, "TEST: %s finished\n", __func__);
 

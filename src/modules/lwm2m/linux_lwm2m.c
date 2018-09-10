@@ -257,6 +257,45 @@ static bool check_lwm2m_uri(const char *uri)
 	return ret;
 }
 
+static char *create_key_uri(artik_secure_element_config *se_config)
+{
+	const char *prefix;
+	char *engine_key_uri;
+
+	switch (se_config->key_algo) {
+	case RSA_1024:
+		prefix = "rsa1024://";
+		break;
+	case RSA_2048:
+		prefix = "rsa2048://";
+		break;
+	case ECC_BRAINPOOL_P256R1:
+		prefix = "bp256://";
+		break;
+	case ECC_SEC_P256R1:
+		prefix = "ec256://";
+		break;
+	case ECC_SEC_P384R1:
+		prefix = "ec384://";
+		break;
+	case ECC_SEC_P521R1:
+		prefix = "ec521://";
+		break;
+	default:
+		log_dbg("algo %d not supported", se_config->key_algo);
+		return NULL;
+	}
+
+	engine_key_uri = malloc(strlen(prefix) + strlen(se_config->key_id) + 1);
+	if (!engine_key_uri)
+		return NULL;
+
+	strcpy(engine_key_uri, prefix);
+	strcat(engine_key_uri, se_config->key_id);
+
+	return engine_key_uri;
+}
+
 static bool ssl_context_callback(void *ssl_ctx, void *user_data)
 {
 	X509 *cert = NULL;
@@ -266,6 +305,7 @@ static bool ssl_context_callback(void *ssl_ctx, void *user_data)
 	artik_ssl_config *ssl = user_data;
 	SSL_CTX *ctx = (SSL_CTX *)ssl_ctx;
 	bool ret = false;
+	char *uri = NULL;
 
 	security = (artik_security_module *)
 		artik_request_api_module("security");
@@ -285,7 +325,15 @@ static bool ssl_context_callback(void *ssl_ctx, void *user_data)
 		goto exit;
 	}
 
-	pkey = ENGINE_load_private_key(engine, "ec256://ARTIK/0", NULL, NULL);
+	uri = create_key_uri(ssl->se_config);
+	if (!uri) {
+		log_dbg("Failed to create key uri");
+		goto exit;
+	}
+
+	pkey = ENGINE_load_private_key(engine,
+								   uri, NULL, NULL);
+			free(uri);
 	if (!pkey) {
 		log_dbg("Failed to load private key from artiksee");
 		goto exit;
@@ -393,6 +441,7 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	strncpy(server->client_name, config->name, LWM2M_MAX_STR_LEN - 1);
 	server->securityMode = LWM2M_SEC_MODE_PSK;
 
+	log_dbg("config->ssl_config = %p", config->ssl_config);
 	if (config->ssl_config) {
 		if (!config->tls_psk_key) {
 			ret = E_BAD_ARGS;
@@ -400,12 +449,14 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 		}
 
 		server->verifyCert = config->ssl_config->verify_cert == ARTIK_SSL_VERIFY_REQUIRED;
-
+		log_dbg("Check cert mode");
 		if (config->ssl_config->client_cert.data && config->ssl_config->client_cert.len
 			&& config->ssl_config->client_key.data && config->ssl_config->client_key.len) {
 			server->clientCertificateOrPskId = strdup(config->ssl_config->client_cert.data);
 			server->privateKey = strdup(config->ssl_config->client_key.data);
 			server->securityMode = LWM2M_SEC_MODE_CERT;
+			log_dbg("Cert Mode");
+			log_dbg("server->clientCertif = %s", server->clientCertificateOrPskId);
 		} else if (!config->ssl_config->client_cert.data && !config->ssl_config->client_cert.len
 				   && !config->ssl_config->client_key.data && !config->ssl_config->client_key.len) {
 			if (!config->tls_psk_identity) {
@@ -480,7 +531,7 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	node->container = objects;
 
 	/* Configure the client */
-	if (config->ssl_config)
+	if (config->ssl_config->se_config)
 		node->client = lwm2m_client_start(node->container,
 				node->container->server->serverCertificate,
 				ssl_context_callback, config->ssl_config);
@@ -491,6 +542,7 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 		log_dbg("lwm2m_client error");
 		return E_BAD_ARGS;
 	}
+
 	*handle = (artik_lwm2m_handle)node;
 
 	return S_OK;

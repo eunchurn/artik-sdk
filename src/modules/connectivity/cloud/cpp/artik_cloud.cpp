@@ -206,47 +206,47 @@ artik_error artik::Cloud::set_device_server_properties_async(
 }
 
 artik_error artik::Cloud::sdr_start_registration(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* device_type_id, const char* vendor_id, char **response) {
-  return m_module->sdr_start_registration(cert_name, device_type_id, vendor_id,
+  return m_module->sdr_start_registration(se_config, device_type_id, vendor_id,
                                           response);
 }
 
 artik_error artik::Cloud::sdr_start_registration_async(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* device_type_id, const char* vendor_id,
     artik_cloud_callback callback, void *user_data) {
-  return m_module->sdr_start_registration_async(cert_name, device_type_id,
+  return m_module->sdr_start_registration_async(se_config, device_type_id,
     vendor_id, callback, user_data);
 }
 
 artik_error artik::Cloud::sdr_registration_status(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* reg_id,
     char **response) {
-  return m_module->sdr_registration_status(cert_name, reg_id, response);
+  return m_module->sdr_registration_status(se_config, reg_id, response);
 }
 
 artik_error artik::Cloud::sdr_registration_status_async(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* reg_id,
     artik_cloud_callback callback, void *user_data) {
-  return m_module->sdr_registration_status_async(cert_name, reg_id,
+  return m_module->sdr_registration_status_async(se_config, reg_id,
     callback, user_data);
 }
 
 artik_error artik::Cloud::sdr_complete_registration(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* reg_id, const char* reg_nonce, char **response) {
-  return m_module->sdr_complete_registration(cert_name, reg_id, reg_nonce,
+  return m_module->sdr_complete_registration(se_config, reg_id, reg_nonce,
                                              response);
 }
 
 artik_error artik::Cloud::sdr_complete_registration_async(
-    const char *cert_name,
+    artik_secure_element_config *se_config,
     const char* reg_id, const char* reg_nonce,
     artik_cloud_callback callback, void *user_data) {
-  return m_module->sdr_complete_registration_async(cert_name, reg_id, reg_nonce,
+  return m_module->sdr_complete_registration_async(se_config, reg_id, reg_nonce,
                                              callback, user_data);
 }
 
