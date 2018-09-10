@@ -192,7 +192,7 @@ typedef struct {
 	/*!
 	 * \brief Secret key for PSK based DTLS/TLS connection
 	 *
-	 * This parameter is needed in Certificate mode, beacause in TCP
+	 * This parameter is needed in Certificate mode, because in TCP
 	 * the PSK is passed in query parameters.
 	 */
 	char *tls_psk_key;
