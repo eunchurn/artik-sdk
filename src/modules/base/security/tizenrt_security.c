@@ -1358,11 +1358,6 @@ artik_error os_security_get_ec_pubkey_from_cert(const char *cert, char **key)
 	}
 
 	key_len = strlen((char *)buf) + 1;
-	if (key_len <= 0) {
-		log_err("Wrong size of key");
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_SECURITY_ERROR;
-	}
 
 	*key = malloc(key_len);
 	if (!*key) {
