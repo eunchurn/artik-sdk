@@ -40,58 +40,108 @@ CFLAGS += -I$(ARTIK_SDK_DIR)/inc/mqtt
 CFLAGS += -I$(TOPDIR)/../apps/include/netutils
 
 # Base
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/artik_log.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/log/tizenrt_log.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/module/artik_module.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/module/tizenrt_module.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/artik_time.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/time/tizenrt_time.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/artik_security.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt_security.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt/mbedtls_pkcs7_parser.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/utils/artik_utils.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/base/utils/tizenrt_utils.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/log/artik_log.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/log/tizenrt_log.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/module/artik_module.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/module/tizenrt_module.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/time/artik_time.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/time/tizenrt_time.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/security/artik_security.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt_security.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/security/tizenrt/mbedtls_pkcs7_parser.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/utils/artik_utils.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/base/utils/tizenrt_utils.c)
 
 # SystemIO
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/artik_adc.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/adc/tizenrt_adc.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/artik_gpio.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/tizenrt_gpio.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/artik_i2c.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/tizenrt_i2c.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/artik_pwm.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/tizenrt_pwm.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/spi/artik_spi.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/spi/tizenrt_spi.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/artik_serial.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/systemio/serial/tizenrt_serial.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/adc/artik_adc.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/adc/tizenrt_adc.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/artik_gpio.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/gpio/tizenrt_gpio.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/artik_i2c.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/i2c/tizenrt_i2c.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/artik_pwm.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/pwm/tizenrt_pwm.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/spi/artik_spi.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/spi/tizenrt_spi.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/serial/artik_serial.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/systemio/serial/tizenrt_serial.c)
 
 # Network
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/artik_network.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/common_network.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt_network.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt/dns_utils.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/artik_http.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/common_http.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt_http.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt/webclient.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/artik_websocket.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/tizenrt_websocket.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/connectivity/cloud/artik_cloud.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/network/artik_network.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/network/common_network.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt_network.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/network/tizenrt/dns_utils.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/http/artik_http.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/http/common_http.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt_http.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/http/tizenrt/webclient.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/artik_websocket.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/websocket/tizenrt_websocket.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/connectivity/cloud/artik_cloud.c)
 
 # Wifi
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/wifi/artik_wifi.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/wifi/tizenrt/tizenrt_wifi.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/wifi/artik_wifi.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/wifi/tizenrt/tizenrt_wifi.c)
 
 # MQTT
 CFLAGS += -I$(TOPDIR)/../apps/netutils/mqtt/lib
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/artik_mqtt.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/os_mqtt.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/mqtt/tizenrt/mqtt_client.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/mqtt/artik_mqtt.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/mqtt/os_mqtt.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/mqtt/tizenrt/mqtt_client.c)
 
 # LWM2M
 CFLAGS += -I$(TOPDIR)/../external/wakaama-client/lwm2mclient
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/lwm2m/artik_lwm2m.c
-CSRCS += $(ARTIK_SDK_DIR)/src/modules/lwm2m/tizenrt_lwm2m.c
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/lwm2m/artik_lwm2m.c)
+CSRCS += $(notdir $(ARTIK_SDK_DIR)/src/modules/lwm2m/tizenrt_lwm2m.c)
+
+DEPPATH += --dep-path artik-sdk
+DEPPATH += --dep-path artik-sdk/src/modules/base/log
+DEPPATH += --dep-path artik-sdk/src/modules/base/module
+DEPPATH += --dep-path artik-sdk/src/modules/base/time
+DEPPATH += --dep-path artik-sdk/src/modules/base/security
+DEPPATH += --dep-path artik-sdk/src/modules/base/security/tizenrt
+DEPPATH += --dep-path artik-sdk/src/modules/base/utils
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/adc
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/gpio
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/i2c
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/pwm
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/spi
+DEPPATH += --dep-path artik-sdk/src/modules/systemio/serial
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/network
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/network/tizenrt
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/http
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/http/tizenrt
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/websocket
+DEPPATH += --dep-path artik-sdk/src/modules/connectivity/cloud
+DEPPATH += --dep-path artik-sdk/src/modules/wifi
+DEPPATH += --dep-path artik-sdk/src/modules/wifi/tizenrt
+DEPPATH += --dep-path artik-sdk/src/modules/mqtt
+DEPPATH += --dep-path artik-sdk/src/modules/mqtt/tizenrt
+DEPPATH += --dep-path artik-sdk/src/modules/lwm2m
+
+VPATH += :artik-sdk
+VPATH += :artik-sdk/src/modules/base/log
+VPATH += :artik-sdk/src/modules/base/module
+VPATH += :artik-sdk/src/modules/base/time
+VPATH += :artik-sdk/src/modules/base/security
+VPATH += :artik-sdk/src/modules/base/security/tizenrt
+VPATH += :artik-sdk/src/modules/base/utils
+VPATH += :artik-sdk/src/modules/systemio/adc
+VPATH += :artik-sdk/src/modules/systemio/gpio
+VPATH += :artik-sdk/src/modules/systemio/i2c
+VPATH += :artik-sdk/src/modules/systemio/pwm
+VPATH += :artik-sdk/src/modules/systemio/spi
+VPATH += :artik-sdk/src/modules/systemio/serial
+VPATH += :artik-sdk/src/modules/connectivity/network
+VPATH += :artik-sdk/src/modules/connectivity/network/tizenrt
+VPATH += :artik-sdk/src/modules/connectivity/http
+VPATH += :artik-sdk/src/modules/connectivity/http/tizenrt
+VPATH += :artik-sdk/src/modules/connectivity/websocket
+VPATH += :artik-sdk/src/modules/connectivity/cloud
+VPATH += :artik-sdk/src/modules/wifi
+VPATH += :artik-sdk/src/modules/wifi/tizenrt
+VPATH += :artik-sdk/src/modules/mqtt
+VPATH += :artik-sdk/src/modules/mqtt/tizenrt
+VPATH += :artik-sdk/src/modules/lwm2m
 
 endif
