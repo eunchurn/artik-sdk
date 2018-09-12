@@ -55,6 +55,7 @@ static artik_list *verify_nodes = NULL;
 #define PEM_END_PUBKEY          "-----END PUBLIC KEY-----"
 #define PEM_BEGIN_EC_PRIV_KEY   "-----BEGIN EC PRIVATE KEY-----"
 #define PEM_END_EC_PRIV_KEY     "-----END EC PRIVATE KEY-----"
+#define SEE_MAX_DATA_STORAGE_SZ	208
 
 artik_error os_security_request(artik_security_handle *handle)
 {
@@ -736,14 +737,14 @@ artik_error os_security_read_secure_storage(artik_security_handle handle,
 	int ret = 0;
 
 	if (!node || !data_name || !data || !data_size ||
-			(offset + read_size > SEE_MAX_DATA_SIZE))
+			(offset + read_size > SEE_MAX_DATA_STORAGE_SZ))
 		return E_BAD_ARGS;
 
 	if (!g_see_dev || !g_see_dev->read_secure_storage)
 		return E_NOT_SUPPORTED;
 
 	memset(&storage_data, 0, sizeof(storage_data));
-	ret = g_see_dev->read_secure_storage(data_name, 0, SEE_MAX_DATA_SIZE,
+	ret = g_see_dev->read_secure_storage(data_name, 0, SEE_MAX_DATA_STORAGE_SZ,
 			&storage_data);
 	if (ret) {
 		log_err("Failed to read secure storage (0x%08x)\n", ret);
