@@ -202,17 +202,8 @@ static artik_error init_client_ssl_config(
 #endif
 
 	if (a_ssl_config->se_config) {
-		artik_security_handle handle;
-		artik_error err = S_OK;
-		unsigned char *se_cert = NULL;
-		unsigned int se_cert_len = 0;
-		artik_security_module *security = NULL;
-
-		security = (artik_security_module *)
-				artik_request_api_module("security");
-		if (!security) {
-			log_err("Security module is not available\n");
-			ret = E_NOT_SUPPORTED;
+		if (!a_ssl_config->client_cert.data || a_ssl_config->client_cert.len == 0) {
+			ret = E_BAD_ARGS;
 			goto exit;
 		}
 
@@ -228,32 +219,15 @@ static artik_error init_client_ssl_config(
 			goto exit;
 		}
 
-		err = security->request(&handle);
-		if (err != S_OK) {
-			log_err("Failed to request security instance (err=%d)\n", err);
-			ret = E_NOT_SUPPORTED;
-			goto exit;
-		}
-
-		err = security->get_certificate(handle, a_ssl_config->se_config->key_id, ARTIK_SECURITY_CERT_TYPE_PEM, &se_cert, &se_cert_len);
-		if (err != S_OK || !se_cert || se_cert_len == 0) {
-			log_err("Failed to get certificate chain (err=%d)\n", err);
-			ret = E_ACCESS_DENIED;
-			goto exit;
-		}
-
-		security->release(handle);
-		artik_release_api_module(security);
-
 		mbedtls_ssl_conf_rng(http_ssl_config->ssl->tls_conf, see_generate_random_client,
 				http_ssl_config->ctr_drbg);
 		mbedtls_x509_crt_init(http_ssl_config->cert);
 		mbedtls_pk_init(http_ssl_config->pkey);
 
 		/* Use the device cert */
-		ret = mbedtls_x509_crt_parse(http_ssl_config->cert, se_cert,
-				se_cert_len);
-		free(se_cert);
+		ret = mbedtls_x509_crt_parse(
+			http_ssl_config->cert, (unsigned char*)a_ssl_config->client_cert.data,
+			a_ssl_config->client_cert.len);
 		if (ret) {
 			log_err("Failed to parse device certificate (err=%d)", ret);
 			ret = E_BAD_ARGS;

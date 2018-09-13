@@ -310,38 +310,15 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 			server->privateKey = strdup(config->ssl_config->client_key.data);
 			server->securityMode = LWM2M_SEC_MODE_CERT;
 		} else if (config->ssl_config->se_config) {
-			unsigned char *se_cert = NULL;
-			unsigned int se_cert_len = 0;
-			security = (artik_security_module *)artik_request_api_module("security");
-			if (!security) {
-				log_dbg("Unable to request security module");
-				ret = E_SECURITY_ERROR;
+			if (!config->ssl_config->client_cert.data || config->ssl_config->client_cert.len == 0) {
+				ret = E_BAD_ARGS;
 				goto error;
 			}
 
-			ret = security->request(&sec_handle);
-			if (ret != S_OK) {
-				log_dbg("Unable to request security handle");
-				artik_release_api_module(security);
-				goto error;
-			}
-
-			ret = security->get_certificate(sec_handle, config->ssl_config->se_config->key_id, ARTIK_SECURITY_CERT_TYPE_PEM, &se_cert, &se_cert_len);
-			if (ret != S_OK || !se_cert || se_cert_len == 0) {
-				security->release(sec_handle);
-				artik_release_api_module(security);
-				log_dbg("Unable to get certificate (err %d)", ret);
-				goto error;
-			}
-
-			/* Use the device cert */
-			server->clientCertificateOrPskId = strdup((char*)se_cert);
-
+			server->clientCertificateOrPskId = strdup(config->ssl_config->client_cert.data);
 			if (server->clientCertificateOrPskId == NULL) {
 				security->release(sec_handle);
-				artik_release_api_module(security);
-				free(se_cert);
-				ret = -1;
+				ret = E_NO_MEM;
 				log_dbg("Failed to malloc (err=%d)\n", ret);
 				goto error;
 			}
@@ -349,37 +326,32 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 			node->device_cert = malloc(sizeof(mbedtls_x509_crt));
 			if (!node->device_cert) {
 				security->release(sec_handle);
-				artik_release_api_module(security);
-				free(se_cert);
-				ret = -1;
+				ret = E_NO_MEM;
 				log_dbg("Failed to malloc (err=%d)\n", ret);
 				goto error;
 			}
 
 			mbedtls_x509_crt_init(node->device_cert);
-			if (mbedtls_x509_crt_parse(node->device_cert,
-									   se_cert,
-									   strlen((char *)se_cert) + 1) != 0) {
+			if (mbedtls_x509_crt_parse(
+					node->device_cert,
+					(unsigned char *)config->ssl_config->client_cert.data,
+					config->ssl_config->client_cert.len) != 0) {
 				security->release(sec_handle);
-				artik_release_api_module(security);
-				free(se_cert);
-				ret = -1;
+				ret = E_BAD_ARGS;
 				log_dbg("Failed to parse device certificate (err=%d)\n", ret);
 				goto error;
 			}
-			free(se_cert);
 
 			node->device_pkey = malloc(sizeof(mbedtls_pk_context));
 			if (!node->device_pkey) {
 				security->release(sec_handle);
 				artik_release_api_module(security);
-				ret = -1;
+				ret = E_NO_MEM;
 				log_dbg("Failed to malloc (err=%d)\n", ret);
 				goto error;
 			}
 
 			mbedtls_pk_init(node->device_pkey);
-
 			if (mbedtls_pk_setup(node->device_pkey, mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY)) != 0) {
 				log_dbg("Failed to setup device private key");
 				goto error;
@@ -392,8 +364,6 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 
 			use_se = true;
 			server->securityMode = LWM2M_SEC_MODE_CERT;
-			security->release(sec_handle);
-			artik_release_api_module(security);
 		} else if (!config->ssl_config->client_cert.data && !config->ssl_config->client_cert.len
 				   && !config->ssl_config->client_key.data && !config->ssl_config->client_key.len) {
 			if (!config->tls_psk_identity) {
