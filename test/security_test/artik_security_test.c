@@ -1961,7 +1961,6 @@ static int security_set_compute_dhm_params(void)
 	unsigned char *secret = NULL;
 	unsigned int secretlen = 0;
 
-#if 0
 	unsigned char dh1024_key[] = {
 			0x30, 0x82, 0x01, 0x21, 0x02, 0x01, 0x00, 0x30, 0x81, 0x95, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86
 			, 0xf7, 0x0d, 0x01, 0x03, 0x01, 0x30, 0x81, 0x87, 0x02, 0x81, 0x81, 0x00, 0xf4, 0x50, 0x46, 0xbb
@@ -2308,7 +2307,6 @@ static int security_set_compute_dhm_params(void)
 			{sizeof(dh2048_key), sizeof(dh2048_key_pub), sizeof(dh2048_secret)},
 			{sizeof(dh2048_5114_key), sizeof(dh2048_5114_key_pub), sizeof(dh2048_5114_secret)}
 	};
-#endif
 
 	unsigned char dh1024_pg[] = {
 			0x30, 0x81, 0x87, 0x02, 0x81, 0x81, 0x00, 0xcb, 0x00, 0x32, 0x75, 0x58, 0xf1, 0xd4, 0x4b, 0xe8
@@ -2423,7 +2421,7 @@ static int security_set_compute_dhm_params(void)
 		err = -1;
 		goto exit;
 	}
-#if 0
+
 	/*
 	 * Validation Test
 	 */
@@ -2472,7 +2470,7 @@ static int security_set_compute_dhm_params(void)
 			secretlen = 0;
 		}
 	}
-#endif
+
 	/*
 	 * Function Test
 	 */
@@ -2548,7 +2546,6 @@ static int security_set_compute_ecdh_params(void)
 		ECC_BRAINPOOL_P256R1, ECC_SEC_P256R1, ECC_SEC_P384R1, ECC_SEC_P521R1
 	};
 
-#if 0
 	unsigned char brainpool256_key[] = {
 		0x30, 0x78, 0x02, 0x01, 0x01, 0x04, 0x20, 0x99, 0xB4, 0xFA, 0x33, 0xAC, 0x80, 0xAF, 0xD2, 0x49,
 		0x7C, 0x99, 0x03, 0x3A, 0x38, 0x82, 0xB2, 0x1E, 0xD7, 0xED, 0xD5, 0x6A, 0xE6, 0xC7, 0xB8, 0xA6,
@@ -2643,7 +2640,6 @@ static int security_set_compute_ecdh_params(void)
 	};
 
 	int cmp_ret = 0;
-#endif
 
 	fprintf(stderr, "------------------------------------------------------\n");
 	fprintf(stderr, "  SECURITY SDK TESTCASE : generate_compute_ecdh_params\n");
@@ -2696,7 +2692,7 @@ static int security_set_compute_ecdh_params(void)
 			secretlen = 0;
 		}
 	}
-#if 0
+
 	for (i = 0; i < sizeof(genkey_input)/sizeof(int); i++) {
 		memset(key_name, 0, sizeof(key_name));
 		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
@@ -2705,14 +2701,15 @@ static int security_set_compute_ecdh_params(void)
 				keys_size[i]);
 		ret += security->get_publickey(handle, genkey_input[i], key_name, &pub,
 				&publen);
+		//if(!ret && pub) print_buffer("ecdh_pub", pub, publen);
 		ret += security->compute_ecdh_params(handle, key_name,
 				pub, publen, &secret, &secretlen);
+		//if(!ret && secret) print_buffer("ecdh_secret", secret, secretlen);
 		ret += security->remove_key(handle, genkey_input[i], key_name);
 
 		see_selfprintf("[%d] %s ", cnt++, keys_name[i]);
 
-		cmp_ret = memcmp(secrets[i], secret + (secrets_size[i]) % 4,
-				secrets_size[i]);
+		cmp_ret = memcmp(secrets[i], secret, secrets_size[i]);
 
 		if (ret || cmp_ret) {
 			test_result++;
@@ -2733,7 +2730,6 @@ static int security_set_compute_ecdh_params(void)
 			secretlen = 0;
 		}
 	}
-#endif
 
 exit:
 	if (pub != NULL && publen > 0) {
@@ -2790,7 +2786,6 @@ static int security_get_publickey(void)
 			0x02, 0xE2, 0xE8, 0xD1, 0x16, 0x65, 0x49, 0x00, 0x82, 0xCD, 0x15, 0xA0, 0xFD, 0x87, 0xD5, 0x49,
 			0x83, 0x03, 0x62, 0x66, 0x29, 0xD5, 0x23, 0xA9, 0x83, 0xB4, 0xCD
 	};
-#if 0
 	unsigned char rsa1024_pub[] = {
 			0x30, 0x81, 0x9F, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
 			0x05, 0x00, 0x03, 0x81, 0x8D, 0x00, 0x30, 0x81, 0x89, 0x02, 0x81, 0x81, 0x00, 0xAC, 0x5A, 0x9D,
@@ -2804,7 +2799,6 @@ static int security_get_publickey(void)
 			0xAB, 0xFF, 0x10, 0x85, 0x08, 0x60, 0x6E, 0xBD, 0xDE, 0xAF, 0xEA, 0x11, 0xB5, 0x02, 0x03, 0x01,
 			0x00, 0x01
 	};
-#endif
 
 	fprintf(stderr, "------------------------------------------------------\n");
 	fprintf(stderr, "  SECURITY SDK TESTCASE : get_publickey\n");
@@ -2869,7 +2863,6 @@ static int security_get_publickey(void)
 	free(out);
 	out = NULL;
 
-#if 0	// Injecting pub key and then getting it is not supported for now.
 	memset(key_name, 0, sizeof(key_name));
 	sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, 2);
 	ret = security->set_key(handle, ECC_SEC_P256R1, key_name, ecc_pub, sizeof(ecc_pub));
@@ -2877,6 +2870,7 @@ static int security_get_publickey(void)
 	if (security->verify_ecdsa_signature(handle, ECC_SEC_P256R1, key_name, hash, 32, sig, siglen) != 0)
 		see_selfprintf("Signature verification fail\n");
 	//print_buffer("ECC Public Key", out, outlen);
+	ret += security->remove_key(handle, ECC_SEC_P256R1, key_name);
 	see_selfprintf("[%d] ", cnt++);
 	if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
 		test_result++;
@@ -2887,9 +2881,7 @@ static int security_get_publickey(void)
 
 	free(out);
 	out = NULL;
-#endif
 
-#if 0
 	ret = security->set_key(handle, RSA_1024, key_name, rsa1024_pub, sizeof(rsa1024_pub));
 	ret += security->get_publickey(handle, RSA_1024, key_name, &out, &outlen);
 	//print_buffer("RSA Public Key", out, outlen);
@@ -2904,7 +2896,6 @@ static int security_get_publickey(void)
 
 	free(out);
 	out = NULL;
-#endif
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));

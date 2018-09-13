@@ -330,7 +330,6 @@ static unsigned char test_ecdsa_384_dev_nist[167] = {
   0x62, 0xD8, 0xE1, 0x4D, 0xFB, 0xA1, 0x4F, 0xCC, 0x5C, 0x7E, 0x8A
 };
 
-#if 0
 static unsigned char dh1024_key[] = {
       0x30, 0x82, 0x01, 0x21, 0x02, 0x01, 0x00, 0x30, 0x81, 0x95, 0x06, 0x09,
       0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x03, 0x01, 0x30, 0x81, 0x87,
@@ -762,8 +761,6 @@ static unsigned char dh2048_5114_secret[] = {
       0x62, 0xA4, 0x81, 0xCF, 0x4E, 0x03, 0xEA, 0xDE, 0xFA, 0x1A, 0xB6, 0x94,
       0x69, 0x8B, 0x11, 0x9D
   };
-
-#endif
 
 static unsigned char dh1024_pg[] = {
       0x30, 0x81, 0x87, 0x02, 0x81, 0x81, 0x00, 0xcb, 0x00, 0x32, 0x75, 0x58,
@@ -2271,7 +2268,6 @@ static int security_set_compute_dhm_params(artik::Security *security) {
   unsigned char *secret = NULL;
   unsigned int secretlen = 0;
 
-#if 0
   unsigned int algo;
   unsigned char *input_key[][3] = {
       {dh1024_key, dh1024_key_pub, dh1024_secret},
@@ -2287,7 +2283,7 @@ static int security_set_compute_dhm_params(artik::Security *security) {
       {sizeof(dh2048_5114_key), sizeof(dh2048_5114_key_pub),
        sizeof(dh2048_5114_secret)}
   };
-#endif
+
   unsigned char *input_param[] = {
       dh1024_pg, dh1024_5114_pg, dh2048_pg, dh2048_5114_pg
   };
@@ -2300,7 +2296,6 @@ static int security_set_compute_dhm_params(artik::Security *security) {
   fprintf(stderr, "  SECURITY SDK TESTCASE : generate_compute_dhm_params\n");
   fprintf(stderr, "------------------------------------------------------\n");
 
-#if 0
   /*
    * Validation Test
    */
@@ -2313,14 +2308,14 @@ static int security_set_compute_dhm_params(artik::Security *security) {
     else
       algo = DH_2048;
 
-    ret = security->set_key(algo, key_name, input_key[i][0],
+    ret = security->set_key((see_algorithm) algo, key_name, input_key[i][0],
                             input_key_size[i][0]);
     // if(!ret && pub) print_buffer("dh_pub", pub, publen);
     ret += security->compute_dhm_params(key_name,
         input_key[i][1], input_key_size[i][1],
         &secret, &secretlen);
     // if(!ret && secret) print_buffer("dh_secret", secret, secretlen);
-    ret += security->remove_key(algo, key_name);
+    ret += security->remove_key((see_algorithm) algo, key_name);
 
     see_selfprintf("[%d] ", cnt++);
 
@@ -2350,7 +2345,7 @@ static int security_set_compute_dhm_params(artik::Security *security) {
       secretlen = 0;
     }
   }
-#endif
+
   /*
    * Function Test
    */
@@ -2415,7 +2410,6 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
     ECC_BRAINPOOL_P256R1, ECC_SEC_P256R1, ECC_SEC_P384R1, ECC_SEC_P521R1
   };
 
-#if 0
   unsigned char brainpool256_key[] = {
     0x30, 0x78, 0x02, 0x01, 0x01, 0x04, 0x20, 0x99, 0xB4, 0xFA, 0x33, 0xAC,
     0x80, 0xAF, 0xD2, 0x49, 0x7C, 0x99, 0x03, 0x3A, 0x38, 0x82, 0xB2, 0x1E,
@@ -2529,7 +2523,6 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
   };
 
   int cmp_ret = 0;
-#endif
 
   fprintf(stderr, "------------------------------------------------------\n");
   fprintf(stderr, "  SECURITY SDK TESTCASE : generate_compute_ecdh_params\n");
@@ -2568,23 +2561,22 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
       secretlen = 0;
     }
   }
-#if 0
+
   for (i = 0; i < sizeof(genkey_input)/sizeof(int); i++) {
     memset(key_name, 0, sizeof(key_name));
     snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
-    ret = security->set_key(genkey_input[i], key_name, keys[i],
+    ret = security->set_key((see_algorithm) genkey_input[i], key_name, keys[i],
         keys_size[i]);
-    ret += security->get_publickey(genkey_input[i], key_name, &pub,
-        &publen);
+    ret += security->get_publickey((see_algorithm) genkey_input[i], key_name,
+        &pub, &publen);
     ret += security->compute_ecdh_params(key_name,
         pub, publen, &secret, &secretlen);
-    ret += security->remove_key(genkey_input[i], key_name);
+    ret += security->remove_key((see_algorithm) genkey_input[i], key_name);
 
     see_selfprintf("[%d] %s ", cnt++, keys_name[i]);
 
-    cmp_ret = memcmp(secrets[i], secret + (secrets_size[i]) % 4,
-        secrets_size[i]);
+    cmp_ret = memcmp(secrets[i], secret, secrets_size[i]);
 
     if (ret || cmp_ret) {
       test_result++;
@@ -2605,7 +2597,6 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
       secretlen = 0;
     }
   }
-#endif
 
   if (pub != NULL && publen > 0) {
     free(pub);
@@ -2656,7 +2647,7 @@ static int security_get_publickey(artik::Security *security) {
       0x82, 0xCD, 0x15, 0xA0, 0xFD, 0x87, 0xD5, 0x49, 0x83, 0x03, 0x62, 0x66,
       0x29, 0xD5, 0x23, 0xA9, 0x83, 0xB4, 0xCD
   };
-#if 0
+
   unsigned char rsa1024_pub[] = {
       0x30, 0x81, 0x9F, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7,
       0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x81, 0x8D, 0x00, 0x30, 0x81,
@@ -2673,7 +2664,6 @@ static int security_get_publickey(artik::Security *security) {
       0xAB, 0xFF, 0x10, 0x85, 0x08, 0x60, 0x6E, 0xBD, 0xDE, 0xAF, 0xEA, 0x11,
       0xB5, 0x02, 0x03, 0x01, 0x00, 0x01
   };
-#endif
 
   fprintf(stderr, "------------------------------------------------------\n");
   fprintf(stderr, "  SECURITY SDK TESTCASE : get_publickey\n");
@@ -2728,7 +2718,6 @@ static int security_get_publickey(artik::Security *security) {
   free(out);
   out = NULL;
 
-#if 0  // Injecting pub key and then getting it is not supported for now.
   memset(key_name, 0, sizeof(key_name));
   snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 2);
   ret = security->set_key(ECC_SEC_P256R1, key_name, ecc_pub, sizeof(ecc_pub));
@@ -2737,6 +2726,7 @@ static int security_get_publickey(artik::Security *security) {
                                        hash, 32, sig, siglen) != 0)
     see_selfprintf("Signature verification fail\n");
   // print_buffer("ECC Public Key", out, outlen);
+  ret += security->remove_key(ECC_SEC_P256R1, key_name);
   see_selfprintf("[%d] ", cnt++);
   if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
     test_result++;
@@ -2747,9 +2737,7 @@ static int security_get_publickey(artik::Security *security) {
 
   free(out);
   out = NULL;
-#endif
 
-#if 0
   ret = security->set_key(RSA_1024, key_name, rsa1024_pub, sizeof(rsa1024_pub));
   ret += security->get_publickey(RSA_1024, key_name, &out, &outlen);
   // print_buffer("RSA Public Key", out, outlen);
@@ -2764,7 +2752,6 @@ static int security_get_publickey(artik::Security *security) {
 
   free(out);
   out = NULL;
-#endif
 
   for (i = 0; i < 9; i++) {
     memset(key_name, 0, sizeof(key_name));
