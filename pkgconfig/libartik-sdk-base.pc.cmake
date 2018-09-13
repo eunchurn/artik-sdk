@@ -2,7 +2,7 @@ prefix=/usr
 exec_prefix=/usr
 libdir=${exec_prefix}/@CMAKE_INSTALL_LIBDIR@
 includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@/artik/base
-version=1.8
+version=1.9
 
 Name: ARTIK SDK Base
 Description: SDK Base Library for Samsung's ARTIK platforms
