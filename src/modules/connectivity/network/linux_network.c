@@ -577,8 +577,10 @@ static void clean_watch_online_status(void)
 {
 	watch_online_status->loop->remove_fd_watch(watch_online_status->watch_netlink_id);
 	watch_online_status->loop->remove_fd_watch(watch_online_status->watch_icmp_id);
-	close(watch_online_status->netlink_sock);
-	close(watch_online_status->icmp_sock);
+	if (watch_online_status->netlink_sock > 0)
+		close(watch_online_status->netlink_sock);
+	if (watch_online_status->icmp_sock > 0)
+		close(watch_online_status->icmp_sock);
 	artik_release_api_module(watch_online_status->loop);
 	free(watch_online_status);
 	watch_online_status = NULL;
