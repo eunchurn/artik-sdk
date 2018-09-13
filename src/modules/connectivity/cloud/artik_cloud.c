@@ -1997,7 +1997,7 @@ artik_error websocket_open_stream(artik_websocket_handle *handle,
 
 	log_dbg("");
 
-	if (!handle || !access_token || !ssl_config || !device_id)
+	if (!handle || !access_token || !device_id)
 		return E_BAD_ARGS;
 
 	websocket = (artik_websocket_module *)
