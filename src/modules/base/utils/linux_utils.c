@@ -28,7 +28,7 @@
 #include "artik_list.h"
 #include "artik_log.h"
 
-#define NUMBER_NSUB 5
+#define NUMBER_NSUB 6
 #define MAX_PORT UINT16_MAX
 
 typedef struct {
@@ -47,7 +47,7 @@ static artik_error init_uri_module(void)
 	int err;
 	const char *regex =
 		"([A-Za-z][A-Za-z0-9+.-]*)://([0-9A-Za-z.-]+)"
-		"(:[0-9]+)?(/[0-9A-Za-z.-_~!$&'()*+,;=:@]*)?$";
+		"(:[0-9]+)?(/[0-9A-Za-z./_~!$&'()*+,;=:@\\-]*)?(.*)?$";
 
 	g_uri.preg = malloc(sizeof(regex_t));
 	if (!g_uri.preg) {
