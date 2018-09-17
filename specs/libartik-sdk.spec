@@ -45,7 +45,6 @@ This package contains development files for building programs against the ATIK S
 %package base
 Group: Development/Libraries
 Requires: glib2
-Requires: artiksee = 0.8
 Provides: %{name}-base.so.%{version}
 Provides: %{name}-base.so.1
 Summary: Base package needed by all the other packages of the SDK
