@@ -285,6 +285,11 @@ static void get_options(const coap_pdu_t *pdu, artik_coap_option **options,
 	coap_opt_iterator_t opt_iter;
 	coap_opt_t *option;
 
+	if (*options) {
+		log_err("options must be NULL");
+		return;
+	}
+
 	*num_options = 0;
 
 	coap_option_iterator_init((coap_pdu_t *)pdu, &opt_iter, COAP_OPT_ALL);
@@ -336,6 +341,11 @@ static void get_options(const coap_pdu_t *pdu, artik_coap_option **options,
 	coap_option_iterator_init((coap_pdu_t *)pdu, &opt_iter, COAP_OPT_ALL);
 
 	while ((option = coap_option_next(&opt_iter)) && opt != end) {
+		if (opt->data) {
+			free(opt->data);
+			opt->data = NULL;
+		}
+
 		switch (opt_iter.type) {
 		case COAP_OPTION_URI_HOST:
 		case COAP_OPTION_URI_PATH:
@@ -596,7 +606,7 @@ static bool asn1_parse_key(const unsigned char *data, int data_len,
 
 		(*key) = malloc((length)*sizeof(char));
 
-		if (!*pub_key) {
+		if (!*key) {
 			log_err("Fail to allocate key");
 			return false;
 		}
@@ -857,6 +867,8 @@ static coap_session_t *get_session(coap_context_t *ctx,
 		ecdsa_keys.pub_key_x = malloc(size);
 		if (!ecdsa_keys.pub_key_x) {
 			log_err("Fail to allocate pub_key_x");
+			if (ecdsa_keys.priv_key)
+				free(ecdsa_keys.priv_key);
 			return NULL;
 		}
 		memcpy(ecdsa_keys.pub_key_x, ec_pub_key_x,
@@ -866,6 +878,10 @@ static coap_session_t *get_session(coap_context_t *ctx,
 		ecdsa_keys.pub_key_y = malloc(size);
 		if (!ecdsa_keys.pub_key_y) {
 			log_err("Fail to allocate pub_key_y");
+			if (ecdsa_keys.priv_key)
+				free(ecdsa_keys.priv_key);
+			if (ecdsa_keys.pub_key_x)
+				free(ecdsa_keys.pub_key_x);
 			return NULL;
 		}
 		memcpy(ecdsa_keys.pub_key_y, ec_pub_key_y,
@@ -1023,7 +1039,7 @@ static void message_handler(struct coap_context_t *ctx,
 	unsigned char bufBlock[4];
 	coap_pdu_t *pdu = NULL;
 	artik_coap_msg msg;
-	coap_opt_t *block_opt;
+	coap_opt_t *block_opt = NULL;
 	coap_opt_iterator_t opt_iter;
 	coap_list_t *option;
 	artik_coap_error error = ARTIK_COAP_ERROR_NONE;
@@ -1057,6 +1073,8 @@ static void message_handler(struct coap_context_t *ctx,
 			msg.data = malloc(len+1);
 			if (!msg.data) {
 				log_err("Fail to allocate msg.data");
+				if (msg.options && msg.num_options > 0)
+					free_options(&msg.options, msg.num_options);
 				return;
 			}
 			memcpy(msg.data, databuf, len);
@@ -1120,6 +1138,8 @@ static void message_handler(struct coap_context_t *ctx,
 			msg.data = malloc(len+1);
 			if (!msg.data) {
 				log_err("Fail to allocate msg.data");
+				if (msg.options && msg.num_options > 0)
+					free_options(&msg.options, msg.num_options);
 				return;
 			}
 			memcpy(msg.data, databuf, len);
@@ -1166,13 +1186,13 @@ static void nack_handler(struct coap_context_t *ctx,
 
 	log_dbg("");
 
-	if (!node->interface.connected)
-		return;
-
 	if (!node || !node->interface.ctx) {
 		log_err("No CoAP context exists for this handle");
 		return;
 	}
+
+	if (!node->interface.connected)
+		return;
 
 	memset(&msg, 0, sizeof(artik_coap_msg));
 
@@ -1279,6 +1299,8 @@ static void get_resource_handler(coap_context_t *ctx,
 			msg.data = malloc(len + 1);
 			if (!msg.data) {
 				log_err("Fail to allocate msg.data");
+				if (msg.options && msg.num_options > 0)
+					free_options(&msg.options, msg.num_options);
 				return;
 			}
 			memcpy(msg.data, databuf, len + 1);
@@ -2071,9 +2093,11 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 
 	if (config->psk && config->psk->identity && config->psk->psk) {
 		size_t key_len = (size_t)config->psk->psk_len;
-		uint8_t *key = malloc(key_len*sizeof(uint8_t));
+		uint8_t *key = NULL;
 
-		if (!*key) {
+		key = malloc(key_len*sizeof(uint8_t));
+
+		if (!key) {
 			log_err("Fail to allocate key");
 			ret = E_NO_MEM;
 			goto exit;
@@ -2083,7 +2107,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 		coap_context_set_psk(ctx, config->psk->identity, key, key_len);
 
 		if (key)
-			coap_free(key);
+			free(key);
 	}
 
 	if (config->ssl && config->ssl->client_cert.data
@@ -2354,6 +2378,12 @@ artik_error os_coap_stop_server(artik_coap_handle server)
 
 	data = node->interface.coap_data;
 
+	if (!data) {
+		log_err("No available data");
+		ret = E_COAP_ERROR;
+		goto exit;
+	}
+
 	if (loop->remove_idle_callback(data->loop_process_id) != S_OK) {
 		log_err("Fail to remove callback");
 		ret = E_COAP_ERROR;
@@ -2362,8 +2392,8 @@ artik_error os_coap_stop_server(artik_coap_handle server)
 
 	node->interface.started = false;
 
-	if (node->interface.coap_data)
-		free(node->interface.coap_data);
+	if (data)
+		free(data);
 
 exit:
 	artik_release_api_module(loop);

@@ -1472,19 +1472,23 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 		}
 
 	} else {
+		bool error_response = false;
+
 		if (node->packet && WANT_WKC(node->packet, key))
 			response = coap_wellknown_response(context,
 				node->session, node->packet);
-		else
+		else {
 			response = coap_new_error_response(node->packet,
 				METHOD_NOT_ALLOWED_4_05);
+			error_response = true;
+		}
 
 		if (response) {
 			if (coap_send(node->session, response) == -1)
 				log_err("cannot send response for transaction %d",
 					node->id);
 			coap_free_header(response);
-			if (response->payload)
+			if (!error_response && response->payload)
 				coap_free(response->payload);
 			coap_free(response);
 		}
