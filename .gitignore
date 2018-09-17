@@ -9,3 +9,4 @@ doc/latex
 *.swp
 .DS_Store
 tags
+.cquery_cached_index
