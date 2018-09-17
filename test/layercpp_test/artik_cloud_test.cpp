@@ -111,7 +111,6 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl,
 
   se_config->key_id = cert_name;
   se_config->key_algo = ECC_SEC_P256R1;
-  ssl->se_config = se_config;
 
   security = reinterpret_cast<artik_security_module*>(
       artik_request_api_module("security"));
@@ -122,6 +121,7 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl,
     return E_SECURITY_ERROR;
   }
 
+  ssl->se_config = se_config;
   if (security->get_certificate(sec_handle, cert_name,
       ARTIK_SECURITY_CERT_TYPE_PEM,
       (unsigned char **)&ssl->client_cert.data,

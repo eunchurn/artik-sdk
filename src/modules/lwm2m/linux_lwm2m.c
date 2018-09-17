@@ -309,6 +309,11 @@ static bool ssl_context_callback(void *ssl_ctx, void *user_data)
 
 	security = (artik_security_module *)
 		artik_request_api_module("security");
+	if (!security) {
+		log_dbg("Failed to request security module.");
+		goto exit;
+	}
+
 	if (security->load_openssl_engine() != S_OK) {
 		log_dbg("Failed to load openssl engine");
 		goto exit;
@@ -531,7 +536,7 @@ artik_error os_lwm2m_client_request(artik_lwm2m_handle *handle,
 	node->container = objects;
 
 	/* Configure the client */
-	if (config->ssl_config->se_config)
+	if (config->ssl_config && config->ssl_config->se_config)
 		node->client = lwm2m_client_start(node->container,
 				node->container->server->serverCertificate,
 				ssl_context_callback, config->ssl_config);

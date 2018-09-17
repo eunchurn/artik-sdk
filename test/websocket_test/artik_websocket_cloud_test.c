@@ -370,8 +370,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (cert_name) {
-		fill_ssl_config(&ssl_config, cert_name);
-	} else if (root_ca) {
+		if (fill_ssl_config(&ssl_config, cert_name) != S_OK) {
+			if (test_message != NULL)
+				free(test_message);
+			return -1;
+		}
+	}
+
+	if (root_ca) {
 		ssl_config.ca_cert.data = strdup(root_ca);
 		ssl_config.ca_cert.len = strlen(root_ca);
 		free(root_ca);
@@ -384,12 +390,12 @@ int main(int argc, char *argv[])
 	ret = test_websocket_read(TEST_TIMEOUT_MS, ssl_config);
 
 exit:
+	if (ssl_config.se_config)
+		free(ssl_config.se_config);
 	if (test_message != NULL)
 		free(test_message);
 	if (ssl_config.ca_cert.data != NULL)
 		free(ssl_config.ca_cert.data);
-	if (ssl_config.se_config)
-		free(ssl_config.se_config);
 
 	return (ret == S_OK) ? 0 : -1;
 }

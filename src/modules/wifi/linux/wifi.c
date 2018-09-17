@@ -97,7 +97,11 @@ int wifi_scan_request(void)
 	char buf[4096];
 
 	os_memset(buf, '\0', len);
-	_wifi_send_cmd(ctrl_conn, "SET IGNORE_OLD_SCAN_RES 1", buf, &len); //  Force to cancel the previous search.
+	/*  Force to cancel the previous search. */
+	ret = _wifi_send_cmd(ctrl_conn, "SET IGNORE_OLD_SCAN_RES 1", buf, &len);
+	if (ret != WIFI_SUCCESS)
+		return ret;
+
 	os_memset(buf, '\0', len);
 	ret = _wifi_send_cmd(ctrl_conn, "SCAN", buf, &len);
 	if (ret != WIFI_SUCCESS)

@@ -356,7 +356,12 @@ static artik_error test_websocket_sdr(void)
 
 	/* Prepare the SSL configuration */
 	memset(&ssl_config, 0, sizeof(ssl_config));
-	fill_ssl_config(&ssl_config, "ARTIK/0");
+	ret = fill_ssl_config(&ssl_config, "ARTIK/0");
+	if (ret != S_OK) {
+		artik_release_api_module(cloud);
+		artik_release_api_module(loop);
+		return ret;
+	}
 
 	fprintf(stdout, "TEST: %s starting\n", __func__);
 
@@ -404,12 +409,12 @@ static artik_error test_websocket_sdr(void)
 
 	cloud->websocket_close_stream(handle);
 
-	if (ssl_config.se_config)
-		free(ssl_config.se_config);
-
 	fprintf(stdout, "TEST: %s finished\n", __func__);
 
 exit:
+	if (ssl_config.se_config)
+		free(ssl_config.se_config);
+
 	artik_release_api_module(cloud);
 	artik_release_api_module(loop);
 

@@ -689,11 +689,16 @@ static void release_openssl_engine(void)
 	artik_security_module *security = (artik_security_module *)
 		artik_request_api_module("security");
 
+	if (!security) {
+		log_err("Failed to request security module");
+		return;
+	}
+
 	if (security->unload_openssl_engine() != S_OK)
 		log_err("Failed to unload openssl engine");
 
-	if (security)
-		artik_release_api_module(security);
+
+	artik_release_api_module(security);
 }
 
 
