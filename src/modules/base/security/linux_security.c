@@ -198,15 +198,14 @@ static EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
 }
 #endif
 
-
-static int (*see_device_init)(const char *id, const char *pwd);
-static int (*see_device_deinit)(void);
-static see_dev *(*see_device_get)(void);
 static void *g_dlopen_handle = NULL;
 static see_dev *g_see_dev = NULL;
+static see_device_init g_see_init = NULL;
+static see_device_deinit g_see_deinit = NULL;
+static see_device_get g_see_get = NULL;
 static artik_list *requested_node = NULL;
 static artik_list *verify_nodes = NULL;
-static int *dev_debug;
+static int *dev_debug = NULL;
 static bool openssl_global_init = false;
 static ENGINE *openssl_engine   = NULL;
 static int openssl_engine_refcnt = 0;
@@ -561,8 +560,8 @@ artik_error os_security_request(artik_security_handle *handle)
 {
 	security_node *node = (security_node *) artik_list_add(&requested_node,
 						0, sizeof(security_node));
-	char *error;
-	void *dlopen_handle;
+	char *error = NULL;
+	void *dlopen_handle = NULL;
 
 	if (!node)
 		return E_NO_MEM;
@@ -572,47 +571,47 @@ artik_error os_security_request(artik_security_handle *handle)
 
 	if (g_dlopen_handle == NULL && artik_list_size(requested_node) == 1) {
 		dlopen_handle = dlopen("libsee-linux.so.0", RTLD_NOW);
-		error = dlerror();
-		if (error) {
+		if (!dlopen_handle) {
+			error = dlerror();
 			log_err("failed to open libsee-linux.so.0 : %s", error);
 			return E_NOT_INITIALIZED;
 		}
 
-		*(void **)(&see_device_init) = dlsym(dlopen_handle, "see_device_init");
-		error = dlerror();
-		if (error) {
+		*(void **)(&g_see_init) = dlsym(dlopen_handle, "see_device_init");
+		if (!g_see_init) {
+			error = dlerror();
 			log_err("failed to dlsym see_device_init : %s", error);
 			goto ERROR;
 		}
 
-		*(void **)(&see_device_deinit) = dlsym(dlopen_handle, "see_device_deinit");
-		error = dlerror();
-		if (error) {
+		*(void **)(&g_see_deinit) = dlsym(dlopen_handle, "see_device_deinit");
+		if (!g_see_deinit) {
+			error = dlerror();
 			log_err("failed to dlsym see_device_deinit : %s", error);
 			goto ERROR;
 		}
 
-		*(void **)(&see_device_get) = dlsym(dlopen_handle, "see_device_get");
-		error = dlerror();
-		if (error) {
+		*(void **)(&g_see_get) = dlsym(dlopen_handle, "see_device_get");
+		if (!g_see_get) {
+			error = dlerror();
 			log_err("failed to dlsym see_device_get : %s", error);
 			goto ERROR;
 		}
 
 		dev_debug = dlsym(dlopen_handle, "dev_debug");
-		error = dlerror();
-		if (error) {
+		if (!dev_debug) {
+			error = dlerror();
 			log_err("failed to dlsym dev_debug : %s", error);
 			goto ERROR;
 		}
 
 		*dev_debug = 2;
-		if (see_device_init("ARTIK SDK", "ARTIK SDK") < 0) {
+		if (g_see_init("ARTIK SDK", "ARTIK SDK") < 0) {
 			log_err("failed to initialize device");
 			goto ERROR;
 		}
 
-		g_see_dev = see_device_get();
+		g_see_dev = g_see_get();
 		if (!g_see_dev) {
 			log_err("failed to get device");
 			goto ERROR;
@@ -624,8 +623,7 @@ artik_error os_security_request(artik_security_handle *handle)
 
 ERROR:
 	g_see_dev = NULL;
-	if (dlopen_handle)
-		dlclose(dlopen_handle);
+	dlclose(dlopen_handle);
 	return E_NOT_INITIALIZED;
 }
 
@@ -639,7 +637,7 @@ artik_error os_security_release(artik_security_handle handle)
 
 	if (g_dlopen_handle != NULL && artik_list_size(requested_node) == 0) {
 		g_see_dev = NULL;
-		see_device_deinit();
+		g_see_deinit();
 		if (g_dlopen_handle)
 			dlclose(g_dlopen_handle);
 		g_dlopen_handle = NULL;
@@ -829,7 +827,7 @@ artik_error os_security_get_certificate(artik_security_handle handle,
 	char name[20] = { 0, };
 	char *cert_pem = NULL;
 	char *artik_pem = NULL;
-	int num;
+	int num = 0;
 
 	if (!node) {
 		log_err("security node error");
@@ -865,18 +863,30 @@ artik_error os_security_get_certificate(artik_security_handle handle,
 
 		num = name[strlen(ARTIK_STORAGE) + 1] - '0';
 		if (num >= ARTIK_CERTS_NUM) {
+			free(certificate.data);
 			log_err("Invalid certificate name");
 			return E_BAD_ARGS;
 		}
+
 		cert_pem = certificate.data;
-		while (num != ARTIK_CERTS_NUM - 1) {
+		while (num != (ARTIK_CERTS_NUM - 1)) {
 			cert_pem += strlen(PEM_BEGIN_CRT);
 			cert_pem = strstr(cert_pem, PEM_BEGIN_CRT);
+			if (!cert_pem) {
+				free(certificate.data);
+				log_err("Failed to parse ARTIK certificates");
+				return E_SECURITY_ERROR;
+			}
 			num++;
 		}
 		artik_pem = strstr(cert_pem, PEM_END_CRT) + strlen(PEM_END_CRT);
 		num = artik_pem - cert_pem + 1;
 		artik_pem = (char *)malloc(sizeof(char) * num);
+		if (!artik_pem) {
+			free(certificate.data);
+			return E_NO_MEM;
+		}
+
 		memcpy(artik_pem, cert_pem, num - 1);
 		artik_pem[num - 1] = '\0';
 		free(certificate.data);
@@ -1026,6 +1036,10 @@ artik_error os_security_get_certificate_pem_chain(artik_security_handle handle,
 		end += strlen(PEM_END_CRT);
 		pem_cert = (pem_cert_node *) artik_list_add(&pem_certs, 0,
 				sizeof(pem_cert_node));
+		if (!pem_cert) {
+			ret = E_NO_MEM;
+			goto exit;
+		}
 		pem_cert->start = begin;
 		pem_cert->length = end - begin;
 
@@ -1109,9 +1123,11 @@ artik_error os_security_get_certificate_pem_chain(artik_security_handle handle,
 		cpem->clear = pem_chain_list_clear;
 	}
 
-	artik_list_delete_all(&pem_certs);
-
 exit:
+	artik_list_delete_all(&pem_certs);
+	if (ret != S_OK)
+		artik_list_delete_all(chain);
+
 	return ret;
 }
 

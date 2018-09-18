@@ -215,4 +215,11 @@ typedef struct {
 	int (*generate_key_with_params)(see_algorithm algo, const char *name, see_data *params, see_data *key);
 } see_dev;
 
+/**
+ * @brief Function pointers to load SEE library
+ */
+typedef int (*see_device_init)(const char *id, const char *pwd);
+typedef int (*see_device_deinit)(void);
+typedef see_dev * (*see_device_get)(void);
+
 #endif  /* __LINUX_SECURITY_H__ */
