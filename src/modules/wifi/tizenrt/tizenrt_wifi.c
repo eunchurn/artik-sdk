@@ -349,7 +349,7 @@ artik_error os_wifi_start_ap(const char *ssid, const char *password,
 	config.ssid_len = strlen(ssid);
 	memcpy(config.ssid, ssid, config.ssid_len);
 
-	if (encryption_flags && !(encryption_flags & WIFI_ENCRYPTION_WPA2)) {
+	if (encryption_flags && (encryption_flags & WIFI_ENCRYPTION_WPA2)) {
 		sec_config.secmode = SLSI_SEC_MODE_WPA2_CCMP;
 		memcpy(sec_config.passphrase, password, strlen(password));
 		config.security = &sec_config;
