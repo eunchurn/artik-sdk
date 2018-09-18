@@ -76,8 +76,7 @@ static int on_lwm2m_service_callback(void *user_data)
 			}
 			return 0;
 		case LWM2M_CLIENT_DISCONNECTED:
-			if (node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT] &&
-				(node->connected != false)) {
+			if (node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT]) {
 				err = E_LWM2M_DISCONNECTION_ERROR;
 				node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT]((void *)(intptr_t)err,
 				node->callbacks_params[ARTIK_LWM2M_EVENT_DISCONNECT]);
