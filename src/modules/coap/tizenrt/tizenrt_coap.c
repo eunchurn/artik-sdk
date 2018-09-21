@@ -58,8 +58,11 @@
 #define NI_MAXHOST	1025
 #define NI_MAXSERV	32
 
-#define MAX_IDLE_SESSIONS 5 // 0 for not limit
-#define SESSION_TIMEOUT 30 // 0 for 300 s by default
+/* 0 for not limit */
+#define MAX_IDLE_SESSIONS 5
+
+/* 0 for 300 s by default */
+#define SESSION_TIMEOUT 0
 
 /* ecPublicKey (Object Identifier) */
 static unsigned char ec_public_key[] = {

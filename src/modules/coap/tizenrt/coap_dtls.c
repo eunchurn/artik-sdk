@@ -236,7 +236,6 @@ void *coap_dtls_new_server_session(coap_session_t *session)
 		opt.server_rpk = 1;
 	}
 
-	opt.recv_timeout = 3000;
 	opt.hs_timeout_min = 1000;
 	opt.hs_timeout_max = 3000;
 
@@ -280,7 +279,7 @@ int coap_dtls_send(coap_session_t *session,
 
 	res = TLSSend(s_session, buf, data_len);
 
-	if (res <= 0) {
+	if (res < 0) {
 		log_err("dtls: info in sending data: 0x%X", -res);
 
 		if (is_dtls_event_fatal(res)) {
@@ -322,7 +321,7 @@ int coap_dtls_receive(coap_session_t *session,
 
 	res = TLSRecv(s_session, buf, data_len);
 
-	if (res <= 0) {
+	if (res < 0) {
 		log_err("dtls: info in receiving data: 0x%X", -res);
 
 		if (is_dtls_event_fatal(res)) {

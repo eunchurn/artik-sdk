@@ -729,7 +729,7 @@ static int coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint,
 		}
 	}
 
-	if (bytes_read <= 0)
+	if (bytes_read < 0)
 		log_err("read failed");
 	else if (bytes_read > 0) {
 		if (!session)
