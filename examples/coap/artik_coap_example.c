@@ -1140,7 +1140,7 @@ static void stop_command(int argc, char **argv, artik_coap_module *coap)
 
 	ret = coap->stop_server(f_handle);
 	if (ret != S_OK) {
-		fprintf(stderr, "Fail to start server\n");
+		fprintf(stderr, "Fail to stop server\n");
 		ret = -1;
 		return;
 	}
