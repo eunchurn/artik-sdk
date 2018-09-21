@@ -1226,21 +1226,29 @@ exit:
 static int ping_periodic_callback(void *user_data)
 {
 	artik_error ret = S_OK;
-	static unsigned int size = LWS_PRE;
-	static unsigned char pingbuf[LWS_PRE] = {
+	static unsigned char pingbuf[] = {
 		0x81, 0x85, 0x37, 0xFA,
 		0x21, 0x3d, 0x7F, 0x9F,
 		0x4D, 0x51, 0x58
 	};
-
+	static unsigned int size = sizeof(pingbuf);
 	artik_loop_module *loop = (artik_loop_module *)
 		artik_request_api_module("loop");
-
 	struct lws *wsi = (struct lws *)user_data;
+	unsigned char *buf = (unsigned char *)malloc(LWS_PRE + size);
 
-	log_dbg("ping_periodic_callback");
+	if (!buf) {
+		log_err("Failed to allocate buffer");
+		return 0;
+	}
 
-	lws_write(wsi, &pingbuf[LWS_PRE], size, LWS_WRITE_PING);
+	memset(buf, 0, LWS_PRE + size);
+	memcpy(&buf[LWS_PRE], pingbuf, sizeof(pingbuf));
+
+	log_dbg("");
+
+	lws_write(wsi, &buf[LWS_PRE], size, LWS_WRITE_PING);
+	free(buf);
 
 	ret = loop->add_timeout_callback(&CB_CONTAINER->timeout_id,
 		CB_CONTAINER->pong_timeout, pong_timeout_callback, (void *) wsi);
