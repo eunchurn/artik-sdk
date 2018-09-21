@@ -83,18 +83,18 @@ void coap_register_handler(coap_resource_t *resource,
 			unsigned char method,
 			coap_method_handler_t handler);
 
-coap_subscription_t *coap_find_observer(coap_resource_t *resource,
+coap_subscription_t *artik_coap_find_observer(coap_resource_t *resource,
 			coap_session_t *session,
 			const coap_str *token);
 
 void coap_delete_observers(struct coap_context_t *context,
 			coap_session_t *session);
 
-int coap_delete_observer(coap_resource_t *resource,
+int artik_coap_delete_observer(coap_resource_t *resource,
 			coap_session_t *session,
 			const coap_str *token);
 
-void coap_touch_observer(struct coap_context_t *context,
+void artik_coap_touch_observer(struct coap_context_t *context,
 			coap_session_t *session,
 			const coap_str *token);
 
@@ -103,27 +103,27 @@ void coap_remove_failed_observers(struct coap_context_t *context,
 			coap_session_t *session,
 			const coap_str *token);
 
-void coap_handle_failed_notify(struct coap_context_t *context,
+void artik_coap_handle_failed_notify(struct coap_context_t *context,
 			coap_session_t *session,
 			const coap_str *token);
 
-void coap_check_notify(struct coap_context_t *context, coap_protocol_t proto);
+void artik_coap_check_notify(struct coap_context_t *context, coap_protocol_t proto);
 
-coap_resource_t *coap_resource_init(const unsigned char *uri, size_t len, int flags);
+coap_resource_t *artik_coap_resource_init(const unsigned char *uri, size_t len, int flags);
 
-coap_attr_t *coap_add_attr(
+coap_attr_t *artik_coap_add_attr(
 			coap_resource_t *resource,
 			const unsigned char *name, size_t nlen,
 			const unsigned char *val, size_t vlen,
 			int flags);
 
-void coap_hash_request_uri(const coap_packet_t *request, coap_key_t key);
+void artik_coap_hash_request_uri(const coap_packet_t *request, coap_key_t key);
 
-void coap_add_resource(struct coap_context_t *context, coap_resource_t *resource);
+void artik_coap_add_resource(struct coap_context_t *context, coap_resource_t *resource);
 
-coap_resource_t *coap_get_resource_from_key(struct coap_context_t *context, coap_key_t key);
+coap_resource_t *artik_coap_get_resource_from_key(struct coap_context_t *context, coap_key_t key);
 
-coap_print_status_t coap_print_link(
+coap_print_status_t artik_coap_print_link(
 			const coap_resource_t *resource,
 			unsigned char *buf,
 			size_t *len,
@@ -136,7 +136,7 @@ coap_print_status_t coap_print_wellknown(
 			size_t offset,
 			multi_option_t *query_filter);
 
-coap_subscription_t *coap_add_observer(
+coap_subscription_t *artik_coap_add_observer(
 		coap_resource_t *resource,
 		coap_session_t *session,
 		const coap_str *token,
@@ -144,7 +144,7 @@ coap_subscription_t *coap_add_observer(
 
 int coap_resource_set_dirty(coap_resource_t *r, const coap_str *query);
 
-void coap_delete_attr(coap_attr_t *attr);
+void artik_coap_delete_attr(coap_attr_t *attr);
 
 void coap_free_resource(coap_resource_t *resource);
 

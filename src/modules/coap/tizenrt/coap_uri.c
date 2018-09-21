@@ -30,7 +30,7 @@ static unsigned char *strnchr(unsigned char *s, size_t len, unsigned char c)
 	return len ? s : NULL;
 }
 
-int coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u)
+int artik_coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u)
 {
 	const unsigned char *p, *q;
 	int res = 0;
@@ -198,7 +198,7 @@ void hash_segment(unsigned char *s, size_t len, void *data)
 	coap_hash(s, (unsigned int)len, (unsigned char *)data);
 }
 
-int coap_hash_path(const unsigned char *path, size_t len, coap_key_t key)
+int artik_coap_hash_path(const unsigned char *path, size_t len, coap_key_t key)
 {
 	if (!path)
 		return 0;

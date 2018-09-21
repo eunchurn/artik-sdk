@@ -98,11 +98,11 @@ static int coap_send_packet(coap_session_t *session, coap_packet_t *packet,
 		location_path = (char *)packet->location_path->data;
 
 	if (packet->uri_query)
-		len++; // add '?''
+		len++;
 
 	for (optP = packet->uri_query; optP != NULL; optP = optP->next) {
 		if (len > 1)
-			len++; // add '&''
+			len++;
 		len += optP->len;
 	}
 
@@ -189,7 +189,7 @@ static int coap_send_packet(coap_session_t *session, coap_packet_t *packet,
 	return bytes_written;
 }
 
-int coap_insert_node(coap_queue_t **queue, coap_queue_t *node)
+int artik_coap_insert_node(coap_queue_t **queue, coap_queue_t *node)
 {
 	coap_queue_t *p, *q;
 
@@ -226,7 +226,7 @@ int coap_insert_node(coap_queue_t **queue, coap_queue_t *node)
 	return 1;
 }
 
-int coap_delete_node(coap_queue_t *node)
+int artik_coap_delete_node(coap_queue_t *node)
 {
 	if (!node)
 		return 0;
@@ -246,16 +246,16 @@ int coap_delete_node(coap_queue_t *node)
 	return 1;
 }
 
-void coap_delete_all(coap_queue_t *queue)
+void artik_coap_delete_all(coap_queue_t *queue)
 {
 	if (!queue)
 		return;
 
-	coap_delete_all(queue->next);
-	coap_delete_node(queue);
+	artik_coap_delete_all(queue->next);
+	artik_coap_delete_node(queue);
 }
 
-coap_queue_t *coap_new_node(void)
+coap_queue_t *artik_coap_new_node(void)
 {
 	coap_queue_t *node;
 
@@ -269,7 +269,7 @@ coap_queue_t *coap_new_node(void)
 	return node;
 }
 
-int coap_remove_from_queue(
+int artik_coap_remove_from_queue(
 		coap_queue_t **queue,
 		coap_session_t *session,
 		int id,
@@ -314,7 +314,7 @@ int coap_remove_from_queue(
 	return 0;
 }
 
-coap_context_t *coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *psk)
+coap_context_t *artik_coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *psk)
 {
 	coap_context_t *c;
 
@@ -332,7 +332,7 @@ coap_context_t *coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *ps
 
 		if (!c->dtls_context) {
 			log_dbg("coap_init: no DTLS context available");
-			coap_free_context(c);
+			artik_coap_free_context(c);
 			return NULL;
 		}
 	}
@@ -345,7 +345,7 @@ coap_context_t *coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *ps
 	return c;
 }
 
-void coap_free_context(coap_context_t *context)
+void artik_coap_free_context(coap_context_t *context)
 {
 	coap_endpoint_t *ep, *tmp;
 
@@ -354,7 +354,7 @@ void coap_free_context(coap_context_t *context)
 
 	log_dbg("");
 
-	coap_delete_all(context->sendqueue);
+	artik_coap_delete_all(context->sendqueue);
 
 	log_dbg("");
 
@@ -403,7 +403,7 @@ uint16_t coap_new_message_id(coap_session_t *session)
 	return htons(session->tx_mid);
 }
 
-coap_queue_t *coap_peek_next(coap_context_t *context)
+coap_queue_t *artik_coap_peek_next(coap_context_t *context)
 {
 	if (!context || !context->sendqueue)
 		return NULL;
@@ -411,7 +411,7 @@ coap_queue_t *coap_peek_next(coap_context_t *context)
 	return context->sendqueue;
 }
 
-coap_queue_t *coap_pop_next(coap_context_t *context)
+coap_queue_t *artik_coap_pop_next(coap_context_t *context)
 {
 	coap_queue_t *next;
 
@@ -435,7 +435,7 @@ int is_wkc(coap_key_t k)
 	static unsigned char _initialized = 0;
 
 	if (!_initialized) {
-		_initialized = coap_hash_path((unsigned char *)
+		_initialized = artik_coap_hash_path((unsigned char *)
 			COAP_DEFAULT_URI_WELLKNOWN,
 			sizeof(COAP_DEFAULT_URI_WELLKNOWN) - 1, wkc);
 	}
@@ -523,7 +523,7 @@ typedef struct {
 	char *phrase;
 } error_desc_t;
 
-error_desc_t coap_error[] = {
+error_desc_t tizenrt_coap_error[] = {
 	{ COAP_RESPONSE_CODE(201), "Created" },
 	{ COAP_RESPONSE_CODE(202), "Deleted" },
 	{ COAP_RESPONSE_CODE(203), "Valid" },
@@ -550,24 +550,24 @@ error_desc_t coap_error[] = {
 	{ 0, NULL }
 };
 
-char *coap_response_phrase(unsigned char code)
+char *artik_coap_response_phrase(unsigned char code)
 {
 	int i;
 
-	for (i = 0; coap_error[i].code; ++i) {
-		if (coap_error[i].code == code)
-			return coap_error[i].phrase;
+	for (i = 0; tizenrt_coap_error[i].code; ++i) {
+		if (tizenrt_coap_error[i].code == code)
+			return tizenrt_coap_error[i].phrase;
 	}
 
 	return NULL;
 }
 
-coap_packet_t *coap_new_error_response(coap_packet_t *request, unsigned char code)
+coap_packet_t *artik_coap_new_error_response(coap_packet_t *request, unsigned char code)
 {
 	coap_packet_t *response;
 	coap_message_type_t type;
 
-	const char *phrase = coap_response_phrase(code);
+	const char *phrase = artik_coap_response_phrase(code);
 
 	type = request->type == COAP_TYPE_CON ? COAP_TYPE_ACK : COAP_TYPE_NON;
 
@@ -759,12 +759,12 @@ int coap_wait_ack(coap_context_t *context, coap_session_t *session,
 	} else
 		node->t = (now - context->sendqueue_basetime) + node->timeout;
 
-	coap_insert_node(&context->sendqueue, node);
+	artik_coap_insert_node(&context->sendqueue, node);
 
 	return node->id;
 }
 
-int coap_send(coap_session_t *session, coap_packet_t *packet)
+int artik_coap_send(coap_session_t *session, coap_packet_t *packet)
 {
 	uint8_t r;
 	int bytes_written = coap_send_packet(session, packet, NULL);
@@ -786,7 +786,7 @@ int coap_send(coap_session_t *session, coap_packet_t *packet)
 
 	log_dbg("");
 
-	coap_queue_t *node = coap_new_node();
+	coap_queue_t *node = artik_coap_new_node();
 
 	if (!node) {
 		log_err("insufficient memory");
@@ -802,7 +802,7 @@ int coap_send(coap_session_t *session, coap_packet_t *packet)
 	return coap_wait_ack(session->context, session, node);
 }
 
-void coap_read(coap_context_t *ctx, uint32_t now)
+void artik_coap_read(coap_context_t *ctx, uint32_t now)
 {
 	coap_endpoint_t *ep, *tmp;
 	coap_session_t *s, *tmp_s;
@@ -846,7 +846,7 @@ int coap_handle_message(coap_context_t *ctx, coap_session_t *session,
 		goto error_early;
 	}
 
-	node = coap_new_node();
+	node = artik_coap_new_node();
 	if (!node)
 		goto error_early;
 
@@ -878,18 +878,18 @@ int coap_handle_message(coap_context_t *ctx, coap_session_t *session,
 	node->session = coap_session_reference(session);
 	node->id = ntohs(node->packet->mid);
 
-	coap_dispatch(ctx, node, unknown_option);
+	artik_coap_dispatch(ctx, node, unknown_option);
 	return -RESULT_OK;
 
 error:
-	coap_delete_node(node);
+	artik_coap_delete_node(node);
 	return -result;
 
 error_early:
 	return -result;
 }
 
-int coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node)
+int artik_coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node)
 {
 	if (!context || !node)
 		return -1;
@@ -910,7 +910,7 @@ int coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node)
 			node->t = (now - context->sendqueue_basetime) +
 				(node->timeout << node->retransmit_cnt);
 
-		coap_insert_node(&context->sendqueue, node);
+		artik_coap_insert_node(&context->sendqueue, node);
 
 		bytes_written = coap_send_packet(node->session, node->packet, node);
 
@@ -929,7 +929,7 @@ int coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node)
 		token.length = node->packet->token_len;
 		token.s = node->packet->token;
 
-		coap_handle_failed_notify(context, node->session, &token);
+		artik_coap_handle_failed_notify(context, node->session, &token);
 	}
 
 	if (node->packet->type == COAP_TYPE_CON && context->nack_handler) {
@@ -938,7 +938,7 @@ int coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node)
 		coap_session_release(node->session);
 	}
 
-	coap_delete_node(node);
+	artik_coap_delete_node(node);
 
 	return -1;
 }
@@ -961,7 +961,7 @@ unsigned int calc_timeout(unsigned char r)
 #undef SHR_FP
 }
 
-void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_option)
+void artik_coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_option)
 {
 	coap_queue_t *sent = NULL;
 	coap_packet_t *response;
@@ -972,7 +972,7 @@ void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_opt
 	switch (rcvd->packet->type) {
 	case COAP_TYPE_ACK:
 		log_dbg("%s: ACK", __func__);
-		coap_remove_from_queue(&context->sendqueue, rcvd->session,
+		artik_coap_remove_from_queue(&context->sendqueue, rcvd->session,
 					rcvd->id, &sent);
 
 		if (rcvd->packet->code == 0)
@@ -984,13 +984,13 @@ void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_opt
 					sent->packet->token
 				};
 
-			coap_touch_observer(context, sent->session, &token);
+			artik_coap_touch_observer(context, sent->session, &token);
 		}
 
 		break;
 	case COAP_TYPE_RST:
 		log_dbg("%s: RST", __func__);
-		coap_remove_from_queue(&context->sendqueue, rcvd->session,
+		artik_coap_remove_from_queue(&context->sendqueue, rcvd->session,
 					rcvd->id, &sent);
 
 		if (sent)
@@ -1012,13 +1012,13 @@ void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_opt
 		log_dbg("%s: CON", __func__);
 		if (unknown_option) {
 			log_dbg("");
-			response = coap_new_error_response(rcvd->packet,
+			response = artik_coap_new_error_response(rcvd->packet,
 					BAD_OPTION_4_02);
 
 			if (!response)
 				log_err("%s: cannot create error response", __func__);
 			else {
-				if (coap_send(rcvd->session, response) == -1)
+				if (artik_coap_send(rcvd->session, response) == -1)
 					log_err("%s: error sending response", __func__);
 			}
 
@@ -1030,7 +1030,7 @@ void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_opt
 	}
 
 	if (COAP_MESSAGE_IS_REQUEST(rcvd->packet))
-		handle_request(context, rcvd);
+		artik_handle_request(context, rcvd);
 	else if (COAP_MESSAGE_IS_RESPONSE(rcvd->packet))
 		handle_response(context, sent, rcvd);
 	else {
@@ -1038,15 +1038,15 @@ void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_opt
 			COAP_RESPONSE_CLASS(rcvd->packet->code),
 			rcvd->packet->code & 0x1f);
 		if (!coap_is_mcast(&rcvd->session->local_addr)) {
-			coap_send_message_type(rcvd->session, rcvd->packet,
+			artik_coap_send_message_type(rcvd->session, rcvd->packet,
 				COAP_MESSAGE_RST);
 		}
 	}
 
 cleanup:
 	log_dbg("cleanup");
-	coap_delete_node(sent);
-	coap_delete_node(rcvd);
+	artik_coap_delete_node(sent);
+	artik_coap_delete_node(rcvd);
 }
 
 void coap_cancel_session_messages(coap_context_t *context,
@@ -1063,7 +1063,7 @@ void coap_cancel_session_messages(coap_context_t *context,
 		if (q->packet->type == COAP_TYPE_CON && context->nack_handler)
 			context->nack_handler(context, session, q->packet, reason,
 				q->id);
-		coap_delete_node(q);
+		artik_coap_delete_node(q);
 	}
 
 	if (!context->sendqueue)
@@ -1081,7 +1081,7 @@ void coap_cancel_session_messages(coap_context_t *context,
 					context->nack_handler)
 				context->nack_handler(context, session,
 					q->packet, reason, q->id);
-			coap_delete_node(q);
+			artik_coap_delete_node(q);
 			q = p->next;
 		} else {
 			p = q;
@@ -1098,8 +1098,8 @@ int coap_cancel(coap_context_t *context, const coap_queue_t *sent)
 	COAP_SET_STR(&token, sent->packet->token_len, sent->packet->token);
 
 	RESOURCES_ITER(context->resources, r) {
-		num_cancelled += coap_delete_observer(r, sent->session, &token);
-		coap_cancel_all_messages(context, sent->session, token.s,
+		num_cancelled += artik_coap_delete_observer(r, sent->session, &token);
+		artik_coap_cancel_all_messages(context, sent->session, token.s,
 				token.length);
 	}
 
@@ -1274,7 +1274,7 @@ error:
 	return resp;
 }
 
-void handle_request(coap_context_t *context, coap_queue_t *node)
+void artik_handle_request(coap_context_t *context, coap_queue_t *node)
 {
 	coap_method_handler_t h = NULL;
 	coap_packet_t *response = NULL;
@@ -1282,8 +1282,8 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 	coap_resource_t *resource;
 	coap_key_t key;
 
-	coap_hash_request_uri(node->packet, key);
-	resource = coap_get_resource_from_key(context, key);
+	artik_coap_hash_request_uri(node->packet, key);
+	resource = artik_coap_get_resource_from_key(context, key);
 
 	if (!resource) {
 		if (is_wkc(key)) {
@@ -1295,18 +1295,18 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 
 			} else {
 				log_err("method not allowed for .well-known/core");
-				response = coap_new_error_response(node->packet,
+				response = artik_coap_new_error_response(node->packet,
 					METHOD_NOT_ALLOWED_4_05);
 			}
 		} else {
 			log_err("request for unknown resource 0x%02x%02x%02x%02x, return 4.04",
 				key[0], key[1], key[2], key[3]);
-				response = coap_new_error_response(node->packet,
+				response = artik_coap_new_error_response(node->packet,
 					NOT_FOUND_4_04);
 		}
 
 		if (response) {
-			if (coap_send(node->session, response) == -1)
+			if (artik_coap_send(node->session, response) == -1)
 				log_err("cannot send response for transaction %u", node->id);
 
 			if (response->payload && allocated)
@@ -1389,18 +1389,18 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 
 					if ((observe_action & COAP_OBSERVE_CANCEL) == 0) {
 
-						subscription = coap_add_observer(resource,
+						subscription = artik_coap_add_observer(resource,
 							node->session, &token, query);
 
 						owns_query = 0;
 					} else {
-						coap_delete_observer(resource,
+						artik_coap_delete_observer(resource,
 							node->session,
 							&token);
 					}
 
 					if (subscription)
-						coap_touch_observer(context,
+						artik_coap_touch_observer(context,
 							node->session,
 							&token);
 				}
@@ -1427,7 +1427,7 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 				(COAP_RESPONSE_CLASS(response->code) > 2)) {
 
 				log_dbg("removed observer");
-				coap_delete_observer(resource, node->session, &token);
+				artik_coap_delete_observer(resource, node->session, &token);
 
 			}
 
@@ -1437,7 +1437,7 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 
 			if ((response->type != COAP_TYPE_NON) ||
 				(response->code >= 64)) {
-				if (coap_send(node->session, response) == -1)
+				if (artik_coap_send(node->session, response) == -1)
 					log_err("cannot send response for message %d",
 						node->packet->mid);
 				if (response) {
@@ -1478,13 +1478,13 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 			response = coap_wellknown_response(context,
 				node->session, node->packet);
 		else {
-			response = coap_new_error_response(node->packet,
+			response = artik_coap_new_error_response(node->packet,
 				METHOD_NOT_ALLOWED_4_05);
 			error_response = true;
 		}
 
 		if (response) {
-			if (coap_send(node->session, response) == -1)
+			if (artik_coap_send(node->session, response) == -1)
 				log_err("cannot send response for transaction %d",
 					node->id);
 			coap_free_header(response);
@@ -1500,9 +1500,9 @@ void handle_request(coap_context_t *context, coap_queue_t *node)
 void handle_response(coap_context_t *context, coap_queue_t *sent,
 			coap_queue_t *rcvd)
 {
-	coap_send_ack(rcvd->session, rcvd->packet);
+	artik_coap_send_ack(rcvd->session, rcvd->packet);
 
-	coap_cancel_all_messages(context, rcvd->session,
+	artik_coap_cancel_all_messages(context, rcvd->session,
 		rcvd->packet->token,
 		rcvd->packet->token_len);
 
@@ -1511,7 +1511,7 @@ void handle_response(coap_context_t *context, coap_queue_t *sent,
 			sent ? sent->packet : NULL, rcvd->packet, rcvd->id);
 }
 
-int coap_send_ack(coap_session_t *session, coap_packet_t *request)
+int artik_coap_send_ack(coap_session_t *session, coap_packet_t *request)
 {
 	coap_packet_t *response = NULL;
 	int result = -1;
@@ -1528,7 +1528,7 @@ int coap_send_ack(coap_session_t *session, coap_packet_t *request)
 
 		coap_init_message((void *)response, session->proto, COAP_TYPE_ACK,
 				0, request->mid);
-		result = coap_send(session, response);
+		result = artik_coap_send(session, response);
 	}
 
 	if (response) {
@@ -1545,7 +1545,7 @@ int token_match(const unsigned char *a, size_t alen,
 	return alen == blen && (alen == 0 || memcmp(a, b, alen) == 0);
 }
 
-void coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
+void artik_coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
 			const unsigned char *token, size_t token_length)
 {
 	coap_queue_t *p, *q;
@@ -1556,7 +1556,7 @@ void coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
 			context->sendqueue->packet->token_len)) {
 		q = context->sendqueue;
 		context->sendqueue = q->next;
-		coap_delete_node(q);
+		artik_coap_delete_node(q);
 	}
 
 	if (!context->sendqueue)
@@ -1570,7 +1570,7 @@ void coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
 			token_match(token, token_length,
 				q->packet->token, q->packet->token_len)) {
 			p->next = q->next;
-			coap_delete_node(q);
+			artik_coap_delete_node(q);
 			q = p->next;
 		} else {
 			p = q;
@@ -1580,7 +1580,7 @@ void coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
 
 }
 
-int coap_send_message_type(coap_session_t *session, coap_packet_t *request,
+int artik_coap_send_message_type(coap_session_t *session, coap_packet_t *request,
 			unsigned char type)
 {
 	coap_packet_t *response;
@@ -1592,7 +1592,7 @@ int coap_send_message_type(coap_session_t *session, coap_packet_t *request,
 		coap_init_message((void *)response, session->proto, type,
 				0, request->mid);
 		if (request)
-			result = coap_send(session, response);
+			result = artik_coap_send(session, response);
 	}
 
 	return result;

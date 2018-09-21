@@ -385,12 +385,12 @@ unsigned int coap_write(coap_context_t *ctx,
 		}
 	}
 
-	nextpdu = coap_peek_next(ctx);
+	nextpdu = artik_coap_peek_next(ctx);
 
 	while (nextpdu && now >= ctx->sendqueue_basetime && nextpdu->t <=
 					now - ctx->sendqueue_basetime) {
-		coap_retransmit(ctx, coap_pop_next(ctx));
-		nextpdu = coap_peek_next(ctx);
+		artik_coap_retransmit(ctx, artik_coap_pop_next(ctx));
+		nextpdu = artik_coap_peek_next(ctx);
 	}
 
 	if (nextpdu && (timeout == 0 || nextpdu->t - (now - ctx->sendqueue_basetime) <
@@ -488,7 +488,7 @@ int coap_run_once(coap_context_t *ctx, unsigned int timeout_ms)
 	}
 
 	coap_ticks(&now);
-	coap_read(ctx, now);
+	artik_coap_read(ctx, now);
 
 	return (int)(((now - before) * 1000)/COAP_TICKS_PER_SECOND);
 }

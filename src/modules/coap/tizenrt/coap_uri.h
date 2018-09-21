@@ -46,8 +46,8 @@ typedef struct {
 
 #define COAP_SET_STR(st, l, v) { (st)->length = (l), (st)->s = (v); }
 
-int coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u);
+int artik_coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u);
 
-int coap_hash_path(const unsigned char *path, size_t len, coap_key_t key);
+int artik_coap_hash_path(const unsigned char *path, size_t len, coap_key_t key);
 
 #endif

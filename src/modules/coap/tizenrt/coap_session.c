@@ -69,13 +69,13 @@ int coap_session_delay_packet(
 	if (node) {
 		coap_queue_t *removed;
 
-		coap_remove_from_queue(&session->context->sendqueue, session,
+		artik_coap_remove_from_queue(&session->context->sendqueue, session,
 			node->id, &removed);
 		coap_session_release(node->session);
 		node->session = NULL;
 		node->t = 0;
 	} else {
-		node = coap_new_node();
+		node = artik_coap_new_node();
 
 		if (node == NULL)
 			return -1;
@@ -135,7 +135,7 @@ void coap_session_connected(coap_session_t *session)
 					q = NULL;
 			}
 
-			coap_delete_node(q);
+			artik_coap_delete_node(q);
 
 			if (bytes_written < 0)
 				break;
@@ -178,7 +178,7 @@ void coap_session_disconnected(coap_session_t *session, coap_nack_reason_t reaso
 		}
 
 		if (q)
-			coap_delete_node(q);
+			artik_coap_delete_node(q);
 	}
 }
 
@@ -287,7 +287,7 @@ void coap_session_free(coap_session_t *session)
 				q->packet, session->proto == COAP_UDP_DTLS ?
 					COAP_NACK_TLS_FAILED :
 						COAP_NACK_NOT_DELIVERABLE, q->id);
-		coap_delete_node(q);
+		artik_coap_delete_node(q);
 	}
 
 	coap_free(session);
@@ -601,7 +601,7 @@ void coap_session_reset(coap_session_t *session)
 		if (q->packet->type == COAP_TYPE_CON && session->context->nack_handler)
 			session->context->nack_handler(session->context, session,
 				q->packet, COAP_NACK_NOT_DELIVERABLE, q->id);
-		coap_delete_node(q);
+		artik_coap_delete_node(q);
 	}
 }
 

@@ -1513,7 +1513,7 @@ static void message_handler(struct coap_context_t *ctx,
 
 				coap_set_header_token((void *)packet, msg.token, msg.token_len);
 
-				if (coap_send(session, packet) == -1)
+				if (artik_coap_send(session, packet) == -1)
 					log_err("Fail to send new request");
 			}
 		} else {
@@ -1690,7 +1690,7 @@ static void nack_handler(struct coap_context_t *ctx,
 			coap_free(node->interface.coap_data);
 
 		if (ctx)
-			coap_free_context(ctx);
+			artik_coap_free_context(ctx);
 
 		artik_list_delete_node(&requested_node, (artik_list *)node);
 	}
@@ -1769,7 +1769,7 @@ static void get_resource_handler(coap_context_t *ctx,
 
 	log_dbg("");
 
-	if (resource->observable && coap_find_observer(resource, session, token))
+	if (resource->observable && artik_coap_find_observer(resource, session, token))
 		coap_set_header_observe((void *)response, ctx->observe);
 
 	if (resp.options && resp.num_options > 0) {
@@ -1861,7 +1861,7 @@ static void post_resource_handler(coap_context_t *ctx,
 
 	log_dbg("");
 
-	if (resource->observable && coap_find_observer(resource, session, token))
+	if (resource->observable && artik_coap_find_observer(resource, session, token))
 		coap_set_header_observe((void *)response, ctx->observe);
 
 	if (resp.options && resp.num_options > 0) {
@@ -1953,7 +1953,7 @@ static void put_resource_handler(coap_context_t *ctx,
 
 	log_dbg("");
 
-	if (resource->observable && coap_find_observer(resource, session, token))
+	if (resource->observable && artik_coap_find_observer(resource, session, token))
 		coap_set_header_observe((void *)response, ctx->observe);
 
 	if (resp.options && resp.num_options > 0) {
@@ -2045,7 +2045,7 @@ static void delete_resource_handler(coap_context_t *ctx,
 
 	log_dbg("");
 
-	if (resource->observable && coap_find_observer(resource, session, token))
+	if (resource->observable && artik_coap_find_observer(resource, session, token))
 		coap_set_header_observe((void *)response, ctx->observe);
 
 	if (resp.options && resp.num_options > 0) {
@@ -2085,7 +2085,7 @@ static bool init_resources(coap_context_t *ctx, artik_coap_resource *resources,
 		coap_resource_t *r = NULL;
 		resource_node *res_node = NULL;
 
-		r = coap_resource_init((unsigned char *)res->path, res->path_len,
+		r = artik_coap_resource_init((unsigned char *)res->path, res->path_len,
 			res->default_notification_type);
 
 		if (!r) {
@@ -2153,11 +2153,11 @@ static bool init_resources(coap_context_t *ctx, artik_coap_resource *resources,
 		artik_coap_attr *end_att = att + res->num_attributes;
 
 		for (; att != end_att; att++) {
-			coap_add_attr(r, att->name, att->name_len, att->val,
+			artik_coap_add_attr(r, att->name, att->name_len, att->val,
 				att->val_len, 0);
 		}
 
-		coap_add_resource(ctx, r);
+		artik_coap_add_resource(ctx, r);
 	}
 
 	return true;
@@ -2180,7 +2180,7 @@ static void *server_service_thread(void *user_data)
 	while (!data->quit) {
 		coap_run_once(data->ctx, 10);
 
-		coap_check_notify(data->ctx, data->proto);
+		artik_coap_check_notify(data->ctx, data->proto);
 	}
 
 	return 0;
@@ -2217,7 +2217,7 @@ artik_error os_coap_create_client(artik_coap_handle *client,
 
 	memset(interface, 0, sizeof(os_coap_interface));
 
-	ctx = coap_new_context(config->ssl, config->psk);
+	ctx = artik_coap_new_context(config->ssl, config->psk);
 
 	if (!ctx) {
 		log_err("Cannot create CoAP client context");
@@ -2270,7 +2270,7 @@ artik_error os_coap_destroy_client(artik_coap_handle client)
 	}
 
 	if (node->interface.ctx)
-		coap_free_context(node->interface.ctx);
+		artik_coap_free_context(node->interface.ctx);
 
 	if (node->interface.uri_path)
 		coap_free(node->interface.uri_path);
@@ -2329,7 +2329,7 @@ artik_error os_coap_connect(artik_coap_handle client)
 
 	coap_startup();
 
-	if (coap_split_uri((unsigned char *)config->uri, strlen(config->uri),
+	if (artik_coap_split_uri((unsigned char *)config->uri, strlen(config->uri),
 		&u) < 0) {
 		log_err("Failed to split CoAP URI");
 		ret = E_COAP_ERROR;
@@ -2495,7 +2495,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 		goto exit;
 	}
 
-	ctx = coap_new_context(config->ssl, config->psk);
+	ctx = artik_coap_new_context(config->ssl, config->psk);
 
 	if (!ctx) {
 		log_err("Cannot create CoAP server context");
@@ -2514,7 +2514,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			log_err("Memory problem");
 			ret = E_NO_MEM;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2550,7 +2550,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			artik_release_api_module(security);
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2560,7 +2560,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			artik_release_api_module(security);
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2571,7 +2571,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			artik_release_api_module(security);
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2582,7 +2582,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			log_err("Fail to parse pubkey");
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2591,7 +2591,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			log_err("Fail to parse priv_key");
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2600,7 +2600,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 			log_err("Fail to extract pub key x and y");
 			ret = E_COAP_ERROR;
 			if (ctx)
-				coap_free_context(ctx);
+				artik_coap_free_context(ctx);
 			goto exit;
 		}
 
@@ -2637,7 +2637,7 @@ artik_error os_coap_create_server(artik_coap_handle *server,
 	if (!node) {
 		ret = E_NO_MEM;
 		if (ctx)
-			coap_free_context(ctx);
+			artik_coap_free_context(ctx);
 		goto exit;
 	}
 
@@ -2677,7 +2677,7 @@ artik_error os_coap_destroy_server(artik_coap_handle server)
 	}
 
 	if (node->interface.ctx)
-		coap_free_context(node->interface.ctx);
+		artik_coap_free_context(node->interface.ctx);
 
 	if (node->interface.uri_path)
 		coap_free(node->interface.uri_path);
@@ -2999,7 +2999,7 @@ artik_error os_coap_send_message(artik_coap_handle handle,
 	node->interface.method = msg->code;
 	node->interface.msg_type = msg->msg_type;
 
-	if (coap_send(node->interface.session, packet) == -1) {
+	if (artik_coap_send(node->interface.session, packet) == -1) {
 		log_err("Fail to send CoAP message");
 		ret = E_COAP_ERROR;
 	}
@@ -3180,7 +3180,7 @@ artik_error os_coap_observe(artik_coap_handle handle,
 	node->interface.method = COAP_GET;
 	node->interface.msg_type = msg_type;
 
-	if (coap_send(node->interface.session, packet) == -1) {
+	if (artik_coap_send(node->interface.session, packet) == -1) {
 		log_err("Fail to send CoAP message");
 		ret = E_COAP_ERROR;
 	}
@@ -3321,7 +3321,7 @@ artik_error os_coap_cancel_observe(artik_coap_handle handle,
 
 	node->interface.method = COAP_GET;
 
-	if (coap_send(node->interface.session, packet) == -1) {
+	if (artik_coap_send(node->interface.session, packet) == -1) {
 		log_err("Fail to send CoAP message");
 		ret = E_COAP_ERROR;
 	}

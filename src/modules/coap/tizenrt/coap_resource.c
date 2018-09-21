@@ -93,7 +93,7 @@ static int match(const coap_str *text, const coap_str *pattern, int match_prefix
 		memcmp(text->s, pattern->s, pattern->length) == 0;
 }
 
-coap_subscription_t *coap_find_observer(coap_resource_t *resource,
+coap_subscription_t *artik_coap_find_observer(coap_resource_t *resource,
 			coap_session_t *session, const coap_str *token)
 {
 	coap_subscription_t *s;
@@ -108,12 +108,12 @@ coap_subscription_t *coap_find_observer(coap_resource_t *resource,
 	return NULL;
 }
 
-int coap_delete_observer(coap_resource_t *resource, coap_session_t *session,
+int artik_coap_delete_observer(coap_resource_t *resource, coap_session_t *session,
 			const coap_str *token)
 {
 	coap_subscription_t *s;
 
-	s = coap_find_observer(resource, session, token);
+	s = artik_coap_find_observer(resource, session, token);
 
 	if (resource->subscribers && s) {
 		LL_DELETE(resource->subscribers, s);
@@ -139,13 +139,13 @@ void coap_delete_observers(struct coap_context_t *context, coap_session_t *sessi
 	}
 }
 
-void coap_touch_observer(struct coap_context_t *context, coap_session_t *session,
+void artik_coap_touch_observer(struct coap_context_t *context, coap_session_t *session,
 			const coap_str *token)
 {
 	coap_subscription_t *s;
 
 	RESOURCES_ITER(context->resources, r) {
-		s = coap_find_observer(r, session, token);
+		s = artik_coap_find_observer(r, session, token);
 		if (s)
 			s->fail_cnt = 0;
 	}
@@ -167,7 +167,7 @@ void coap_remove_failed_observers(struct coap_context_t *context,
 				LL_DELETE(resource->subscribers, obs);
 				obs->fail_cnt = 0;
 
-				coap_cancel_all_messages(context,
+				artik_coap_cancel_all_messages(context,
 					obs->session, obs->token,
 					obs->token_length);
 				coap_session_release(obs->session);
@@ -178,7 +178,7 @@ void coap_remove_failed_observers(struct coap_context_t *context,
 	}
 }
 
-void coap_handle_failed_notify(struct coap_context_t *context,
+void artik_coap_handle_failed_notify(struct coap_context_t *context,
 			coap_session_t *session,
 			const coap_str *token)
 {
@@ -247,7 +247,7 @@ static void coap_notify_observers(struct coap_context_t *context,
 			else
 				obs->non_cnt++;
 
-			tid = coap_send(obs->session, response);
+			tid = artik_coap_send(obs->session, response);
 
 			if (tid == -1) {
 				log_err("%s: sending failed", __func__);
@@ -264,14 +264,14 @@ static void coap_notify_observers(struct coap_context_t *context,
 	r->dirty = 0;
 }
 
-void coap_check_notify(struct coap_context_t *context, coap_protocol_t proto)
+void artik_coap_check_notify(struct coap_context_t *context, coap_protocol_t proto)
 {
 	RESOURCES_ITER(context->resources, r) {
 		coap_notify_observers(context, r, proto);
 	}
 }
 
-coap_resource_t *coap_resource_init(const unsigned char *uri, size_t len, int flags)
+coap_resource_t *artik_coap_resource_init(const unsigned char *uri, size_t len, int flags)
 {
 	coap_resource_t *r;
 
@@ -283,7 +283,7 @@ coap_resource_t *coap_resource_init(const unsigned char *uri, size_t len, int fl
 		r->uri.s = (unsigned char *)uri;
 		r->uri.length = len;
 
-		coap_hash_path(r->uri.s, r->uri.length, r->key);
+		artik_coap_hash_path(r->uri.s, r->uri.length, r->key);
 
 		r->flags = flags;
 	} else
@@ -292,7 +292,7 @@ coap_resource_t *coap_resource_init(const unsigned char *uri, size_t len, int fl
 	return r;
 }
 
-coap_attr_t *coap_add_attr(
+coap_attr_t *artik_coap_add_attr(
 		coap_resource_t *resource,
 		const unsigned char *name, size_t nlen,
 		const unsigned char *val, size_t vlen,
@@ -316,12 +316,12 @@ coap_attr_t *coap_add_attr(
 
 		LL_PREPEND(resource->link_attr, attr);
 	} else
-		log_err("coap_add_attr: no memory left");
+		log_err("artik_coap_add_attr: no memory left");
 
 	return attr;
 }
 
-coap_attr_t *coap_find_attr(coap_resource_t *resource,
+coap_attr_t *artik_coap_find_attr(coap_resource_t *resource,
 	const unsigned char *name, size_t nlen)
 {
 	coap_attr_t *attr;
@@ -338,7 +338,7 @@ coap_attr_t *coap_find_attr(coap_resource_t *resource,
 	return NULL;
 }
 
-void coap_hash_request_uri(const coap_packet_t *request, coap_key_t key)
+void artik_coap_hash_request_uri(const coap_packet_t *request, coap_key_t key)
 {
 	multi_option_t *p_uri = NULL;
 
@@ -350,12 +350,12 @@ void coap_hash_request_uri(const coap_packet_t *request, coap_key_t key)
 	}
 }
 
-void coap_add_resource(struct coap_context_t *context, coap_resource_t *resource)
+void artik_coap_add_resource(struct coap_context_t *context, coap_resource_t *resource)
 {
 	RESOURCES_ADD(context->resources, resource);
 }
 
-coap_resource_t *coap_get_resource_from_key(struct coap_context_t *context, coap_key_t key)
+coap_resource_t *artik_coap_get_resource_from_key(struct coap_context_t *context, coap_key_t key)
 {
 	coap_resource_t *result;
 
@@ -364,7 +364,7 @@ coap_resource_t *coap_get_resource_from_key(struct coap_context_t *context, coap
 	return result;
 }
 
-coap_print_status_t coap_print_link(
+coap_print_status_t artik_coap_print_link(
 		const coap_resource_t *resource,
 		unsigned char *buf,
 		size_t *len,
@@ -501,7 +501,7 @@ coap_print_status_t coap_print_wellknown(
 				coap_attr_t *attr;
 				coap_str unquoted_val;
 
-				attr = coap_find_attr(r, resource_param.s, resource_param.length);
+				attr = artik_coap_find_attr(r, resource_param.s, resource_param.length);
 
 				if (!attr)
 					continue;
@@ -525,7 +525,7 @@ coap_print_status_t coap_print_wellknown(
 			PRINT_COND_WITH_OFFSET(p, bufend, offset, ',', written);
 
 		left = bufend - p;
-		result = coap_print_link(r, p, &left, &offset);
+		result = artik_coap_print_link(r, p, &left, &offset);
 
 		if (result & COAP_PRINT_STATUS_ERROR)
 			break;
@@ -548,7 +548,7 @@ coap_print_status_t coap_print_wellknown(
 	return result;
 }
 
-coap_subscription_t *coap_add_observer(
+coap_subscription_t *artik_coap_add_observer(
 		coap_resource_t *resource,
 		coap_session_t *session,
 		const coap_str *token,
@@ -556,7 +556,7 @@ coap_subscription_t *coap_add_observer(
 {
 	coap_subscription_t *s = NULL;
 
-	s = coap_find_observer(resource, session, token);
+	s = artik_coap_find_observer(resource, session, token);
 
 	if (s) {
 		if (s->query)
@@ -623,7 +623,7 @@ void coap_register_handler(coap_resource_t *resource,
 	resource->handler[method-1] = handler;
 }
 
-void coap_delete_attr(coap_attr_t *attr)
+void artik_coap_delete_attr(coap_attr_t *attr)
 {
 	if (!attr)
 		return;
@@ -641,7 +641,7 @@ void coap_free_resource(coap_resource_t *resource)
 	coap_subscription_t *obs, *otmp;
 
 	LL_FOREACH_SAFE(resource->link_attr, attr, tmp) {
-		coap_delete_attr(attr);
+		artik_coap_delete_attr(attr);
 	}
 
 	if (resource->flags & COAP_RESOURCE_FLAGS_RELEASE_URI)

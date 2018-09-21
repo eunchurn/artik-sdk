@@ -147,29 +147,29 @@ typedef struct coap_context_t {
 
 void coap_startup(void);
 
-int coap_insert_node(coap_queue_t **queue, coap_queue_t *node);
+int artik_coap_insert_node(coap_queue_t **queue, coap_queue_t *node);
 
-int coap_delete_node(coap_queue_t *node);
+int artik_coap_delete_node(coap_queue_t *node);
 
-void coap_delete_all(coap_queue_t *queue);
+void artik_coap_delete_all(coap_queue_t *queue);
 
-coap_queue_t *coap_new_node(void);
+coap_queue_t *artik_coap_new_node(void);
 
-int coap_remove_from_queue(
+int artik_coap_remove_from_queue(
 		coap_queue_t **queue,
 		struct coap_session_t *session,
 		int id,
 		coap_queue_t **node);
 
-coap_context_t *coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *psk);
+coap_context_t *artik_coap_new_context(artik_ssl_config *ssl, artik_coap_psk_param *psk);
 
-void coap_free_context(coap_context_t *context);
+void artik_coap_free_context(coap_context_t *context);
 
 uint16_t coap_new_message_id(coap_session_t *session);
 
-coap_queue_t *coap_peek_next(coap_context_t *context);
+coap_queue_t *artik_coap_peek_next(coap_context_t *context);
 
-coap_queue_t *coap_pop_next(coap_context_t *context);
+coap_queue_t *artik_coap_pop_next(coap_context_t *context);
 
 int is_wkc(coap_key_t k);
 
@@ -181,7 +181,7 @@ void coap_context_set_ssl(coap_context_t *ctx,
 		const unsigned char *pub_key_x, size_t pub_key_x_len,
 		const unsigned char *pub_key_y, size_t pub_key_y_len);
 
-coap_packet_t *coap_new_error_response(coap_packet_t *request, unsigned char code);
+coap_packet_t *artik_coap_new_error_response(coap_packet_t *request, unsigned char code);
 
 unsigned int coap_write(coap_context_t *ctx,
 		coap_socket_t *sockets[],
@@ -189,15 +189,15 @@ unsigned int coap_write(coap_context_t *ctx,
 		unsigned int *num_sockets,
 		uint32_t now);
 
-int coap_send(coap_session_t *session, coap_packet_t *packet);
+int artik_coap_send(coap_session_t *session, coap_packet_t *packet);
 
-void coap_read(coap_context_t *ctx, uint32_t now);
+void artik_coap_read(coap_context_t *ctx, uint32_t now);
 
-int coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node);
+int artik_coap_retransmit(struct coap_context_t *context, struct coap_queue_t *node);
 
 unsigned int calc_timeout(unsigned char r);
 
-void coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_option);
+void artik_coap_dispatch(coap_context_t *context, coap_queue_t *rcvd, bool unknown_option);
 
 void coap_cancel_session_messages(coap_context_t *context,
 		coap_session_t *session,
@@ -208,17 +208,17 @@ int coap_cancel(coap_context_t *context, const coap_queue_t *sent);
 coap_packet_t *coap_wellknown_response(coap_context_t *context,
 		coap_session_t *session, coap_packet_t *request);
 
-void handle_request(coap_context_t *context, coap_queue_t *node);
+void artik_handle_request(coap_context_t *context, coap_queue_t *node);
 
 void handle_response(coap_context_t *context, coap_queue_t *sent,
 		coap_queue_t *rcvd);
 
-int coap_send_ack(coap_session_t *session, coap_packet_t *request);
+int artik_coap_send_ack(coap_session_t *session, coap_packet_t *request);
 
-void coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
+void artik_coap_cancel_all_messages(coap_context_t *context, coap_session_t *session,
 		const unsigned char *token, size_t token_length);
 
-int coap_send_message_type(coap_session_t *session, coap_packet_t *request,
+int artik_coap_send_message_type(coap_session_t *session, coap_packet_t *request,
 		unsigned char type);
 
 void coap_register_response_handler(coap_context_t *context,
