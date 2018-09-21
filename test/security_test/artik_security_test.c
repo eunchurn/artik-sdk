@@ -289,11 +289,6 @@ struct pthread_arg {
 
 #define see_selfprintf printf
 
-enum CertFormat {
-	CERT_FORMAT_DER,
-	CERT_FORMAT_PEM
-};
-
 static void print_buffer(char *title, unsigned char *buffer, unsigned int len)
 {
 	int i = 0;
@@ -409,13 +404,7 @@ static int security_get_certificates(void)
 		}
 
 		see_selfprintf("[%d] %s ", cnt++, test_name[i]);
-
-		if (ret) {
-			test_result++;
-			see_selfprintf(" fail\n");
-		} else {
-			see_selfprintf(" success\n");
-		}
+		see_selfprintf(" success\n");
 
 		if (cert) {
 			free(cert);
@@ -511,6 +500,131 @@ exit:
 	return test_result;
 }
 
+static int security_serial(void)
+{
+	artik_security_handle handle = NULL;
+	artik_error ret = S_OK;
+	int test_result = 0;
+	unsigned char *cert = NULL;
+	unsigned int certlen = 0;
+	unsigned char serial_number[ARTIK_CERT_SN_MAXLEN] = "";
+	unsigned int len = ARTIK_CERT_SN_MAXLEN;
+	char *cert_pem = NULL;
+	int i = 0;
+
+	fprintf(stderr, "--------------------------------------------\n");
+	fprintf(stderr, "  SECURITY SDK TESTCASE : get serial number\n");
+	fprintf(stderr, "--------------------------------------------\n");
+
+	artik_security_module *security = (artik_security_module *) artik_request_api_module("security");
+
+	if (!security) {
+		fprintf(stderr, "Security module is not available\n");
+		return -1;
+	}
+
+	ret = security->request(&handle);
+	if (ret != S_OK) {
+		fprintf(stderr, "Failed to request security instance (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->get_certificate(handle, "ARTIK/0",
+			ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&cert,
+			(unsigned int *)&certlen);
+	if ((ret != S_OK) || !cert) {
+		fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	cert_pem = strndup((char *)cert, certlen);
+	if (!cert_pem) {
+		fprintf(stderr, "Failed to allocate memory\n");
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->get_certificate_sn(cert_pem, serial_number, &len);
+	if (ret != S_OK) {
+		fprintf(stderr, "Failed to get serial number (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	fprintf(stderr, "SerialNumber:  ");
+	for (i = 0; i < (len - 1); i++)
+		fprintf(stderr, "%02x:", serial_number[i]);
+
+	fprintf(stderr, "%02x\n", serial_number[len - 1]);
+
+exit:
+	if (cert_pem)
+		free(cert_pem);
+
+	if (cert)
+		free(cert);
+
+	if (handle)
+		security->release(handle);
+
+	if (security)
+		artik_release_api_module(security);
+
+	return test_result;
+}
+
+static int security_cert_chain(void)
+{
+	artik_security_handle handle = NULL;
+	artik_error ret = S_OK;
+	artik_list *chain = NULL, *elem = NULL;
+	int test_result = 0;
+	artik_security_module *security = (artik_security_module *)artik_request_api_module("security");
+
+	fprintf(stderr, "-------------------------------------------------\n");
+	fprintf(stderr, "  SECURITY SDK TESTCASE : get certifcate chain\n");
+	fprintf(stderr, "-------------------------------------------------\n");
+
+	if (!security) {
+		fprintf(stderr, "Security module is not available\n");
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->request(&handle);
+	if (ret != S_OK) {
+		fprintf(stderr, "Failed to request security instance (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->get_certificate_pem_chain(handle, ARTIK_DEVICE_CERT_ID, &chain);
+	if (ret != S_OK || !chain) {
+		fprintf(stderr, "Failed to get certificate pem chain (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	elem = chain;
+	while (elem) {
+		printf("%s\n", (char *)elem->data);
+		elem = elem->next;
+	}
+
+exit:
+	if (chain)
+		artik_list_delete_all(&chain);
+
+	if (handle)
+		ret = security->release(handle);
+
+	if (security)
+		artik_release_api_module(security);
+	return test_result;
+}
+
 static int security_rand(void)
 {
 	artik_security_module *security = NULL;
@@ -549,17 +663,99 @@ static int security_rand(void)
 	}
 
 	for (i = 0; i < num_bytes; i++)
-		fprintf(stdout, "%02x ", rand_bytes[i]);
+		fprintf(stderr, "%02x ", rand_bytes[i]);
 
-	fprintf(stdout, "\n");
+	fprintf(stderr, "\n");
 
 exit:
 	if (rand_bytes)
 		free(rand_bytes);
+
+	security->release(handle);
+
+	artik_release_api_module(security);
+
+	return test_result;
+}
+
+static int security_cert_publickey(void)
+{
+	artik_security_module *security = NULL;
+	artik_security_handle handle = NULL;
+	artik_error ret = S_OK;
+	int test_result = 0;
+	char *se_pk_pem = NULL;
+	char *cert_pem = NULL;
+	unsigned char *se_pk_der = NULL;
+	unsigned char *cert = NULL;
+	unsigned int length = 0;
+
+	fprintf(stderr, "------------------------------------------------------\n");
+	fprintf(stderr, "  SECURITY SDK TESTCASE : get certificate public key\n");
+	fprintf(stderr, "------------------------------------------------------\n");
+
+	security = (artik_security_module *)artik_request_api_module("security");
+	if (!security) {
+		fprintf(stderr, "Security module is not available\n");
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->request(&handle);
+	if (ret != S_OK) {
+		fprintf(stderr, "Failed to request security instance (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->get_certificate(handle, "ARTIK/0",
+			ARTIK_SECURITY_CERT_TYPE_PEM, &cert, &length);
+	if ((ret != S_OK) || !cert) {
+		fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	cert_pem = strndup((char *)cert, length);
+	if (!cert_pem) {
+		fprintf(stderr, "Failed to allocate memory\n");
+		test_result++;
+		goto exit;
+	}
+
+	ret = security->get_ec_pubkey_from_cert(cert_pem, &se_pk_pem);
+	if (ret != S_OK || !se_pk_pem) {
+		fprintf(stderr, "Failed to get public key (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	fprintf(stderr, "PEM Pub :\n%s\n", se_pk_pem);
+
+	ret = security->convert_pem_to_der(se_pk_pem, &se_pk_der, &length);
+	if (ret != S_OK) {
+		fprintf(stderr, "Failed to convert PEM public key to DER (err=%d)\n", ret);
+		test_result++;
+		goto exit;
+	}
+
+	print_buffer("DER Pub", se_pk_der, length);
+
+exit:
+	if (se_pk_pem)
+		free(se_pk_pem);
+
+	if (cert)
+		free(cert);
+
+	if (cert_pem)
+		free(cert_pem);
+
 	if (handle)
 		security->release(handle);
 
-	artik_release_api_module(security);
+	if (security)
+		artik_release_api_module(security);
 
 	return test_result;
 }
@@ -2696,7 +2892,7 @@ int main(int argc, char **argv)
 	int i;
 	char *p, *q;
 	int test_result = 0;
-	unsigned int test_select = 0xFFFF;
+	unsigned int test_select = 0xFFFFFFFF;
 
 	for (i = 1; i < argc; i++) {
 		p = argv[i];
@@ -2726,7 +2922,8 @@ int main(int argc, char **argv)
 		"security_ecdsa_sign_verify",
 		"security_set_compute_dhm_params",
 		"security_set_compute_ecdh_params",
-		"security_get_publickey"
+		"security_get_publickey",
+		"security_cert_chain"
 	};
 
 	printf("\n\n");
@@ -2735,9 +2932,17 @@ int main(int argc, char **argv)
 		if (security_get_certificates())
 			test_result |= 0x1;
 
+	if (test_select & 0x2)
+		if (security_serial())
+			test_result |= 0x2;
+
 	if (test_select & 0x4)
 		if (security_rand())
 			test_result |= 0x4;
+
+	if (test_select & 0x8)
+		if (security_cert_publickey())
+			test_result |= 0x8;
 
 	if (test_select & 0x10)
 		if (security_rsa_encrypt_decrypt())
@@ -2786,6 +2991,10 @@ int main(int argc, char **argv)
 	if (test_select & 0x8000)
 		if (security_get_publickey())
 			test_result |= 0x8000;
+
+	if (test_select & 0x10000)
+		if (security_cert_chain())
+			test_result |= 0x10000;
 
 	for (i = 0; i < ARRAY_SIZE(test_name); i++) {
 		if (!(test_select & 0x1))
