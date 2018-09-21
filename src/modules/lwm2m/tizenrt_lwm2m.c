@@ -110,7 +110,6 @@ static void *_lwm2m_service_thread(void *user_data)
 			pthread_mutex_unlock(&(node->mutex));
 			break;
 		case LWM2M_CLIENT_DISCONNECTED:
-			if (node->connected) {
 				pthread_mutex_lock(&(node->mutex));
 				node->state = LWM2M_EXIT;
 				if (node->callbacks[ARTIK_LWM2M_EVENT_DISCONNECT]) {
@@ -119,9 +118,9 @@ static void *_lwm2m_service_thread(void *user_data)
 						(void *)err,
 						node->callbacks_params[
 							ARTIK_LWM2M_EVENT_DISCONNECT]);
+					node->connected = false;
 				}
 				pthread_mutex_unlock(&(node->mutex));
-			}
 			break;
 		default:
 			if (node->callbacks[ARTIK_LWM2M_EVENT_CONNECT] && (!node->connected)) {
@@ -524,6 +523,8 @@ artik_error os_lwm2m_client_connect(artik_lwm2m_handle handle)
 
 	if (!node)
 		return E_BAD_ARGS;
+
+	node->connected = false;
 
 	if (!node->container) {
 		log_dbg("node container is null");
