@@ -1,2 +1,5 @@
 ADD_SUBDIRECTORY( security_info )
 ADD_SUBDIRECTORY( pkcs7_sig_verify )
+ADD_SUBDIRECTORY( security_key )
+ADD_SUBDIRECTORY( security_certificate )
+ADD_SUBDIRECTORY( security_storage )
