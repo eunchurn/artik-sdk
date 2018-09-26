@@ -16,44 +16,6 @@
  *
  ****************************************************************************/
 /****************************************************************************
- * examples/security_sdk/security_sdk_main.c
- *
- *   Copyright (C) 2018 SAMSUNG ELECTRONICS CO., LTD. All rights reserved.
- *   Author: Jisuu Kim <yd.oh@samsung.com>
- *
- *   Copyright (C) 2008, 2011-2012 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************/
-
-/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -902,116 +864,6 @@ static void print_buffer(char *title, unsigned char *buffer, unsigned int len) {
   printf("\n\n");
 }
 
-#if 0  // Not support mbedtls yet
-static int get_ec_pubkey_from_cert(artik::Security *security) {
-  int ret = 0;
-  mbedtls_x509_crt x509_cert;
-  unsigned char buf[2048];
-  size_t key_len = 0;
-
-  if (!cert || !key || *key)
-    return E_BAD_ARGS;
-
-  mbedtls_x509_crt_init(&x509_cert);
-
-  ret = mbedtls_x509_crt_parse(&x509_cert,
-          reinterpret_cast<unsigned char*>(cert), strlen(cert) + 1);
-
-  if (ret) {
-    fprintf(stderr, "Failed to parse certificate (err=%d)", ret);
-    mbedtls_x509_crt_free(&x509_cert);
-    return E_ACCESS_DENIED;
-  }
-
-  memset(&buf, 0, sizeof(buf));
-
-  ret = mbedtls_pk_write_pubkey_pem(&x509_cert.pk, buf, 2048);
-
-  if (ret) {
-    fprintf(stderr, "Failed to write pubkey PEM (err=%d)", ret);
-    mbedtls_x509_crt_free(&x509_cert);
-    return E_ACCESS_DENIED;
-  }
-
-  key_len = strlen(reinterpret_cast<char*>(buf)) + 1;
-
-  if (key_len <= 0) {
-    fprintf(stderr, "Wrong size of key");
-    mbedtls_x509_crt_free(&x509_cert);
-    return E_SECURITY_ERROR;
-  }
-
-  *key = malloc(key_len);
-
-  if (!*key) {
-    fprintf(stderr, "Not enough memory to allocate key");
-    mbedtls_x509_crt_free(&x509_cert);
-    return E_NO_MEM;
-  }
-
-  memcpy(*key, buf, key_len);
-
-  mbedtls_x509_crt_free(&x509_cert);
-  return S_OK;
-}
-
-static int print_crt(unsigned char *buf, unsigned int buf_len) {
-  int ret;
-  int pos = 0;
-  size_t len = 0;
-  unsigned char *p;
-  int buf_format = MBEDTLS_X509_FORMAT_DER;
-
-  mbedtls_x509_crt crt;
-  mbedtls_x509_crt *t_crt;
-
-  mbedtls_x509_crt_init(&crt);
-
-  if (strstr(reinterpret_cast<const char*>(buf),
-              "-----BEGIN CERTIFICATE-----") != NULL)
-    buf_format = MBEDTLS_X509_FORMAT_PEM;
-
-  if (buf_format == MBEDTLS_X509_FORMAT_DER) {
-    p = reinterpret_cast<unsigned char*>(buf);
-
-    while (pos < buf_len) {
-      p = reinterpret_cast<unsigned char*>(buf) + pos;
-      ret = mbedtls_asn1_get_tag(&p, buf + buf_len, &len,
-        MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE);
-      if (ret != 0)
-        goto exit;
-      if (pos + len < buf_len) {
-        ret = mbedtls_x509_crt_parse(&crt, buf + pos, len + 4);
-        if (ret != 0)
-          goto exit;
-      }
-      pos += len + 4;
-    }
-  } else {
-    ret = mbedtls_x509_crt_parse(&crt, buf, buf_len);
-    if (ret != 0)
-      goto exit;
-  }
-
-  t_crt = &crt;
-
-  while (t_crt != NULL) {
-    ret = mbedtls_x509_crt_info(reinterpret_cast<char *>(buf),
-                                buf_len, "  - ", t_crt);
-    if (ret <= 0)
-      goto exit;
-    printf("\n%s\n", buf);
-    t_crt = t_crt->next;
-  }
-
-  return 0;
-
-exit:
-  mbedtls_x509_crt_free(&crt);
-  return ret;
-}
-#endif
-
 static int security_get_certificates(artik::Security *security) {
   int test_result = 0;
   artik_error ret = S_OK;
@@ -1092,19 +944,8 @@ static int security_get_certificates(artik::Security *security) {
       goto exit;
     }
 
-#if 0  // Not support mbedtls yet
-    if (cert)
-      ret += print_crt(cert, certlen);
-#endif
-
     see_selfprintf("[%d] %s ", cnt++, test_name[i]);
-
-    if (ret) {
-      test_result++;
-      see_selfprintf(" fail\n");
-    } else {
-      see_selfprintf(" success\n");
-    }
+    see_selfprintf(" success\n");
 
     if (cert) {
       free(cert);
@@ -1200,80 +1041,6 @@ exit:
   return test_result;
 }
 
-#if 0  // Not support mbedtls yet
-static int get_certificate_sn(unsigned char *pem_cert_chain,
-  unsigned int pem_cert_chain_len, unsigned char *sn, unsigned int *len) {
-  int ret = 0;
-  mbedtls_x509_crt cert;
-
-  if (!sn || !len || (*len == 0))
-    return E_BAD_ARGS;
-
-  mbedtls_x509_crt_init(&cert);
-  ret = mbedtls_x509_crt_parse(&cert, pem_cert_chain, pem_cert_chain_len);
-  if (ret) {
-    fprintf(stderr, "Failed to parse certificate (err=%d)", ret);
-    mbedtls_x509_crt_free(&cert);
-    return E_ACCESS_DENIED;
-  }
-
-  if (cert.serial.len > *len) {
-    fprintf(stderr, "Buffer is too small");
-    mbedtls_x509_crt_free(&cert);
-    return E_BAD_ARGS;
-  }
-
-  memcpy(sn, cert.serial.p, cert.serial.len);
-  *len = cert.serial.len;
-
-  mbedtls_x509_crt_free(&cert);
-
-  return S_OK;
-}
-
-static int security_serial(artik::Security *security) {
-  artik_error ret = S_OK;
-  int test_result = 0;
-  unsigned char *cert = NULL;
-  unsigned int certlen = 0;
-  unsigned char serial_number[ARTIK_CERT_SN_MAXLEN] = "";
-  unsigned int len = ARTIK_CERT_SN_MAXLEN;
-  int i = 0;
-
-  fprintf(stderr, "--------------------------------------------\n");
-  fprintf(stderr, "  SECURITY SDK TESTCASE : get serial number\n");
-  fprintf(stderr, "--------------------------------------------\n");
-
-  ret = security->get_certificate("ARTIK/0",
-      ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&cert,
-      reinterpret_cast<unsigned int*>(&certlen));
-  if ((ret != S_OK) || !cert) {
-    fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
-    test_result++;
-    goto exit;
-  }
-
-  ret = get_certificate_sn(cert, certlen, serial_number, &len);
-  if (ret != S_OK) {
-    fprintf(stderr, "Failed to get serial number (err=%d)\n", ret);
-    test_result++;
-    goto exit;
-  }
-
-  fprintf(stdout, "SerialNumber:  ");
-  for (i = 0; i < (len - 1); i++)
-    fprintf(stdout, "%02x:", serial_number[i]);
-
-  fprintf(stdout, "%02x\n", serial_number[len - 1]);
-
-exit:
-  if (cert)
-    free(cert);
-
-  return test_result;
-}
-#endif
-
 static int security_rand(artik::Security *security) {
   int test_result = 0;
   artik_error err = S_OK;
@@ -1303,64 +1070,6 @@ exit:
 
   return test_result;
 }
-
-#if 0  // Not support mbedtls yet
-static int security_cert_publickey(artik::Security *security) {
-  artik_error ret = S_OK;
-  int test_result = 0;
-  char *se_pk_pem = NULL;
-  unsigned char *se_pk_der = NULL;
-  unsigned char *cert = NULL;
-  unsigned char certlen = 0;
-  int length;
-  enum CertFormat fmt = CERT_FORMAT_PEM;
-
-  fprintf(stderr, "------------------------------------------------------\n");
-  fprintf(stderr, "  SECURITY SDK TESTCASE : get certificate public key\n");
-  fprintf(stderr, "------------------------------------------------------\n");
-
-  ret = security->get_certificate("ARTIK/0",
-      ARTIK_SECURITY_CERT_TYPE_PEM, reinterpret_cast<unsigned char**>(&cert),
-      reinterpret_cast<unsigned int*>(&certlen));
-  if ((ret != S_OK) || !cert) {
-    fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
-    test_result++;
-    goto exit;
-  }
-
-  ret = get_ec_pubkey_from_cert(reinterpret_cast<char*>(cert), &se_pk_pem);
-  if (ret != S_OK || !se_pk_pem) {
-    fprintf(stderr, "Failed to get public key (err=%d)\n", ret);
-    test_result++;
-    goto exit;
-  }
-
-  switch (fmt) {
-  case CERT_FORMAT_PEM:
-    fprintf(stdout, se_pk_pem);
-    break;
-  case CERT_FORMAT_DER:
-    ret = security->convert_pem_to_der(reinterpret_cast<char*>(se_pk_pem),
-                                &se_pk_der, reinterpret_cast<size_t*>(&length));
-    if (ret != S_OK) {
-      fprintf(stderr,
-              "Failed to convert PEM public key to DER (err=%d)\n", ret);
-      test_result++;
-      goto exit;
-    }
-    print_buffer("DER Pub", se_pk_der, length);
-  }
-
-exit:
-  if (se_pk_pem)
-    free(se_pk_pem);
-
-  if (cert != NULL)
-    free(cert);
-
-  return test_result;
-}
-#endif
 
 static int security_rsa_encrypt_decrypt(artik::Security *security) {
   int ret = 0;
@@ -1671,6 +1380,7 @@ static int security_secure_storage(artik::Security *security) {
   if (!input) {
       test_result++;
       see_selfprintf(" fail\n");
+      return test_result;
   }
 
   for (j = 0; j < 32; j++) {
@@ -2727,38 +2437,49 @@ static int security_get_publickey(artik::Security *security) {
     see_selfprintf("Signature verification fail\n");
 
   ret += security->get_publickey(ECC_SEC_P256R1, key_name, &out, &outlen);
-  // print_buffer("ECC Public Key", out, outlen);
   ret += security->remove_key(ECC_SEC_P256R1, key_name);
-  see_selfprintf("[%d] ", cnt++);
-  if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
+
+  if (!out) {
     test_result++;
     see_selfprintf(" fail : %d\n", ret);
   } else {
-    see_selfprintf(" success\n");
-  }
+    see_selfprintf("[%d] ", cnt++);
+    if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
+      test_result++;
+      see_selfprintf(" fail : %d\n", ret);
+    } else {
+      see_selfprintf(" success\n");
+    }
 
-  free(out);
-  out = NULL;
+    free(out);
+    out = NULL;
+  }
 
   memset(key_name, 0, sizeof(key_name));
   snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 2);
   ret = security->set_key(ECC_SEC_P256R1, key_name, ecc_pub, sizeof(ecc_pub));
   ret += security->get_publickey(ECC_SEC_P256R1, key_name, &out, &outlen);
-  if (security->verify_ecdsa_signature(ECC_SEC_P256R1, key_name,
-                                       hash, 32, sig, siglen) != 0)
-    see_selfprintf("Signature verification fail\n");
-  // print_buffer("ECC Public Key", out, outlen);
-  ret += security->remove_key(ECC_SEC_P256R1, key_name);
-  see_selfprintf("[%d] ", cnt++);
-  if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
+  if (!out) {
     test_result++;
     see_selfprintf(" fail : %d\n", ret);
+    ret = security->remove_key(ECC_SEC_P256R1, key_name);
   } else {
-    see_selfprintf(" success\n");
-  }
+    if (security->verify_ecdsa_signature(ECC_SEC_P256R1, key_name, hash, 32,
+        sig, siglen) != 0)
+      see_selfprintf("Signature verification fail\n");
 
-  free(out);
-  out = NULL;
+    ret += security->remove_key(ECC_SEC_P256R1, key_name);
+    see_selfprintf("[%d] ", cnt++);
+    if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
+      test_result++;
+      see_selfprintf(" fail : %d\n", ret);
+    } else {
+      see_selfprintf(" success\n");
+    }
+
+    free(out);
+    out = NULL;
+  }
 
   ret = security->set_key(RSA_1024, key_name, rsa1024_pub, sizeof(rsa1024_pub));
   ret += security->get_publickey(RSA_1024, key_name, &out, &outlen);
@@ -2902,21 +2623,9 @@ int main(int argc, char **argv) {
       if (security_get_certificates(&security))
         test_result |= 0x1;
 
-#if 0  // Not support mbedtls yet
-    if (test_select & 0x2)
-      if (security_serial(&security))
-        test_result |= 0x2;
-#endif
-
     if (test_select & 0x4)
       if (security_rand(&security))
         test_result |= 0x4;
-
-#if 0  // Not support mbedtls yet
-    if (test_select & 0x8)
-      if (security_cert_publickey(&security))
-        test_result |= 0x8;
-#endif
 
     if (test_select & 0x10)
       if (security_rsa_encrypt_decrypt(&security))
