@@ -1101,24 +1101,29 @@ static int security_rsa_encrypt_decrypt(artik::Security *security) {
       key_name, out, outlen, &check, &checklen);
     ret += security->remove_key(RSA_1024, key_name);
 
-    see_selfprintf("[%d] ", cnt++);
-
-    if (i == 8 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret || memcmp(input, check, checklen)) {
+    if (!check) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
-      see_selfprintf(" success\n");
-    }
+      see_selfprintf("[%d] ", cnt++);
 
-    if (out) {
-      free(out);
-      out = NULL;
-    }
-    if (check) {
-      free(check);
-      check = NULL;
+      if (i == 8 && ret) {
+        see_selfprintf(" success\n");
+      } else if (ret || memcmp(input, check, checklen)) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        see_selfprintf(" success\n");
+      }
+
+      if (out) {
+        free(out);
+        out = NULL;
+      }
+      if (check) {
+        free(check);
+        check = NULL;
+      }
     }
   }
 
@@ -2462,7 +2467,7 @@ static int security_get_publickey(artik::Security *security) {
   if (!out) {
     test_result++;
     see_selfprintf(" fail : %d\n", ret);
-    ret = security->remove_key(ECC_SEC_P256R1, key_name);
+    security->remove_key(ECC_SEC_P256R1, key_name);
   } else {
     if (security->verify_ecdsa_signature(ECC_SEC_P256R1, key_name, hash, 32,
         sig, siglen) != 0)
