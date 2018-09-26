@@ -828,6 +828,7 @@ artik_error os_security_get_certificate(artik_security_handle handle,
 	char *cert_pem = NULL;
 	char *artik_pem = NULL;
 	int num = 0;
+	int pem_len = 0;
 
 	if (!node) {
 		log_err("security node error");
@@ -879,19 +880,18 @@ artik_error os_security_get_certificate(artik_security_handle handle,
 			}
 			num++;
 		}
+
 		artik_pem = strstr(cert_pem, PEM_END_CRT) + strlen(PEM_END_CRT);
-		num = artik_pem - cert_pem + 1;
-		artik_pem = (char *)malloc(sizeof(char) * num);
+		pem_len = artik_pem - cert_pem;
+		artik_pem = strndup(cert_pem, pem_len);
 		if (!artik_pem) {
 			free(certificate.data);
 			return E_NO_MEM;
 		}
 
-		memcpy(artik_pem, cert_pem, num - 1);
-		artik_pem[num - 1] = '\0';
 		free(certificate.data);
 		certificate.data = artik_pem;
-		certificate.length = num;
+		certificate.length = pem_len;
 	} else {
 		if (g_see_dev->get_certificate(name, &certificate) < 0) {
 			log_err("get certificate error");
@@ -2524,6 +2524,7 @@ artik_error os_security_verify_signature_init(artik_security_handle *handle,
 	X509_STORE_CTX *store_ctx = NULL;
 	X509_STORE *store = NULL;
 	artik_error ret = S_OK;
+	artik_time_module *time = NULL;
 
 	STACK_OF(PKCS7_SIGNER_INFO) * sinfos = NULL;
 
@@ -2681,8 +2682,12 @@ artik_error os_security_verify_signature_init(artik_security_handle *handle,
 			memcpy(signing_time_out, &pkcs7_signing_time, sizeof(artik_time));
 
 		if (signing_time_in) {
-			artik_time_module *time =
-				(artik_time_module *)artik_request_api_module("time");
+			time = (artik_time_module *)artik_request_api_module("time");
+			if (!time) {
+				log_dbg("Failed to request time module");
+				ret = E_NOT_SUPPORTED;
+				goto exit;
+			}
 
 			if (time->compare_dates(&pkcs7_signing_time,
 					signing_time_in) == -1) {
@@ -2722,6 +2727,8 @@ exit:
 		BIO_free(sigbio);
 	if (ca_cert)
 		X509_free(ca_cert);
+	if (time)
+		artik_release_api_module(time);
 
 	if (ret != S_OK)
 		artik_list_delete_node(&verify_nodes, (artik_list *)node);
