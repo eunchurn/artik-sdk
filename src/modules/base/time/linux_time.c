@@ -275,6 +275,10 @@ artik_error os_time_create_alarm_second(artik_time_zone gmt,
 					void *user_data,
 					artik_msecond second)
 {
+	artik_time_alarm_t *alarm_data = NULL;
+	struct tm curr_usr;
+	time_t curr_in_sec;
+
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
@@ -284,11 +288,7 @@ artik_error os_time_create_alarm_second(artik_time_zone gmt,
 	if (!func)
 		return E_BAD_ARGS;
 
-	artik_time_alarm_t *alarm_data = NULL;
-	struct tm curr_usr;
-	time_t curr_in_sec;
-
-	memset(&curr_usr, 1, sizeof(curr_usr));
+	memset(&curr_usr, 0, sizeof(curr_usr));
 	os_time_get_sys(&curr_usr, gmt);
 	curr_usr.tm_yday = 0;
 	curr_usr.tm_year -= EPOCH_DEF;
@@ -321,6 +321,10 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 				      void *user_data,
 				      artik_time date)
 {
+	time_t date_in_sec = 0, curr_in_sec = 0;
+	double diff_t;
+	struct tm date_usr, curr_usr;
+
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
@@ -354,10 +358,6 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 	if ((int)date.msecond < 0)
 		return E_BAD_ARGS;
 
-	time_t date_in_sec = 0, curr_in_sec = 0;
-	double diff_t;
-	struct tm date_usr, curr_usr;
-
 	memset(&curr_usr, 0, sizeof(curr_usr));
 	os_time_get_sys(&curr_usr, gmt);
 
@@ -369,17 +369,16 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 		return E_INVALID_VALUE;
 
 	memset(&date_usr, 0, sizeof(date_usr));
-	memcpy(&date_usr, &date, sizeof(date));
-
-	if (date_usr.tm_year > EPOCH_DEF) {
-		date_usr.tm_year -= EPOCH_DEF;
-		date_usr.tm_mon--;
-	}
-
-	date_usr.tm_yday = 0;
+	date_usr.tm_sec = date.second;
+	date_usr.tm_min = date.minute;
+	date_usr.tm_hour = date.hour;
+	date_usr.tm_min = date.minute;
+	date_usr.tm_mday = date.day;
+	date_usr.tm_mon = date.month--;
+	date_usr.tm_year = date.year - EPOCH_DEF;
+	date_usr.tm_wday = date.day_of_week;
 
 	date_in_sec = mktime(&date_usr);
-
 	if (date_in_sec < 0)
 		return E_INVALID_VALUE;
 
@@ -406,14 +405,14 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 	struct tm curr_usr;
 	artik_msecond curr_in_sec = 0;
 	int res = 0;
+	artik_error ret = S_OK;
 
 	if (!alarm_data)
 		return E_BAD_ARGS;
 
-	memset(&curr_usr, 1, sizeof(curr_usr));
+	memset(&curr_usr, 0, sizeof(curr_usr));
 
-	artik_error ret = os_time_get_sys(&curr_usr, alarm_data->gmt);
-
+	ret = os_time_get_sys(&curr_usr, alarm_data->gmt);
 	if (ret != S_OK) {
 		*msecond = 0;
 		return ret;
@@ -421,8 +420,8 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 
 	curr_usr.tm_year -= EPOCH_DEF;
 	curr_usr.tm_yday = 0;
-	res = mktime(&curr_usr);
 
+	res = mktime(&curr_usr);
 	if (res == 0)
 		*msecond = 0;
 	else if (res < 0) {
