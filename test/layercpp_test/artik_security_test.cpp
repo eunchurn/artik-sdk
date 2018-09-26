@@ -1286,9 +1286,8 @@ static int security_rand(artik::Security *security) {
   fprintf(stderr, "--------------------------------------------\n");
 
   err = security->get_random_bytes(num_bytes, &rand_bytes);
-  if (err != S_OK) {
+  if (err != S_OK || !rand_bytes) {
     fprintf(stderr, "Failed to get random bytes (err=%d)\n", err);
-    free(rand_bytes);
     test_result++;
     goto exit;
   }
@@ -1428,22 +1427,26 @@ static int security_rsa_encrypt_decrypt(artik::Security *security) {
       key_name, out, outlen, &check, &checklen);
     ret += security->remove_key(RSA_1024, key_name);
 
-    see_selfprintf("[%d] ", cnt++);
-
-    if (cnt >= i && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret || memcmp(input, check, checklen)) {
+    if (!check) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
-      see_selfprintf(" success\n");
-    }
+      see_selfprintf("[%d] ", cnt++);
 
-    if (out) {
-      free(out);
-      out = NULL;
-    }
-    if (check) {
+      if (cnt >= i && ret) {
+        see_selfprintf(" success\n");
+      } else if (ret || memcmp(input, check, checklen)) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        see_selfprintf(" success\n");
+      }
+
+      if (out) {
+        free(out);
+        out = NULL;
+      }
+
       free(check);
       check = NULL;
     }
@@ -1463,22 +1466,26 @@ static int security_rsa_encrypt_decrypt(artik::Security *security) {
       key_name, out, outlen, &check, &checklen);
     ret += security->remove_key(RSA_2048, key_name);
 
-    see_selfprintf("[%d] ", cnt++);
-
-    if (i == 8 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret || memcmp(input, check, checklen)) {
-      test_result++;
-      see_selfprintf(" fail\n");
+    if (!check) {
+        test_result++;
+        see_selfprintf(" fail\n");
     } else {
-      see_selfprintf(" success\n");
-    }
+      see_selfprintf("[%d] ", cnt++);
 
-    if (out) {
-      free(out);
-      out = NULL;
-    }
-    if (check) {
+      if (i == 8 && ret) {
+        see_selfprintf(" success\n");
+      } else if (ret || memcmp(input, check, checklen)) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        see_selfprintf(" success\n");
+      }
+
+      if (out) {
+        free(out);
+        out = NULL;
+      }
+
       free(check);
       check = NULL;
     }
@@ -1498,21 +1505,25 @@ static int security_rsa_encrypt_decrypt(artik::Security *security) {
       key_name, out, outlen, &check, &checklen);
     ret += security->remove_key(RSA_2048, key_name);
 
-    see_selfprintf("[%d] ", cnt++);
-
-    if (i >= 4 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret || memcmp(input, check, checklen)) {
+    if (!check) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
-      see_selfprintf(" success\n");
-    }
-    if (out) {
-      free(out);
-      out = NULL;
-    }
-    if (check) {
+      see_selfprintf("[%d] ", cnt++);
+
+      if (i >= 4 && ret) {
+        see_selfprintf(" success\n");
+      } else if (ret || memcmp(input, check, checklen)) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        see_selfprintf(" success\n");
+      }
+      if (out) {
+        free(out);
+        out = NULL;
+      }
+
       free(check);
       check = NULL;
     }
@@ -1571,19 +1582,23 @@ static int security_aes_encrypt_decrypt(artik::Security *security) {
         iv, sizeof(iv), out, outlen, &check, &checklen);
       ret += security->remove_key((see_algorithm)aes_info[j][0], key_name);
 
-      see_selfprintf("[%d] ", cnt++);
-      if (ret || memcmp(aes_input, check, checklen)) {
+      if (!check) {
         test_result++;
         see_selfprintf(" fail\n");
       } else {
-        see_selfprintf(" success\n");
-      }
+        see_selfprintf("[%d] ", cnt++);
+        if (ret || memcmp(aes_input, check, checklen)) {
+          test_result++;
+          see_selfprintf(" fail\n");
+        } else {
+          see_selfprintf(" success\n");
+        }
 
-      if (out) {
-        free(out);
-        out = NULL;
-      }
-      if (check) {
+        if (out) {
+          free(out);
+          out = NULL;
+        }
+
         free(check);
         check = NULL;
       }
@@ -1604,19 +1619,23 @@ static int security_aes_encrypt_decrypt(artik::Security *security) {
         iv, sizeof(iv), out, outlen, &check, &checklen);
       ret += security->remove_key((see_algorithm)aes_info[j][0], key_name);
 
-      see_selfprintf("[%d] ", cnt++);
-      if (ret || memcmp(aes_input, check, checklen)) {
+      if (!check) {
         test_result++;
         see_selfprintf(" fail\n");
       } else {
-        see_selfprintf(" success\n");
-      }
+        see_selfprintf("[%d] ", cnt++);
+        if (ret || memcmp(aes_input, check, checklen)) {
+          test_result++;
+          see_selfprintf(" fail\n");
+        } else {
+          see_selfprintf(" success\n");
+        }
 
-      if (out) {
-        free(out);
-        out = NULL;
-      }
-      if (check) {
+        if (out) {
+          free(out);
+          out = NULL;
+        }
+
         free(check);
         check = NULL;
       }
@@ -1638,7 +1657,7 @@ static int security_aes_encrypt_decrypt(artik::Security *security) {
 static int security_secure_storage(artik::Security *security) {
   int j, ret = 0;
   unsigned int test_result = 0;
-  unsigned char input[33000];
+  unsigned char *input = NULL;
   unsigned int inlen[3] = { 18, 32768, 32769 };
   unsigned char *out;
   unsigned int outlen = 0;
@@ -1647,6 +1666,12 @@ static int security_secure_storage(artik::Security *security) {
   fprintf(stderr, "------------------------------------------------------\n");
   fprintf(stderr, "  SECURITY SDK TESTCASE : secure storage\n");
   fprintf(stderr, "------------------------------------------------------\n");
+
+  input = (unsigned char *)malloc(inlen[2]);
+  if (!input) {
+      test_result++;
+      see_selfprintf(" fail\n");
+  }
 
   for (j = 0; j < 32; j++) {
     see_selfprintf("[%d] ", j);
@@ -1658,32 +1683,43 @@ static int security_secure_storage(artik::Security *security) {
     /* positive case 1 */
     ret = security->write_secure_storage(key_name, 0, input, inlen[0]);
     ret += security->read_secure_storage(key_name, 0, inlen[0], &out, &outlen);
-    ret += security->remove_secure_storage(key_name);
-    if (ret || memcmp(input, out, inlen[0])) {
+    if (!out) {
       test_result++;
       see_selfprintf(" fail\n");
       continue;
     }
 
-    if (out) {
+    ret += security->remove_secure_storage(key_name);
+    if (ret || memcmp(input, out, inlen[0])) {
       free(out);
       out = NULL;
+      test_result++;
+      see_selfprintf(" fail\n");
+      continue;
     }
+
+    free(out);
+    out = NULL;
 
     /* positive case 2 */
     ret = security->write_secure_storage(key_name, 0, input, inlen[1]);
     ret += security->read_secure_storage(key_name, 0, inlen[1], &out, &outlen);
+    if (!out) {
+      test_result++;
+      see_selfprintf(" fail\n");
+      continue;
+    }
     ret += security->remove_secure_storage(key_name);
     if (ret || memcmp(input, out, inlen[1])) {
+      free(out);
+      out = NULL;
       test_result++;
       see_selfprintf(" fail\n");
       continue;
     }
 
-    if (out) {
-      free(out);
-      out = NULL;
-    }
+    free(out);
+    out = NULL;
 
     /* negative case 1 : exceed max size */
     ret = security->write_secure_storage(key_name, 0, input, inlen[2]);
@@ -1702,10 +1738,7 @@ static int security_secure_storage(artik::Security *security) {
     }
   }
 
-  if (out) {
-    free(out);
-    out = NULL;
-  }
+  free(input);
 
   return test_result;
 }
@@ -2310,36 +2343,28 @@ static int security_set_compute_dhm_params(artik::Security *security) {
 
     ret = security->set_key((see_algorithm) algo, key_name, input_key[i][0],
                             input_key_size[i][0]);
-    // if(!ret && pub) print_buffer("dh_pub", pub, publen);
     ret += security->compute_dhm_params(key_name,
         input_key[i][1], input_key_size[i][1],
         &secret, &secretlen);
-    // if(!ret && secret) print_buffer("dh_secret", secret, secretlen);
     ret += security->remove_key((see_algorithm) algo, key_name);
-
-    see_selfprintf("[%d] ", cnt++);
-
-    if (i == 8 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret) {
-      test_result++;
-      see_selfprintf(" fail\n");
-    } else {
-      if (!memcmp(input_key[i][2], secret, secretlen)) {
-        see_selfprintf(" success\n");
-      } else {
+    if (!secret) {
         test_result++;
         see_selfprintf(" fail\n");
+    } else {
+      see_selfprintf("[%d] ", cnt++);
+
+      if (ret) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        if (!memcmp(input_key[i][2], secret, secretlen)) {
+          see_selfprintf(" success\n");
+        } else {
+          test_result++;
+          see_selfprintf(" fail\n");
+        }
       }
-    }
 
-    if (pub != NULL && publen > 0) {
-      free(pub);
-      pub = NULL;
-      publen = 0;
-    }
-
-    if (secret != NULL && secretlen > 0) {
       free(secret);
       secret = NULL;
       secretlen = 0;
@@ -2355,17 +2380,13 @@ static int security_set_compute_dhm_params(artik::Security *security) {
 
     ret = security->set_dhm_params(key_name,
         input_param[i], input_param_size[i], &pub, &publen);
-    // if(!ret && pub) print_buffer("dh_pub", pub, publen);
     ret += security->compute_dhm_params(key_name,
         pub, publen, &secret, &secretlen);
-    // if(!ret && secret) print_buffer("dh_secret", secret, secretlen);
     ret += security->remove_key(DH_ALGORITHM, key_name);
 
     see_selfprintf("[%d] ", cnt++);
 
-    if (i == 8 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret) {
+    if (ret) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
@@ -2540,9 +2561,7 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
 
     see_selfprintf("[%d] ", cnt++);
 
-    if (i == 8 && ret) {
-      see_selfprintf(" success\n");
-    } else if (ret) {
+    if (ret) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
@@ -2574,24 +2593,27 @@ static int security_set_compute_ecdh_params(artik::Security *security) {
         pub, publen, &secret, &secretlen);
     ret += security->remove_key((see_algorithm) genkey_input[i], key_name);
 
-    see_selfprintf("[%d] %s ", cnt++, keys_name[i]);
-
-    cmp_ret = memcmp(secrets[i], secret, secrets_size[i]);
-
-    if (ret || cmp_ret) {
+    if (!secret) {
       test_result++;
       see_selfprintf(" fail\n");
     } else {
-      see_selfprintf(" success\n");
-    }
+      see_selfprintf("[%d] %s ", cnt++, keys_name[i]);
 
-    if (pub != NULL && publen > 0) {
-      free(pub);
-      pub = NULL;
-      publen = 0;
-    }
+      cmp_ret = memcmp(secrets[i], secret, secrets_size[i]);
 
-    if (secret != NULL && secretlen > 0) {
+      if (ret || cmp_ret) {
+        test_result++;
+        see_selfprintf(" fail\n");
+      } else {
+        see_selfprintf(" success\n");
+      }
+
+      if (pub != NULL && publen > 0) {
+        free(pub);
+        pub = NULL;
+        publen = 0;
+      }
+
       free(secret);
       secret = NULL;
       secretlen = 0;
@@ -2740,18 +2762,22 @@ static int security_get_publickey(artik::Security *security) {
 
   ret = security->set_key(RSA_1024, key_name, rsa1024_pub, sizeof(rsa1024_pub));
   ret += security->get_publickey(RSA_1024, key_name, &out, &outlen);
-  // print_buffer("RSA Public Key", out, outlen);
-  ret += security->remove_key(RSA_1024, key_name);
-  see_selfprintf("[%d] ", cnt++);
-  if (ret || memcmp(out, rsa1024_pub, sizeof(rsa1024_pub))) {
+  if (!out) {
     test_result++;
     see_selfprintf(" fail : %d\n", ret);
   } else {
-    see_selfprintf(" success\n");
-  }
+    ret += security->remove_key(RSA_1024, key_name);
+    see_selfprintf("[%d] ", cnt++);
+    if (ret || memcmp(out, rsa1024_pub, sizeof(rsa1024_pub))) {
+      test_result++;
+      see_selfprintf(" fail : %d\n", ret);
+    } else {
+      see_selfprintf(" success\n");
+    }
 
-  free(out);
-  out = NULL;
+    free(out);
+    out = NULL;
+  }
 
   for (i = 0; i < 9; i++) {
     memset(key_name, 0, sizeof(key_name));

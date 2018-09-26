@@ -309,116 +309,6 @@ static void print_buffer(char *title, unsigned char *buffer, unsigned int len)
 	printf("\n\n");
 }
 
-#if 0	// Not support mbedtls yet
-static int get_ec_pubkey_from_cert(const char *cert, char **key)
-{
-	int ret = 0;
-	mbedtls_x509_crt x509_cert;
-	unsigned char buf[2048];
-	size_t key_len = 0;
-
-	if (!cert || !key || *key)
-		return E_BAD_ARGS;
-
-	mbedtls_x509_crt_init(&x509_cert);
-
-	ret = mbedtls_x509_crt_parse(&x509_cert, (unsigned char *)cert, strlen(cert) + 1);
-
-	if (ret) {
-		fprintf(stderr, "Failed to parse certificate (err=%d)", ret);
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_ACCESS_DENIED;
-	}
-
-	memset(&buf, 0, sizeof(buf));
-
-	ret = mbedtls_pk_write_pubkey_pem(&x509_cert.pk, buf, 2048);
-
-	if (ret) {
-		fprintf(stderr, "Failed to write pubkey PEM (err=%d)", ret);
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_ACCESS_DENIED;
-	}
-
-	key_len = strlen((char *)buf) + 1;
-
-	if (key_len <= 0) {
-		fprintf(stderr, "Wrong size of key");
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_SECURITY_ERROR;
-	}
-
-	*key = malloc(key_len);
-
-	if (!*key) {
-		fprintf(stderr, "Not enough memory to allocate key");
-		mbedtls_x509_crt_free(&x509_cert);
-		return E_NO_MEM;
-	}
-
-	memcpy(*key, buf, key_len);
-
-	mbedtls_x509_crt_free(&x509_cert);
-	return S_OK;
-}
-
-static int print_crt(unsigned char *buf, unsigned int buf_len)
-{
-	int ret;
-	int pos = 0;
-	size_t len = 0;
-	unsigned char *p;
-	int buf_format = MBEDTLS_X509_FORMAT_DER;
-
-	mbedtls_x509_crt crt;
-	mbedtls_x509_crt *t_crt;
-
-	mbedtls_x509_crt_init(&crt);
-
-	if (strstr((const char *)buf, "-----BEGIN CERTIFICATE-----") != NULL)
-		buf_format = MBEDTLS_X509_FORMAT_PEM;
-
-	if (buf_format == MBEDTLS_X509_FORMAT_DER) {
-
-		p = (unsigned char *)buf;
-
-		while (pos < buf_len) {
-			p = (unsigned char *)buf + pos;
-			ret = mbedtls_asn1_get_tag(&p, buf + buf_len, &len,
-				MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE);
-			if (ret != 0)
-				goto exit;
-			if (pos + len < buf_len) {
-				ret = mbedtls_x509_crt_parse(&crt, buf + pos, len + 4);
-				if (ret != 0)
-					goto exit;
-			}
-			pos += len + 4;
-		}
-	} else {
-		ret = mbedtls_x509_crt_parse(&crt, buf, buf_len);
-		if (ret != 0)
-			goto exit;
-	}
-
-	t_crt = &crt;
-
-	while (t_crt != NULL) {
-		ret = mbedtls_x509_crt_info((char *)buf, buf_len, "  - ", t_crt);
-		if (ret <= 0)
-			goto exit;
-		printf("\n%s\n", buf);
-		t_crt = t_crt->next;
-	}
-
-	return 0;
-
-exit:
-	mbedtls_x509_crt_free(&crt);
-	return ret;
-}
-#endif
-
 static int security_get_certificates(void)
 {
 	artik_security_module *security = NULL;
@@ -507,7 +397,7 @@ static int security_get_certificates(void)
 	 */
 	for (i = 0 ; i < ARTIK_CERTS_NUM ; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", ARTIK_STORAGE, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", ARTIK_STORAGE, i);
 
 		ret = security->get_certificate(handle, key_name,
 				ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&cert,
@@ -517,11 +407,6 @@ static int security_get_certificates(void)
 			test_result++;
 			goto exit;
 		}
-
-#if 0	// Not support mbedtls yet
-		if (cert)
-			ret += print_crt(cert, certlen);
-#endif
 
 		see_selfprintf("[%d] %s ", cnt++, test_name[i]);
 
@@ -543,7 +428,7 @@ static int security_get_certificates(void)
 	 * Inject PEM certificate and get it in DER form.
 	 */
 	memset(key_name, 0, sizeof(key_name));
-	sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, 0);
+	snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 0);
 	ret = security->set_certificate(handle, key_name,
 			(unsigned char *)test_cert_pem, strlen(test_cert_pem));
 	ret += security->get_certificate(handle, key_name,
@@ -581,7 +466,7 @@ static int security_get_certificates(void)
 	 * Inject DER certificate and get it in PEM form.
 	 */
 	memset(key_name, 0, sizeof(key_name));
-	sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, 1);
+	snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 1);
 	ret = security->set_certificate(handle, key_name,
 			test_cert_der, sizeof(test_cert_der));
 	ret += security->get_certificate(handle, key_name,
@@ -626,106 +511,11 @@ exit:
 	return test_result;
 }
 
-#if 0	// Not support mbedtls yet
-static int get_certificate_sn(unsigned char *pem_cert_chain,
-	unsigned int pem_cert_chain_len, unsigned char *sn, unsigned int *len)
-{
-	int ret = 0;
-	mbedtls_x509_crt cert;
-
-	if (!sn || !len || (*len == 0))
-		return E_BAD_ARGS;
-
-	mbedtls_x509_crt_init(&cert);
-	ret = mbedtls_x509_crt_parse(&cert, pem_cert_chain, pem_cert_chain_len);
-	if (ret) {
-		fprintf(stderr, "Failed to parse certificate (err=%d)", ret);
-		mbedtls_x509_crt_free(&cert);
-		return E_ACCESS_DENIED;
-	}
-
-	if (cert.serial.len > *len) {
-		fprintf(stderr, "Buffer is too small");
-		mbedtls_x509_crt_free(&cert);
-		return E_BAD_ARGS;
-	}
-
-	memcpy(sn, cert.serial.p, cert.serial.len);
-	*len = cert.serial.len;
-
-	mbedtls_x509_crt_free(&cert);
-
-	return S_OK;
-}
-
-static int security_serial(void)
-{
-	artik_security_handle handle = NULL;
-	artik_error ret = S_OK;
-	int test_result = 0;
-	unsigned char *cert = NULL;
-	unsigned int certlen = 0;
-	unsigned char serial_number[ARTIK_CERT_SN_MAXLEN] = "";
-	unsigned int len = ARTIK_CERT_SN_MAXLEN;
-	int i = 0;
-
-	fprintf(stderr, "--------------------------------------------\n");
-	fprintf(stderr, "  SECURITY SDK TESTCASE : get serial number\n");
-	fprintf(stderr, "--------------------------------------------\n");
-
-	artik_security_module *security = (artik_security_module *) artik_request_api_module("security");
-
-	if (!security) {
-		fprintf(stderr, "Security module is not available\n");
-		return -1;
-	}
-
-	ret = security->request(&handle);
-	if (ret != S_OK) {
-		fprintf(stderr, "Failed to request security instance (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	ret = security->get_certificate(handle, "ARTIK/0",
-			ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&cert,
-			(unsigned int *)&certlen);
-	if ((ret != S_OK) || !cert) {
-		fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	ret = get_certificate_sn(cert, certlen, serial_number, &len);
-	if (ret != S_OK) {
-		fprintf(stderr, "Failed to get serial number (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	fprintf(stdout, "SerialNumber:  ");
-	for (i = 0; i < (len - 1); i++)
-		fprintf(stdout, "%02x:", serial_number[i]);
-
-	fprintf(stdout, "%02x\n", serial_number[len - 1]);
-
-exit:
-	if (cert)
-		free(cert);
-	if (handle)
-		security->release(handle);
-
-	artik_release_api_module(security);
-
-	return test_result;
-}
-#endif
-
 static int security_rand(void)
 {
 	artik_security_module *security = NULL;
 	int test_result = 0;
-	artik_security_handle handle;
+	artik_security_handle handle = NULL;
 	artik_error err = S_OK;
 	unsigned char *rand_bytes = NULL;
 	int num_bytes = 32;
@@ -740,7 +530,7 @@ static int security_rand(void)
 	if (!security) {
 		fprintf(stderr, "Security module is not available\n");
 		test_result++;
-		goto exit;
+		return test_result;
 	}
 
 	err = security->request(&handle);
@@ -766,92 +556,13 @@ static int security_rand(void)
 exit:
 	if (rand_bytes)
 		free(rand_bytes);
-	security->release(handle);
+	if (handle)
+		security->release(handle);
 
 	artik_release_api_module(security);
 
 	return test_result;
 }
-
-#if 0	// Not support mbedtls yet
-static int security_cert_publickey(void)
-{
-	artik_security_module *security = NULL;
-	artik_security_handle handle;
-	artik_error ret = S_OK;
-	int test_result = 0;
-	char *se_pk_pem = NULL;
-	unsigned char *se_pk_der = NULL;
-	unsigned char *cert = NULL;
-	unsigned char certlen = 0;
-	int length;
-	enum CertFormat fmt = CERT_FORMAT_PEM;
-
-	fprintf(stderr, "------------------------------------------------------\n");
-	fprintf(stderr, "  SECURITY SDK TESTCASE : get certificate public key\n");
-	fprintf(stderr, "------------------------------------------------------\n");
-
-	security = (artik_security_module *) artik_request_api_module("security");
-
-	if (!security) {
-		fprintf(stderr, "Security module is not available\n");
-		test_result++;
-		goto exit;
-	}
-
-	ret = security->request(&handle);
-	if (ret != S_OK) {
-		fprintf(stderr, "Failed to request security instance (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	ret = security->get_certificate(handle, "ARTIK/0",
-			ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&cert,
-			(unsigned int *)&certlen);
-	if ((ret != S_OK) || !cert) {
-		fprintf(stderr, "Failed to get certificate (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	ret = get_ec_pubkey_from_cert((char *)cert, &se_pk_pem);
-	if (ret != S_OK || !se_pk_pem) {
-		fprintf(stderr, "Failed to get public key (err=%d)\n", ret);
-		test_result++;
-		goto exit;
-	}
-
-	switch (fmt) {
-	case CERT_FORMAT_PEM:
-		fprintf(stdout, se_pk_pem);
-		break;
-	case CERT_FORMAT_DER:
-		ret = security->convert_pem_to_der((char *)se_pk_pem, &se_pk_der, (size_t *)&length);
-		if (ret != S_OK) {
-			fprintf(stderr, "Failed to convert PEM public key to DER (err=%d)\n", ret);
-			test_result++;
-			goto exit;
-		}
-		print_buffer("DER Pub", se_pk_der, length);
-	}
-
-exit:
-	if (se_pk_pem)
-		free(se_pk_pem);
-
-	if (cert != NULL)
-		free(cert);
-
-	if (handle)
-		security->release(handle);
-
-	if (security)
-		artik_release_api_module(security);
-
-	return test_result;
-}
-#endif
 
 static int security_rsa_encrypt_decrypt(void)
 {
@@ -889,7 +600,7 @@ static int security_rsa_encrypt_decrypt(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		memset(input, i + 1, inlen);
 
@@ -923,7 +634,7 @@ static int security_rsa_encrypt_decrypt(void)
 
 	for (i = 0; i < 5; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, i);
 
 		memset(input, i + 1, inlen);
 
@@ -957,7 +668,7 @@ static int security_rsa_encrypt_decrypt(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		memset(input, i + 1, inlen);
 
@@ -991,7 +702,7 @@ static int security_rsa_encrypt_decrypt(void)
 
 	for (i = 0; i < 5; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, i);
 
 		memset(input, i + 1, inlen);
 
@@ -1089,7 +800,7 @@ static int security_aes_encrypt_decrypt(void)
 	for (i = 0; i < ARRAY_SIZE(aes_mode); i++) {
 		for (j = 0; j < 3; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, j);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, j);
 
 			ret = security->set_key(handle, aes_info[j][0], key_name, aes_input, aes_info[j][1]);
 			ret += security->aes_encryption(handle, aes_mode[i][0], key_name,
@@ -1120,7 +831,7 @@ static int security_aes_encrypt_decrypt(void)
 	for (i = 0; i < ARRAY_SIZE(aes_mode); i++) {
 		for (j = 0; j < 3; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, cnt % 4);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, cnt % 4);
 
 			ret = security->set_key(handle, aes_info[j][0], key_name, aes_input, aes_info[j][1]);
 			ret += security->aes_encryption(handle, aes_mode[i][0], key_name,
@@ -1175,9 +886,9 @@ static int security_secure_storage(void)
 
 	int j, ret = 0;
 	unsigned int test_result = 0;
-	unsigned char input[33000];
+	unsigned char *input = NULL;
 	unsigned int inlen[3] = { 18, 32768, 32769 };
-	unsigned char *out;
+	unsigned char *out = NULL;
 	unsigned int outlen = 0;
 	char key_name[20] = { 0 };
 
@@ -1186,7 +897,6 @@ static int security_secure_storage(void)
 	fprintf(stderr, "------------------------------------------------------\n");
 
 	security = (artik_security_module *) artik_request_api_module("security");
-
 	if (!security) {
 		fprintf(stderr, "Security module is not available\n");
 		return -1;
@@ -1199,41 +909,58 @@ static int security_secure_storage(void)
 		goto exit;
 	}
 
+	input = malloc(inlen[2]);
+	if (!input) {
+		fprintf(stderr, "Failed to allocate memory\n");
+		err = -1;
+		goto exit;
+	}
+
 	for (j = 0; j < 32; j++) {
 		see_selfprintf("[%d] ", j);
 
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, j % 4);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, j % 4);
 
 		/* positive case 1 */
 		ret = security->write_secure_storage(handle, key_name, 0, input, inlen[0]);
 		ret += security->read_secure_storage(handle, key_name, 0, inlen[0], &out, &outlen);
+		if (!out) {
+			test_result++;
+			see_selfprintf(" fail\n");
+			continue;
+		}
 		ret += security->remove_secure_storage(handle, key_name);
 		if (ret || memcmp(input, out, inlen[0])) {
+			free(out);
+			out = NULL;
 			test_result++;
 			see_selfprintf(" fail\n");
 			continue;
 		}
 
-		if (out) {
-			free(out);
-			out = NULL;
-		}
+		free(out);
+		out = NULL;
 
 		/* positive case 2 */
 		ret = security->write_secure_storage(handle, key_name, 0, input, inlen[1]);
 		ret += security->read_secure_storage(handle, key_name, 0, inlen[1], &out, &outlen);
+		if (!out) {
+			test_result++;
+			see_selfprintf(" fail\n");
+			continue;
+		}
 		ret += security->remove_secure_storage(handle, key_name);
 		if (ret || memcmp(input, out, inlen[1])) {
+			free(out);
+			out = NULL;
 			test_result++;
 			see_selfprintf(" fail\n");
 			continue;
 		}
 
-		if (out) {
-			free(out);
-			out = NULL;
-		}
+		free(out);
+		out = NULL;
 
 		/* negative case 1 : exceed max size */
 		ret = security->write_secure_storage(handle, key_name, 0, input, inlen[2]);
@@ -1253,10 +980,8 @@ static int security_secure_storage(void)
 	}
 
 exit:
-	if (out) {
-		free(out);
-		out = NULL;
-	}
+	if (input)
+		free(input);
 
 	if (handle)
 		security->release(handle);
@@ -1311,9 +1036,9 @@ static int security_generate_key(void)
 			see_selfprintf("[%d] ", cnt++);
 
 			memset(key_name_sk, 0, sizeof(key_name_sk));
-			sprintf(key_name_sk, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+			snprintf(key_name_sk, sizeof(key_name_sk), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 			memset(key_name_mem, 0, sizeof(key_name_mem));
-			sprintf(key_name_mem, "%s/%X", SECURE_STORAGE_MEMORY, i);
+			snprintf(key_name_mem, sizeof(key_name_mem), "%s/%X", SECURE_STORAGE_MEMORY, i);
 
 			if ((genkey_input[j][0] & 0xF000) == HMAC_ALGORITHM)
 				hmac_param.key_size = genkey_input[j][1];
@@ -1348,7 +1073,7 @@ static int security_generate_key(void)
 		see_selfprintf("[%d] ", cnt++);
 
 		memset(key_name_sk, 0, sizeof(key_name_sk));
-		sprintf(key_name_sk, "%s/%X", SECURE_STORAGE_DEFAULT, j);
+		snprintf(key_name_sk, sizeof(key_name_sk), "%s/%X", SECURE_STORAGE_DEFAULT, j);
 
 		rsa_param.exponent_size = 4;
 		rsa_param.exponent = (unsigned char *)exp[j];
@@ -1415,7 +1140,7 @@ static int security_setup_remove_key(void)
 	for (i = 0; i < SEE_REMOVE_KEY_TC; i++) {
 		for (j = 0; j < 9; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, j);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, j);
 
 			ret = security->set_key(handle, key_type[i], key_name, key, key_size[i]);
 			ret += security->remove_key(handle, key_type[i], key_name);
@@ -1435,7 +1160,7 @@ static int security_setup_remove_key(void)
 	for (i = 0; i < SEE_REMOVE_KEY_TC; i++) {
 		for (j = 0; j < 5; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, j);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, j);
 
 			ret = security->set_key(handle, key_type[i], key_name, key, key_size[i]);
 			ret += security->remove_key(handle, key_type[i], key_name);
@@ -1564,7 +1289,7 @@ static int security_get_hmac(void)
 	for (i = 0; i < sizeof(input_size)/sizeof(int); i++) {
 		for (j = 0; j < SEE_GET_HMAC_TC; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, j);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, j);
 
 			ret = security->set_key(handle, HMAC_ALGORITHM, key_name,
 				input_hmac, input_size[i]);
@@ -1591,7 +1316,7 @@ static int security_get_hmac(void)
 	for (i = 0; i < sizeof(input_size)/sizeof(int); i++) {
 		for (j = 0; j < SEE_GET_HMAC_TC; j++) {
 			memset(key_name, 0, sizeof(key_name));
-			sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, j);
+			snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, j);
 
 			ret = security->set_key(handle, HMAC_ALGORITHM, key_name,
 				input_hmac, input_size[i]);
@@ -1692,7 +1417,7 @@ static int security_rsassa_sign_verify(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		for (j = 0; j < SEE_RSASSA_SV_TC; j++) {
 			if (j < 8)
@@ -1740,7 +1465,7 @@ static int security_rsassa_sign_verify(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, i % 4);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, i % 4);
 
 		for (j = 0; j < SEE_RSASSA_SV_TC; j++) {
 			if (j < 8)
@@ -1852,7 +1577,7 @@ static int security_ecdsa_sign_verify(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		for (j = 0; j < SEE_ECDSA_SV_TC; j++) {
 			if (j < 4) {
@@ -1894,7 +1619,7 @@ static int security_ecdsa_sign_verify(void)
 
 	for (i = 0; i < 4; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, i);
 
 		for (j = 0; j < SEE_ECDSA_SV_TC; j++) {
 			if (j < 4) {
@@ -2427,7 +2152,7 @@ static int security_set_compute_dhm_params(void)
 	 */
 	for (i = 0; i < sizeof(input_key_size)/(sizeof(int)*3); i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		if (i < 2)
 			algo = DH_1024;
@@ -2435,36 +2160,28 @@ static int security_set_compute_dhm_params(void)
 			algo = DH_2048;
 
 		ret = security->set_key(handle, algo, key_name, input_key[i][0], input_key_size[i][0]);
-		//if(!ret && pub) print_buffer("dh_pub", pub, publen);
 		ret += security->compute_dhm_params(handle, key_name,
 				input_key[i][1], input_key_size[i][1],
 				&secret, &secretlen);
-		//if(!ret && secret) print_buffer("dh_secret", secret, secretlen);
 		ret += security->remove_key(handle, algo, key_name);
-
-		see_selfprintf("[%d] ", cnt++);
-
-		if (i == 8 && ret) {
-			see_selfprintf(" success\n");
-		} else if (ret) {
+		if (!secret) {
 			test_result++;
 			see_selfprintf(" fail\n");
 		} else {
-			if (!memcmp(input_key[i][2], secret, secretlen)) {
-				see_selfprintf(" success\n");
-			} else {
+			see_selfprintf("[%d] ", cnt++);
+
+			if (ret) {
 				test_result++;
 				see_selfprintf(" fail\n");
+			} else {
+				if (!memcmp(input_key[i][2], secret, secretlen)) {
+					see_selfprintf(" success\n");
+				} else {
+					test_result++;
+					see_selfprintf(" fail\n");
+				}
 			}
-		}
 
-		if (pub != NULL && publen > 0) {
-			free(pub);
-			pub = NULL;
-			publen = 0;
-		}
-
-		if (secret != NULL && secretlen > 0) {
 			free(secret);
 			secret = NULL;
 			secretlen = 0;
@@ -2476,21 +2193,17 @@ static int security_set_compute_dhm_params(void)
 	 */
 	for (i = 0; i < sizeof(input_param_size)/sizeof(int); i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		ret = security->set_dhm_params(handle, key_name,
 				input_param[i], input_param_size[i], &pub, &publen);
-		//if(!ret && pub) print_buffer("dh_pub", pub, publen);
 		ret += security->compute_dhm_params(handle, key_name,
 				pub, publen, &secret, &secretlen);
-		//if(!ret && secret) print_buffer("dh_secret", secret, secretlen);
 		ret += security->remove_key(handle, DH_ALGORITHM, key_name);
 
 		see_selfprintf("[%d] ", cnt++);
 
-		if (i == 8 && ret) {
-			see_selfprintf(" success\n");
-		} else if (ret) {
+		if (ret) {
 			test_result++;
 			see_selfprintf(" fail\n");
 		} else {
@@ -2661,7 +2374,7 @@ static int security_set_compute_ecdh_params(void)
 
 	for (i = 0; i < sizeof(genkey_input)/sizeof(int); i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		ret = security->generate_ecdh_params(handle, genkey_input[i], key_name,
 				&pub, &publen);
@@ -2671,9 +2384,7 @@ static int security_set_compute_ecdh_params(void)
 
 		see_selfprintf("[%d] ", cnt++);
 
-		if (i == 8 && ret) {
-			see_selfprintf(" success\n");
-		} else if (ret) {
+		if (ret) {
 			test_result++;
 			see_selfprintf(" fail\n");
 		} else {
@@ -2695,16 +2406,29 @@ static int security_set_compute_ecdh_params(void)
 
 	for (i = 0; i < sizeof(genkey_input)/sizeof(int); i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		ret = security->set_key(handle, genkey_input[i], key_name, keys[i],
 				keys_size[i]);
 		ret += security->get_publickey(handle, genkey_input[i], key_name, &pub,
 				&publen);
-		//if(!ret && pub) print_buffer("ecdh_pub", pub, publen);
+		if (!pub) {
+			test_result++;
+			see_selfprintf(" fail\n");
+			continue;
+		}
+
 		ret += security->compute_ecdh_params(handle, key_name,
 				pub, publen, &secret, &secretlen);
-		//if(!ret && secret) print_buffer("ecdh_secret", secret, secretlen);
+		if (!secret) {
+			free(pub);
+			pub = NULL;
+			publen = 0;
+			test_result++;
+			see_selfprintf(" fail\n");
+			continue;
+		}
+
 		ret += security->remove_key(handle, genkey_input[i], key_name);
 
 		see_selfprintf("[%d] %s ", cnt++, keys_name[i]);
@@ -2718,17 +2442,12 @@ static int security_set_compute_ecdh_params(void)
 			see_selfprintf(" success\n");
 		}
 
-		if (pub != NULL && publen > 0) {
-			free(pub);
-			pub = NULL;
-			publen = 0;
-		}
-
-		if (secret != NULL && secretlen > 0) {
-			free(secret);
-			secret = NULL;
-			secretlen = 0;
-		}
+		free(pub);
+		pub = NULL;
+		publen = 0;
+		free(secret);
+		secret = NULL;
+		secretlen = 0;
 	}
 
 exit:
@@ -2822,7 +2541,6 @@ static int security_get_publickey(void)
 	 * ARTIK Device Public Key
 	 */
 	ret = security->get_publickey(handle, ECC_SEC_P256R1, ARTIK_DEVICE_KEY_ID, &out, &outlen);
-	//print_buffer("ECC Public Key", out, outlen);
 	see_selfprintf("[%d] ", cnt++);
 	if (ret) {
 		test_result++;
@@ -2843,14 +2561,13 @@ static int security_get_publickey(void)
 	memset(hash, 0, 32);
 
 	memset(key_name, 0, sizeof(key_name));
-	sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, 1);
+	snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 1);
 	ret = security->set_key(handle, ECC_SEC_P256R1, key_name, ecc_pair, sizeof(ecc_pair));
 	ret += security->get_ecdsa_signature(handle, ECC_SEC_P256R1, key_name, hash, 32, &sig, &siglen);
 	if (security->verify_ecdsa_signature(handle, ECC_SEC_P256R1, key_name, hash, 32, sig, siglen) != 0)
 		see_selfprintf("Signature verification fail\n");
 
 	ret += security->get_publickey(handle, ECC_SEC_P256R1, key_name, &out, &outlen);
-	//print_buffer("ECC Public Key", out, outlen);
 	ret += security->remove_key(handle, ECC_SEC_P256R1, key_name);
 	see_selfprintf("[%d] ", cnt++);
 	if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
@@ -2864,12 +2581,11 @@ static int security_get_publickey(void)
 	out = NULL;
 
 	memset(key_name, 0, sizeof(key_name));
-	sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, 2);
+	snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, 2);
 	ret = security->set_key(handle, ECC_SEC_P256R1, key_name, ecc_pub, sizeof(ecc_pub));
 	ret += security->get_publickey(handle, ECC_SEC_P256R1, key_name, &out, &outlen);
 	if (security->verify_ecdsa_signature(handle, ECC_SEC_P256R1, key_name, hash, 32, sig, siglen) != 0)
 		see_selfprintf("Signature verification fail\n");
-	//print_buffer("ECC Public Key", out, outlen);
 	ret += security->remove_key(handle, ECC_SEC_P256R1, key_name);
 	see_selfprintf("[%d] ", cnt++);
 	if (ret || memcmp(out, ecc_pub, sizeof(ecc_pub))) {
@@ -2884,7 +2600,6 @@ static int security_get_publickey(void)
 
 	ret = security->set_key(handle, RSA_1024, key_name, rsa1024_pub, sizeof(rsa1024_pub));
 	ret += security->get_publickey(handle, RSA_1024, key_name, &out, &outlen);
-	//print_buffer("RSA Public Key", out, outlen);
 	ret += security->remove_key(handle, RSA_1024, key_name);
 	see_selfprintf("[%d] ", cnt++);
 	if (ret || memcmp(out, rsa1024_pub, sizeof(rsa1024_pub))) {
@@ -2899,7 +2614,7 @@ static int security_get_publickey(void)
 
 	for (i = 0; i < 9; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_DEFAULT, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_DEFAULT, i);
 
 		for (j = 0; j < 6; j++) {
 			if (genkey_input[j][0] == RSA_1024 || genkey_input[j][0] == RSA_2048) {
@@ -2934,7 +2649,7 @@ static int security_get_publickey(void)
 	 */
 	for (i = 0; i < 4; i++) {
 		memset(key_name, 0, sizeof(key_name));
-		sprintf(key_name, "%s/%X", SECURE_STORAGE_MEMORY, i);
+		snprintf(key_name, sizeof(key_name), "%s/%X", SECURE_STORAGE_MEMORY, i);
 
 		for (j = 0; j < 6; j++) {
 			if (genkey_input[j][0] == RSA_1024 || genkey_input[j][0] == RSA_2048)
@@ -3020,21 +2735,9 @@ int main(int argc, char **argv)
 		if (security_get_certificates())
 			test_result |= 0x1;
 
-#if 0	// Not support mbedtls yet
-	if (test_select & 0x2)
-		if (security_serial())
-			test_result |= 0x2;
-#endif
-
 	if (test_select & 0x4)
 		if (security_rand())
 			test_result |= 0x4;
-
-#if 0	// Not support mbedtls yet
-	if (test_select & 0x8)
-		if (security_cert_publickey())
-			test_result |= 0x8;
-#endif
 
 	if (test_select & 0x10)
 		if (security_rsa_encrypt_decrypt())
@@ -3084,7 +2787,6 @@ int main(int argc, char **argv)
 		if (security_get_publickey())
 			test_result |= 0x8000;
 
-	//Test Result
 	for (i = 0; i < ARRAY_SIZE(test_name); i++) {
 		if (!(test_select & 0x1))
 			printf("%40s not tested\n", test_name[i]);

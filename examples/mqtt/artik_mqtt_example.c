@@ -305,6 +305,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_cert))
 			return false;
 
+		break;
 	case 1:
 		if (value == NULL) {
 			fprintf(stderr, "Error: Sub-option '%s' requires an argument", token[1]);
@@ -314,6 +315,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_key))
 			return false;
 
+		break;
 	default:
 		fprintf(stderr, "Error: Unknow sub-option '%s'\n", value);
 		return false;

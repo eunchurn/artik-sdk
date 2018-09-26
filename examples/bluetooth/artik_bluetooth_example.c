@@ -289,9 +289,14 @@ static int bluetooth_shell(int fd, enum watch_io io, void *user_data)
 		if (argc < 4 && strcmp(cmd[i].cmd, argv[0]) == 0)
 			break;
 		if (argc >= 4) {
-			char *str = malloc(sizeof(*str) * (strlen(argv[0]) + strlen(argv[1]) + strlen(argv[2]) + 3));
+			int len = strlen(argv[0]) + strlen(argv[1]) + strlen(argv[2]) + 3;
+			char *str = malloc(len);
 
-			sprintf(str, "%s %s %s", argv[0], argv[1], argv[2]);
+			if (!str) {
+				fprintf(stderr, "Error: Failed to allocate memory\n");
+				break;
+			}
+			snprintf(str, len, "%s %s %s", argv[0], argv[1], argv[2]);
 			if (strcmp(cmd[i].cmd, str) == 0) {
 				free(str);
 				break;
@@ -306,7 +311,8 @@ static int bluetooth_shell(int fd, enum watch_io io, void *user_data)
 	else
 		fprintf(stderr, "Error: Unknow command '%s'\n", argv[0]);
 	write(1, ">", 1);
-return 1;
+
+	return 1;
 }
 
 static int parse_arguments(int argc, char **argv)

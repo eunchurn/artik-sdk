@@ -128,6 +128,7 @@ static int network_shell(int fd, enum watch_io io, void *user_data)
 	int argc = 0;
 	char *p = NULL;
 	network_shell_t *net_shell = (network_shell_t *)user_data;
+	artik_loop_module *loop = NULL;
 
 	if (fgets(buffer, MAX_PACKET_SIZE, stdin) == NULL)
 		return 1;
@@ -137,10 +138,12 @@ static int network_shell(int fd, enum watch_io io, void *user_data)
 		argv = realloc(argv, sizeof(char *) * ++argc);
 
 		if (argv == NULL) {
-			artik_loop_module *loop = (artik_loop_module *) artik_request_api_module("lwm2m");
-
 			fprintf(stderr, "Error: Not enough memory\n");
-			loop->quit();
+			loop = (artik_loop_module *) artik_request_api_module("loop");
+			if (loop) {
+				loop->quit();
+				artik_release_api_module(loop);
+			}
 			return 0;
 		}
 
@@ -189,10 +192,10 @@ static bool config_cmd(void *user_data, int argc, char **argv)
 		}
 
 		memset(&config, 0, sizeof(artik_network_config));
-		strncpy(config.ip_addr.address, argv[2], MAX_IP_ADDRESS_LEN);
-		strncpy(config.netmask.address, argv[3], MAX_IP_ADDRESS_LEN);
-		strncpy(config.gw_addr.address, argv[4], MAX_IP_ADDRESS_LEN);
-		strncpy(config.dns_addr[0].address, argv[5], MAX_IP_ADDRESS_LEN);
+		strncpy(config.ip_addr.address, argv[2], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.netmask.address, argv[3], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.gw_addr.address, argv[4], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.dns_addr[0].address, argv[5], MAX_IP_ADDRESS_LEN - 1);
 
 		config.ip_addr.type = ARTIK_IPV4;
 		config.netmask.type = ARTIK_IPV4;
@@ -323,6 +326,7 @@ static bool dhcp_server_cmd(void *user_data, int argc, char **argv)
 			return false;
 		}
 
+		memset(&config, 0, sizeof(artik_network_dhcp_server_config));
 		if (strcmp("wifi", argv[2]) == 0) {
 			config.interface = ARTIK_WIFI;
 		} else if (strcmp("ethernet", argv[2]) == 0) {
@@ -332,15 +336,15 @@ static bool dhcp_server_cmd(void *user_data, int argc, char **argv)
 			return false;
 		}
 
-		strncpy(config.ip_addr.address, argv[3], MAX_IP_ADDRESS_LEN);
-		strncpy(config.netmask.address, argv[4], MAX_IP_ADDRESS_LEN);
-		strncpy(config.gw_addr.address, argv[5], MAX_IP_ADDRESS_LEN);
-		strncpy(config.dns_addr[0].address, argv[6], MAX_IP_ADDRESS_LEN);
+		strncpy(config.ip_addr.address, argv[3], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.netmask.address, argv[4], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.gw_addr.address, argv[5], MAX_IP_ADDRESS_LEN - 1);
+		strncpy(config.dns_addr[0].address, argv[6], MAX_IP_ADDRESS_LEN - 1);
 		config.ip_addr.type = ARTIK_IPV4;
 		config.netmask.type = ARTIK_IPV4;
 		config.gw_addr.type = ARTIK_IPV4;
 		config.dns_addr[0].type = ARTIK_IPV4;
-		strncpy(config.start_addr.address, argv[7], MAX_IP_ADDRESS_LEN);
+		strncpy(config.start_addr.address, argv[7], MAX_IP_ADDRESS_LEN - 1);
 
 		if (!string_to_uint(argv[8], &config.num_leases, "<num_leases>"))
 			return false;
@@ -426,8 +430,8 @@ int main(int argc, char **argv)
 		if (!loop) {
 			fprintf(stderr, "Error: Failed to request Loop module\n");
 			artik_release_api_module(net);
+			return -1;
 		}
-
 
 		ret = loop->add_fd_watch(STDIN_FILENO,
 						   (WATCH_IO_IN | WATCH_IO_ERR | WATCH_IO_HUP | WATCH_IO_NVAL),

@@ -198,10 +198,11 @@ static void rand_bytes_command(int argc, char **argv, artik_security_module *sec
 	}
 	if (!string_to_positive_integer(argv[1], &len, "rand_bytes_size"))
 		return;
-	if (len <= 0) {
+	if ((len <= 0) || (len > 1024)) {
 		fprintf(stderr, "rand_bytes: Failed, invalid size value parameters (%d).\n", len);
 		return;
 	}
+
 	rand = malloc(sizeof(*rand) * len);
 	if (!rand) {
 		fprintf(stderr, "rand_bytes: Failed to allocate memory.\n");

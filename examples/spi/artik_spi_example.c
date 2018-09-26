@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <artik_module.h>
@@ -73,10 +74,10 @@ static bool hex_string_to_array(const char *str, char **buf, int *len)
 {
 	char *tmp = malloc(sizeof(char)*(strlen(str)+1));
 	char *strhex = NULL;
-
 	int count = 0;
 	int i = 0;
 	int j = 0;
+	int str_len = 0;
 
 	if (!tmp) {
 		fprintf(stderr, "Error: not enough memory\n");
@@ -94,14 +95,17 @@ static bool hex_string_to_array(const char *str, char **buf, int *len)
 	if (count % 2 == 0) {
 		strhex = tmp;
 	} else {
-		strhex = malloc(sizeof(char)*(count + 2));
+		str_len = sizeof(char) * (count + 2);
+		strhex = malloc(str_len);
 		if (!strhex) {
 			fprintf(stderr, "Error: not enough memory\n");
+			free(tmp);
 			return false;
 		}
 
-		strcpy(strhex, "0");
-		strcat(strhex, tmp);
+		strncpy(strhex, "0", str_len - 1);
+		strncat(strhex, tmp, str_len - 1);
+		strhex[str_len - 1] = '\0';
 		free(tmp);
 	}
 
@@ -109,6 +113,7 @@ static bool hex_string_to_array(const char *str, char **buf, int *len)
 	*buf = malloc(sizeof(char)*(count << 1));
 	if (!*buf) {
 		fprintf(stderr, "Error: not enough memory\n");
+		free(strhex);
 		return false;
 	}
 
@@ -119,6 +124,7 @@ static bool hex_string_to_array(const char *str, char **buf, int *len)
 		if (!isxdigit(strhex[i]) || !isxdigit(strhex[i+1])) {
 			fprintf(stderr, "Error: '%s' is not an hexadecimal value\n", str);
 			free(*buf);
+			*buf = NULL;
 			free(strhex);
 			return false;
 		}
@@ -128,6 +134,8 @@ static bool hex_string_to_array(const char *str, char **buf, int *len)
 
 		(*buf)[j++] = strtol(hex, 0, 16);
 	}
+
+	free(strhex);
 
 	return true;
 }
@@ -163,12 +171,14 @@ static bool parse_buffer_arg(int argc, char **argv, spi_buffer_t *buf)
 
 	if (optind > argc) {
 		fprintf(stderr, "Error: Too few arguments\n");
-		return -1;
+		return false;
 	}
 
 	switch (format) {
 	case DATA_FORMAT_STR:
 		buf->tx_buf = strdup(argv[optind]);
+		if (!buf->tx_buf)
+			return false;
 		buf->len = strlen(buf->tx_buf);
 		break;
 	case DATA_FORMAT_HEX:
@@ -354,6 +364,11 @@ int main(int argc, char **argv)
 		if (!string_to_positive_integer(argv[optind + 3], (unsigned int *)&buf.len, "<len>"))
 			return -1;
 
+		if (buf.len > 1024) {
+			fprintf(stderr, "Error: read length must be less than 1024\n");
+			return -1;
+		}
+
 		buf.rx_buf = malloc(sizeof(char) * buf.len);
 		if (!buf.rx_buf) {
 			fprintf(stderr, "Error: Not enough memory\n");
@@ -372,6 +387,11 @@ int main(int argc, char **argv)
 		optind += 3;
 		if (!parse_buffer_arg(argc, argv, &buf))
 			return -1;
+
+		if (buf.len > 1024) {
+			fprintf(stderr, "Error: read/write length must be less than 1024\n");
+			return -1;
+		}
 
 		buf.rx_buf = malloc(sizeof(char) * buf.len);
 		if (!buf.rx_buf) {

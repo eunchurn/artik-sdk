@@ -108,7 +108,7 @@ static void adc_read_value(int interval, int count)
 	}
 
 	loop = (artik_loop_module *) artik_request_api_module("loop");
-	if (!adc) {
+	if (!loop) {
 		fprintf(stderr, "Error: Failed to request Loop module\n");
 		artik_release_api_module(adc);
 		return;

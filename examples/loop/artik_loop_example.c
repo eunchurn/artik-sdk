@@ -101,6 +101,10 @@ static int parse_arguments(int argc, char **argv,
 				fprintf(stderr, "loop: Error, empty buffer.\n");
 				goto exit;
 			}
+
+			if (*message)
+				free(*message);
+
 			(*message) = strdup(optarg);
 			break;
 

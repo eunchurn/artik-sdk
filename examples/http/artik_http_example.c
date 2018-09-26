@@ -106,6 +106,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_cert))
 			return false;
 
+		break;
 	case 1:
 		if (value == NULL) {
 			fprintf(stderr, "Error: Sub-option '%s' requires an argument", token[1]);
@@ -115,6 +116,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_key))
 			return false;
 
+		break;
 	default:
 		fprintf(stderr, "Error: Unknow sub-option '%s'\n", value);
 		return false;
@@ -349,15 +351,13 @@ int main(int argc, char **argv)
 				goto exit;
 			}
 
-			while (token) {
-				name = token;
-				token = strtok(NULL, ":");
-				if (!token) {
-					fprintf(stderr, "Error: Invalid header\n");
-					goto exit;
-				}
-				data = token;
+			name = token;
+			token = strtok(NULL, ":");
+			if (!token) {
+				fprintf(stderr, "Error: Invalid header\n");
+				goto exit;
 			}
+			data = token;
 			headers.fields =
 				realloc(headers.fields, sizeof(artik_http_header_field) * ++headers.num_fields);
 			headers.fields[headers.num_fields - 1].name = name;
@@ -371,12 +371,17 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'c':
-			if (!fill_buffer_from_file(optarg, &ca_cert))
-				goto exit;
+			if (optarg) {
+				if (!fill_buffer_from_file(optarg, &ca_cert))
+					goto exit;
+			}
 			break;
 		case 'd':
-			if (!parse_device_cert_opt(optarg, &dev_cert, &dev_key))
-				goto exit;
+			if (optarg) {
+				if (!parse_device_cert_opt(optarg, &dev_cert, &dev_key))
+					goto exit;
+			}
+			break;
 		case 'k':
 			ssl.verify_cert = ARTIK_SSL_VERIFY_NONE;
 			break;

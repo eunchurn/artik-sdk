@@ -221,6 +221,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_cert))
 			return false;
 
+		break;
 	case 1:
 		if (value == NULL) {
 			fprintf(stderr, "Error: Sub-option '%s' requires an argument", token[1]);
@@ -230,6 +231,7 @@ static bool parse_device_cert_opt(char *optarg, char **dev_cert, char **dev_key)
 		if (!fill_buffer_from_file(value, dev_key))
 			return false;
 
+		break;
 	default:
 		fprintf(stderr, "Error: Unknow sub-option '%s'\n", value);
 		return false;
@@ -394,6 +396,7 @@ static char *get_current_user_id(const char *token, artik_ssl_config *ssl)
 
 static bool get_user_devices(artik_ssl_config *ssl, int argc, char **argv, void *user_data)
 {
+	bool ret = true;
 	char *uid = NULL;
 	int c;
 	bool properties = false;
@@ -401,62 +404,71 @@ static bool get_user_devices(artik_ssl_config *ssl, int argc, char **argv, void 
 	int offset = 0;
 	user_cmd_data_t *data = (user_cmd_data_t *)user_data;
 	const char *token = data->token;
+	artik_cloud_module *cloud = NULL;
+	artik_error err = S_OK;
+	char *response = NULL;
 
 	optind = 1;
 	while ((c = getopt(argc, argv, "u:pc:o:")) != -1) {
 		switch (c) {
 		case 'u':
+			if (uid)
+				free(uid);
+
 			uid = strdup(optarg);
 			break;
 		case 'p':
 			properties = true;
 			break;
 		case 'c':
-			if (!string_to_positive_integer(optarg, &count, "<count>"))
-				return false;
+			if (!string_to_positive_integer(optarg, &count, "<count>")) {
+				ret = false;
+				goto exit;
+			}
 
 			if (count <= 0) {
 				fprintf(stderr, "Error: Argument '<count>' must be a positive integer.\n");
-				return false;
+				ret = false;
+				goto exit;
 			}
 			break;
 		case 'o':
-			if (!string_to_positive_integer(optarg, &offset, "<offset>"))
-				return false;
+			if (!string_to_positive_integer(optarg, &offset, "<offset>")) {
+				ret = false;
+				goto exit;
+			}
 			break;
 		case '?':
 			if (optopt == 'u' || optopt == 'c' || optopt == 'o')
 				fprintf(stderr, "Error: Option '-%c' requires an argument.\n", optopt);
 			else
 				fprintf(stderr, "Error: Unknow option '-%c'\n", optopt);
-			return false;
+
+			ret = false;
+			goto exit;
 		default:
 			abort();
 		}
 	}
 
-	artik_cloud_module *cloud = (artik_cloud_module *)
-					artik_request_api_module("cloud");
-	artik_error ret = S_OK;
-	char *response = NULL;
-
+	cloud = (artik_cloud_module *)artik_request_api_module("cloud");
 	if (!cloud) {
 		fprintf(stderr, "Error: Failed to request cloud module\n");
-		return false;
+		ret = false;
+		goto exit;
 	}
 
 	if (!uid) {
 		uid = get_current_user_id(token, ssl);
-		if (!uid)
-			return false;
+		if (!uid) {
+			ret = false;
+			goto exit;
+		}
 	}
 
-	ret = cloud->get_user_devices(token, count, properties, offset, uid, &response, ssl);
-	artik_release_api_module(cloud);
-	free(uid);
-
-	if (!response && ret != S_OK)
-		fprintf(stderr, "Error: Failed to get user's devices (err=%d)\n", ret);
+	err = cloud->get_user_devices(token, count, properties, offset, uid, &response, ssl);
+	if (!response && err != S_OK)
+		fprintf(stderr, "Error: Failed to get user's devices (err=%d)\n", err);
 
 	if (response && !is_error(response, "Error: Failed to get user's devices"))
 		fprintf(stdout, "User's devices: %s\n", response);
@@ -464,11 +476,18 @@ static bool get_user_devices(artik_ssl_config *ssl, int argc, char **argv, void 
 	if (response)
 		free(response);
 
-	return true;
+exit:
+	if (cloud)
+		artik_release_api_module(cloud);
+	if (uid)
+		free(uid);
+
+	return ret;
 }
 
 static bool get_device_types(artik_ssl_config *ssl, int argc, char **argv, void *user_data)
 {
+	bool ret = true;
 	char *uid = NULL;
 	int c;
 	bool shared = false;
@@ -476,60 +495,71 @@ static bool get_device_types(artik_ssl_config *ssl, int argc, char **argv, void 
 	int offset = 0;
 	user_cmd_data_t *data = (user_cmd_data_t *)user_data;
 	const char *token = data->token;
+	artik_cloud_module *cloud = NULL;
+	artik_error err = S_OK;
+	char *response = NULL;
 
 	optind = 1;
 	while ((c = getopt(argc, argv, "u:sc:o:")) != -1) {
 		switch (c) {
 		case 'u':
+			if (uid)
+				free(uid);
+
 			uid = strdup(optarg);
 			break;
 		case 's':
 			shared = true;
 			break;
 		case 'c':
-			if (!string_to_positive_integer(optarg, &count, "count"))
-				return false;
+			if (!string_to_positive_integer(optarg, &count, "count")) {
+				ret = false;
+				goto exit;
+			}
 
 			if (count <= 0) {
 				fprintf(stderr, "Error: Argument '<count>' must be a positive integer.\n");
-				return false;
+				ret = false;
+				goto exit;
 			}
 			break;
 		case 'o':
-			if (!string_to_positive_integer(optarg, &offset, "offset"))
-				return false;
+			if (!string_to_positive_integer(optarg, &offset, "offset")) {
+				ret = false;
+				goto exit;
+			}
 			break;
 		case '?':
 			if (optopt == 'u' || optopt == 'c' || optopt == 'o')
 				fprintf(stderr, "Error: Option '-%c' requires an argument.\n", optopt);
 			else
 				fprintf(stderr, "Error: Unknow option '-%c'\n", optopt);
-			return false;
+
+			ret = false;
+			goto exit;
 		default:
 			abort();
 		}
 	}
 
-	artik_cloud_module *cloud = (artik_cloud_module *)
-					artik_request_api_module("cloud");
-	artik_error ret = S_OK;
-	char *response = NULL;
-
-	if (!cloud)
+	cloud = (artik_cloud_module *)artik_request_api_module("cloud");
+	if (!cloud) {
 		fprintf(stderr, "Error: Failed to request cloud module\n");
+		ret = false;
+		goto exit;
+	}
 
 	if (!uid) {
 		uid = get_current_user_id(token, ssl);
-		if (!uid)
-			return false;
+		if (!uid) {
+			ret = false;
+			goto exit;
+		}
 	}
 
-	cloud->get_user_device_types(token, count, shared, offset, uid, &response, ssl);
-	artik_release_api_module(cloud);
-	free(uid);
-
-	if (!response && ret != S_OK)
-		fprintf(stdout, "Error: Failed to get user's device types (err=%d)\n", ret);
+	err = cloud->get_user_device_types(token, count, shared, offset, uid, &response, ssl);
+	if (!response && err != S_OK)
+		fprintf(stdout, "Error: Failed to get user's device types (err=%d)\n", err);
 
 	if (response && !is_error(response, "Error: Failed to get user's device types"))
 		fprintf(stdout, "User's device types: %s\n", response);
@@ -537,22 +567,35 @@ static bool get_device_types(artik_ssl_config *ssl, int argc, char **argv, void 
 	if (response)
 		free(response);
 
-	return true;
+exit:
+	if (cloud)
+		artik_release_api_module(cloud);
+	if (uid)
+		free(uid);
+
+	return ret;
 }
 
 static bool get_application_properties(artik_ssl_config *ssl, int argc,
 		char **argv, void *user_data)
 {
+	bool ret = true;
 	char *uid = NULL;
 	char *appid = NULL;
 	int c;
 	user_cmd_data_t *data = (user_cmd_data_t *)user_data;
 	const char *token = data->token;
+	artik_cloud_module *cloud = NULL;
+	artik_error err = S_OK;
+	char *response = NULL;
 
 	optind = 1;
 	while ((c = getopt(argc, argv, "u:")) != -1) {
 		switch (c) {
 		case 'u':
+			if (uid)
+				free(uid);
+
 			uid = strdup(optarg);
 			break;
 		case '?':
@@ -560,7 +603,8 @@ static bool get_application_properties(artik_ssl_config *ssl, int argc,
 				fprintf(stderr, "Error: Option '-%c' requires an argument.\n", optopt);
 			else
 				fprintf(stderr, "Error: Unknow option '-%c'\n", optopt);
-			return false;
+			ret = false;
+			goto exit;
 		default:
 			abort();
 		}
@@ -569,36 +613,29 @@ static bool get_application_properties(artik_ssl_config *ssl, int argc,
 	if (optind == argc) {
 		fprintf(stderr, "Error: 'application-properties': <appid> not found.\n");
 		usage_user();
-		if (uid)
-			free(uid);
-		return false;
+		ret = false;
+		goto exit;
 	}
 	appid = argv[optind];
 
 	if (!uid) {
 		uid = get_current_user_id(token, ssl);
-		if (!uid)
-			return false;
+		if (!uid) {
+			ret = false;
+			goto exit;
+		}
 	}
 
-	artik_cloud_module *cloud = (artik_cloud_module *)
-					artik_request_api_module("cloud");
-	artik_error ret = S_OK;
-	char *response = NULL;
-
+	cloud = (artik_cloud_module *)artik_request_api_module("cloud");
 	if (!cloud) {
 		fprintf(stderr, "Error: Failed to request cloud module\n");
-		if (uid)
-			free(uid);
-		return false;
+		ret = false;
+		goto exit;
 	}
 
-	cloud->get_user_application_properties(token, uid, appid, &response, ssl);
-	artik_release_api_module(cloud);
-	free(uid);
-
-	if (!response && ret != S_OK)
-		fprintf(stderr, "Error: Failed to get user's application properties (err=%d)\n", ret);
+	err = cloud->get_user_application_properties(token, uid, appid, &response, ssl);
+	if (!response && err != S_OK)
+		fprintf(stderr, "Error: Failed to get user's application properties (err=%d)\n", err);
 
 	if (response && !is_error(response, "Error: Failed to get user's application properties"))
 		fprintf(stdout, "User's application properties: %s\n", response);
@@ -606,13 +643,20 @@ static bool get_application_properties(artik_ssl_config *ssl, int argc,
 	if (response)
 		free(response);
 
-	return true;
+exit:
+	if (cloud)
+		artik_release_api_module(cloud);
+	if (uid)
+		free(uid);
+
+	return ret;
 }
 
 static bool create_device(artik_ssl_config *ssl, int argc, char **argv, void *user_data)
 {
-	artik_error ret = S_OK;
-	artik_cloud_module *cloud;
+	bool ret = true;
+	artik_error err = S_OK;
+	artik_cloud_module *cloud = NULL;
 	char *response = NULL;
 	char *uid = NULL;
 	char *dtid = NULL;
@@ -625,6 +669,9 @@ static bool create_device(artik_ssl_config *ssl, int argc, char **argv, void *us
 	while ((c = getopt(argc, argv, "u:")) != -1) {
 		switch (c) {
 		case 'u':
+			if (uid)
+				free(uid);
+
 			uid = strdup(optarg);
 			break;
 		case '?':
@@ -633,7 +680,8 @@ static bool create_device(artik_ssl_config *ssl, int argc, char **argv, void *us
 			else
 				fprintf(stderr, "Error: Unknow option '-%c'\n", optopt);
 			usage_user();
-			return false;
+			ret = false;
+			goto exit;
 		default:
 			abort();
 		}
@@ -642,17 +690,15 @@ static bool create_device(artik_ssl_config *ssl, int argc, char **argv, void *us
 	if (argc == optind) {
 		fprintf(stderr, "Error: 'device create': <dtid> not found.\n");
 		usage_user();
-		if (uid)
-			free(uid);
-		return false;
+		ret = false;
+		goto exit;
 	}
 
 	if (argc == optind + 1) {
 		fprintf(stderr, "Error: 'device create': <name> not found.\n");
 		usage_user();
-		if (uid)
-			free(uid);
-		return false;
+		ret = false;
+		goto exit;
 	}
 
 	dtid = argv[optind];
@@ -660,37 +706,48 @@ static bool create_device(artik_ssl_config *ssl, int argc, char **argv, void *us
 
 	if (!uid) {
 		uid = get_current_user_id(token, ssl);
-			if (!uid)
-				return false;
+		if (!uid) {
+			ret = false;
+			goto exit;
+		}
 	}
 
 	cloud = (artik_cloud_module *)artik_request_api_module("cloud");
 	if (!cloud) {
 		fprintf(stderr, "Error: Failed to request cloud module\n");
-		if (uid)
-			free(uid);
-		return false;
+		ret = false;
+		goto exit;
 	}
 
-	cloud->add_device(token, uid, dtid, name, &response, ssl);
-	artik_release_api_module(cloud);
-	free(uid);
-	if (!response && ret != S_OK)
-		fprintf(stderr, "Error: Failed to create device for <dtid %s> (err=%d)\n", dtid, ret);
+	err = cloud->add_device(token, uid, dtid, name, &response, ssl);
+	if (!response && err != S_OK)
+		fprintf(stderr, "Error: Failed to create device for <dtid %s> (err=%d)\n", dtid, err);
 
 	if (response && !is_error(response, "Error: Failed to create device")) {
-		char *device = parse_json_object(response, "data");
-		char *did = parse_json_object(device, "id");
+		char *device = NULL;
+		char *did = NULL;
 
-		fprintf(stdout, "Device <did %s> is created.\n", did);
-		free(device);
-		free(did);
+		device = parse_json_object(response, "data");
+		if (device) {
+			did = parse_json_object(device, "id");
+			if (did) {
+				fprintf(stdout, "Device <did %s> is created.\n", did);
+				free(device);
+				free(did);
+			}
+		}
 	}
 
 	if (response)
 		free(response);
 
-	return true;
+exit:
+	if (cloud)
+		artik_release_api_module(cloud);
+	if (uid)
+		free(uid);
+
+	return ret;
 }
 
 static bool delete_device(artik_ssl_config *ssl, int argc, char **argv, void *user_data)
@@ -766,12 +823,18 @@ static bool token_cmd(artik_ssl_config *ssl, int argc, char **argv, void *user_d
 			fprintf(stderr, "Error: Failed to get token for device <did %s> (err=%d)\n", did, ret);
 
 		if (response && !is_error(response, "Error: Failed to get device token")) {
-			char *data = parse_json_object(response, "data");
-			char *dtoken = parse_json_object(data, "accessToken");
+			char *data = NULL;
+			char *dtoken = NULL;
 
-			fprintf(stdout, "Token for device <did %s> is %s\n", did, dtoken);
-			free(data);
-			free(dtoken);
+			data = parse_json_object(response, "data");
+			if (data) {
+				dtoken = parse_json_object(data, "accessToken");
+				if (dtoken) {
+					fprintf(stdout, "Token for device <did %s> is %s\n", did, dtoken);
+					free(data);
+					free(dtoken);
+				}
+			}
 		}
 
 		if (response)
@@ -791,12 +854,18 @@ static bool token_cmd(artik_ssl_config *ssl, int argc, char **argv, void *user_d
 			fprintf(stderr, "Error: Failed to create token for device <did %s> (err=%d)\n", did, ret);
 
 		if (response && !is_error(response, "Error: Failed to create device token")) {
-			char *data = parse_json_object(response, "data");
-			char *dtoken = parse_json_object(data, "accessToken");
+			char *data = NULL;
+			char *dtoken = NULL;
 
-			fprintf(stdout, "Token for device <did %s> is %s\n", did,  dtoken);
-			free(data);
-			free(dtoken);
+			data = parse_json_object(response, "data");
+			if (data) {
+				dtoken = parse_json_object(data, "accessToken");
+				if (dtoken) {
+					fprintf(stdout, "Token for device <did %s> is %s\n", did,  dtoken);
+					free(data);
+					free(dtoken);
+				}
+			}
 		}
 
 		if (response)
@@ -1188,6 +1257,7 @@ int main(int argc, char **argv)
 		case 'd':
 			if (!parse_device_cert_opt(optarg, &dev_cert, &dev_key))
 				goto exit;
+			break;
 		case 'k':
 			verify = false;
 			break;
@@ -1209,6 +1279,7 @@ int main(int argc, char **argv)
 			goto exit;
 		default:
 			abort();
+			break;
 		}
 	}
 

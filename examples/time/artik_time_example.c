@@ -127,6 +127,10 @@ static artik_error parse_arguments(int argc, char **argv, char **message, int *t
 				fprintf(stdout, "Invalid buffer which is empty for 'message'.\n");
 				return -1;
 			}
+
+			if (*message)
+				free(*message);
+
 			(*message) = strdup(optarg);
 			break;
 		case 't':
