@@ -27,7 +27,7 @@
 
 static bool string_to_positive_integer(const char *buff, int *integer, const char *arg_name)
 {
-	if (buff == NULL || buff == '\0') {
+	if (buff == NULL || *buff == '\0') {
 		fprintf(stderr, "Error: Failed to parse argument '%s'.\n", arg_name);
 		return false;
 	}
@@ -51,7 +51,7 @@ static bool string_to_positive_integer(const char *buff, int *integer, const cha
 
 static bool string_to_unsigned_integer(const char *buff, unsigned int *uinteger, const char *arg_name)
 {
-	if (buff == NULL || buff == '\0') {
+	if (buff == NULL || *buff == '\0') {
 		fprintf(stderr, "Error: Failed to parse argument '%s'.\n", arg_name);
 		return false;
 	}

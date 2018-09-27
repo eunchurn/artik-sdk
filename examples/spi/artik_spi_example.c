@@ -48,7 +48,7 @@ void usage(void)
 
 static bool string_to_positive_integer(const char *buff, unsigned int *integer, const char *arg_name)
 {
-	if (buff == NULL || buff == '\0') {
+	if (buff == NULL || *buff == '\0') {
 		fprintf(stderr, "Failed to parse argument '%s'.\n", arg_name);
 		return false;
 	}
