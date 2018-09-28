@@ -239,7 +239,11 @@ artik_error os_pwm_request(artik_pwm_config *config)
 	if (res != S_OK)
 		return res;
 
-	res = os_pwm_enable(config, true);
+	res = os_pwm_set_period(config, config->period);
+	if (res != S_OK)
+		goto exit;
+
+	res = os_pwm_set_duty_cycle(config, config->duty_cycle);
 	if (res != S_OK)
 		goto exit;
 
@@ -247,11 +251,7 @@ artik_error os_pwm_request(artik_pwm_config *config)
 	if (res != S_OK)
 		goto exit;
 
-	res = os_pwm_set_period(config, config->period);
-	if (res != S_OK)
-		goto exit;
-
-	res = os_pwm_set_duty_cycle(config, config->duty_cycle);
+	res = os_pwm_enable(config, true);
 	if (res != S_OK)
 		goto exit;
 
