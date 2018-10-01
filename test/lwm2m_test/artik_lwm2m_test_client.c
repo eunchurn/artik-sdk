@@ -174,6 +174,8 @@ static void on_connection(void *data, void *user_data)
 	artik_error err = (artik_error)(intptr_t)data;
 
 	fprintf(stdout, "Connection status: %s \r\n", error_msg(err));
+	if (err == E_LWM2M_DISCONNECTION_ERROR)
+		loop->quit();
 }
 
 static void on_execute_resource(void *data, void *user_data)
