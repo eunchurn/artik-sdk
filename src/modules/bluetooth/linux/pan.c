@@ -222,6 +222,8 @@ artik_error bt_pan_connect(const char *mac_addr,
 {
 	if (_is_network_path_valid() == 1)
 		return E_BT_ERROR;
+	if (!mac_addr)
+		return E_INVALID_VALUE;
 	if (_pan_parameter_check(mac_addr, uuid) != S_OK)
 		return E_INVALID_VALUE;
 	if (!network_interface)
