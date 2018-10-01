@@ -187,11 +187,32 @@ static artik_error panu_test(void)
 	return ret;
 }
 
+static void callback_on_bond(artik_bt_event event, void *data, void *user_data)
+{
+	artik_error ret = S_OK;
+	char *remote_address = (char *)user_data;
+	char *network_interface = NULL;
+
+	fprintf(stdout, "<PANU>: Paired success!\n");
+
+	ret = bt->pan_connect(remote_address, UUID, &network_interface);
+	if (ret != S_OK || !network_interface)
+		goto exit;
+
+	fprintf(stdout, "<PANU>: Connected success!\n");
+
+	ret = panu_test();
+	if (ret != S_OK)
+		goto exit;
+
+exit:
+	return;
+}
+
 int main(int argc, char *argv[])
 {
 	artik_error ret = S_OK;
 	char remote_address[MAX_BDADDR_LEN + 1] = "";
-	char *network_interface = NULL;
 	int status = -1;
 
 	if (!artik_is_module_available(ARTIK_MODULE_BLUETOOTH)) {
@@ -211,6 +232,13 @@ int main(int argc, char *argv[])
 		goto loop_quit;
 
 	bt->init();
+
+	ret = bt->set_callback(BT_EVENT_BOND, callback_on_bond,
+			(void *)remote_address);
+	if (ret != S_OK) {
+		fprintf(stdout, "<PANU>: Set callback error!\n");
+		goto loop_quit;
+	}
 
 	ret = bt->set_callback(BT_EVENT_SCAN, callback_on_scan, NULL);
 	if (ret != S_OK) {
@@ -232,25 +260,13 @@ int main(int argc, char *argv[])
 
 	ret = bt->start_bond(remote_address);
 	if (ret != S_OK) {
-		fprintf(stdout, "<PANU>: Paired failed!\n");
+		fprintf(stdout, "<PANU>: Pairing failed!\n");
 		goto loop_quit;
 	}
-	fprintf(stdout, "<PANU>: Paired success!\n");
-
-	ret = bt->pan_connect(remote_address, UUID, &network_interface);
-	if (ret != S_OK || !network_interface)
-		goto loop_quit;
-
-	fprintf(stdout, "<PANU>: Connected success!\n");
-
-	ret = panu_test();
-	if (ret != S_OK)
-		goto panu_quit;
 
 	loop_main->add_signal_watch(SIGINT, uninit, NULL, NULL);
 	loop_main->run();
 
-panu_quit:
 	ret = bt->pan_disconnect();
 	if (ret != S_OK)
 		fprintf(stdout, "<PANU>: Disconnected error!\n");

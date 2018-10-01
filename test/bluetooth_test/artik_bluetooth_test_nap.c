@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
 		err = bt->pan_unregister("nap");
 		goto out;
 	}
-	printf("<NAP> Rgister return is OK:%d!\r\n", err);
+	printf("<NAP> Register return is OK:%d!\r\n", err);
 	loop->add_signal_watch(SIGINT, uninit, NULL, &signal_id);
 
 	loop->run();
