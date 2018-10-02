@@ -124,8 +124,7 @@ artik_error os_security_get_random_bytes(artik_security_handle handle,
 	if (!g_see_dev || !g_see_dev->generate_random)
 		return E_NOT_SUPPORTED;
 
-	random.data = NULL;
-	random.length = 0;
+	memset(&random, 0, sizeof(see_data));
 
 	ret = g_see_dev->generate_random(rand_size, &random);
 	if (ret) {
@@ -232,6 +231,7 @@ artik_error os_security_set_certificate(artik_security_handle handle,
 	artik_error err = S_OK;
 	char *cert_pem = NULL;
 	int ret = 0;
+	int ispem = 0;
 
 	if (!node || !cert_name || !cert || !cert_size)
 		return E_BAD_ARGS;
@@ -241,6 +241,7 @@ artik_error os_security_set_certificate(artik_security_handle handle,
 
 	/* If input is in PEM format, convert it to DER */
 	if (strstr((const char *)cert, PEM_BEGIN_CRT)) {
+		ispem = 1;
 		cert_pem = strndup((const char *)cert, cert_size);
 		if (!cert_pem)
 			return E_NO_MEM;
@@ -263,6 +264,9 @@ artik_error os_security_set_certificate(artik_security_handle handle,
 	}
 
 exit:
+	if (ispem && certificate.data) {
+		free(certificate.data);
+	}
 	if (cert_pem)
 		free(cert_pem);
 
@@ -285,6 +289,7 @@ artik_error os_security_get_certificate(artik_security_handle handle,
 		return E_NOT_SUPPORTED;
 
 	memset(&certificate, 0, sizeof(see_data));
+
 	ret = g_see_dev->get_certificate(cert_name, type, &certificate);
 	if (ret) {
 		log_dbg("Failed to get certificate from SE (%d)", ret);
@@ -336,6 +341,7 @@ artik_error os_security_get_hash(artik_security_handle handle,
 
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&hash_data, 0, sizeof(see_data));
 
 	if (g_see_dev->get_hash(hash_algo, &input_data, &hash_data) != 0)
 		return E_SECURITY_ERROR;
@@ -364,6 +370,7 @@ artik_error os_security_get_hmac(artik_security_handle handle,
 
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&hmac_data, 0, sizeof(see_data));
 
 	if (g_see_dev->get_hmac(hmac_algo, key_name, &input_data, &hmac_data) != 0)
 		return E_SECURITY_ERROR;
@@ -393,6 +400,7 @@ artik_error os_security_get_rsa_signature(artik_security_handle handle,
 
 	hash_data.data = (unsigned char *)hash;
 	hash_data.length = hash_size;
+	memset(&sig_data, 0, sizeof(see_data));
 
 	ret = g_see_dev->get_rsa_signature(rsa_algo, key_name, &hash_data,
 			salt_size, &sig_data);
@@ -453,6 +461,7 @@ artik_error os_security_get_ecdsa_signature(artik_security_handle handle,
 
 	hash_data.data = (unsigned char *)hash;
 	hash_data.length = hash_size;
+	memset(&sig_data, 0, sizeof(see_data));
 
 	if (g_see_dev->get_ecdsa_signature(ecdsa_algo, key_name, &hash_data,
 			&sig_data) != 0)
@@ -506,6 +515,8 @@ artik_error os_security_generate_dhm_params(artik_security_handle handle,
 	if (!g_see_dev || !g_see_dev->generate_dhparams)
 		return E_NOT_SUPPORTED;
 
+	memset(&pubkey_data, 0, sizeof(see_data));
+
 	if (g_see_dev->generate_dhparams(key_algo, key_name, &pubkey_data) != 0)
 		return E_SECURITY_ERROR;
 
@@ -534,6 +545,8 @@ artik_error os_security_set_dhm_params(artik_security_handle handle,
 
 	params_data.data = (unsigned char *)params;
 	params_data.length = params_size;
+	memset(&pubkey_data, 0, sizeof(see_data));
+
 	if (g_see_dev->set_dhparams(key_name, &params_data, &pubkey_data) != 0)
 		return E_SECURITY_ERROR;
 
@@ -562,6 +575,8 @@ artik_error os_security_compute_dhm_params(artik_security_handle handle,
 
 	pubkey_data.data = (unsigned char *)pubkey;
 	pubkey_data.length = pubkey_size;
+	memset(&secret_data, 0, sizeof(see_data));
+
 	if (g_see_dev->compute_dhparams(key_name, &pubkey_data, &secret_data) != 0)
 		return E_SECURITY_ERROR;
 
@@ -585,6 +600,8 @@ artik_error os_security_generate_ecdh_params(artik_security_handle handle,
 
 	if (!g_see_dev || !g_see_dev->generate_ecdhkey)
 		return E_NOT_SUPPORTED;
+
+	memset(&pubkey_data, 0, sizeof(see_data));
 
 	if (g_see_dev->generate_ecdhkey(key_algo, key_name, &pubkey_data) != 0)
 		return E_SECURITY_ERROR;
@@ -614,6 +631,8 @@ artik_error os_security_compute_ecdh_params(artik_security_handle handle,
 
 	pubkey_data.data = (unsigned char *)pubkey;
 	pubkey_data.length = pubkey_size;
+	memset(&secret_data, 0, sizeof(see_data));
+
 	if (g_see_dev->compute_ecdhkey(key_name, &pubkey_data, &secret_data) != 0)
 		return E_SECURITY_ERROR;
 
@@ -676,6 +695,8 @@ artik_error os_security_get_publickey(artik_security_handle handle,
 
 	if (g_see_dev == NULL || g_see_dev->get_pubkey == NULL)
 		return E_NOT_SUPPORTED;
+
+	memset(&public_data, 0, sizeof(see_data));
 
 	if (g_see_dev->get_pubkey(key_algo, key_name, &public_data) != 0)
 		return E_SECURITY_ERROR;
@@ -814,6 +835,8 @@ artik_error os_security_aes_encryption(artik_security_handle handle,
 	iv_data.length = iv_size;
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&output_data, 0, sizeof(see_data));
+
 	ret = g_see_dev->aes_encryption(aes_mode, key_name, &iv_data, &input_data,
 			&output_data);
 	if (ret) {
@@ -851,6 +874,8 @@ artik_error os_security_aes_decryption(artik_security_handle handle,
 	iv_data.length = iv_size;
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&output_data, 0, sizeof(see_data));
+
 	ret = g_see_dev->aes_decryption(aes_mode, key_name, &iv_data, &input_data,
 			&output_data);
 	if (ret) {
@@ -883,6 +908,8 @@ artik_error os_security_rsa_encryption(artik_security_handle handle,
 
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&output_data, 0, sizeof(see_data));
+
 	ret = g_see_dev->rsa_encryption(rsa_mode, key_name, &input_data,
 			&output_data);
 	if (ret) {
@@ -915,6 +942,8 @@ artik_error os_security_rsa_decryption(artik_security_handle handle,
 
 	input_data.data = (unsigned char *)input;
 	input_data.length = input_size;
+	memset(&output_data, 0, sizeof(see_data));
+
 	if (g_see_dev->rsa_decryption(rsa_mode, key_name, &input_data,
 			&output_data) != 0)
 		return E_SECURITY_ERROR;
