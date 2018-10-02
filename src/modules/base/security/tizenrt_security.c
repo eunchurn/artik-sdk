@@ -202,20 +202,25 @@ artik_error os_security_get_certificate_pem_chain(artik_security_handle handle,
 		cpem = artik_list_add(chain, NULL, sizeof(artik_list));
 		if (!cpem) {
 			free(certificate.data);
+			artik_list_delete_all(chain);
 			return E_NO_MEM;
 		}
 
 		cpem->data = (void *)strndup((const char *)certificate.data,
 				certificate.length);
 		free(certificate.data);
-		if (!cpem->data)
+		if (!cpem->data) {
+			artik_list_delete_all(chain);
 			return E_NO_MEM;
+		}
 
 		cpem->clear = pem_chain_list_clear;
 
 		cert_id[SECU_LOCATION_STRLEN + 1]++;
 		if (cert_id[SECU_LOCATION_STRLEN + 1] > '9')
 			break;
+
+		memset(&certificate, 0, sizeof(see_data));
 	}
 
 	return S_OK;
