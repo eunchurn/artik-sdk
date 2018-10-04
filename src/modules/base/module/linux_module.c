@@ -23,6 +23,9 @@
 #include <dlfcn.h>
 #include <pthread.h>
 
+#include <glib.h>
+#include <gio/gio.h>
+
 #include <artik_types.h>
 #include <artik_log.h>
 #include <artik_module.h>
@@ -543,19 +546,39 @@ char *os_get_device_info(void)
 
 artik_error os_get_bt_mac_address(char *addr)
 {
-	FILE *f = NULL;
+	GVariant *rst, *v;
+	GError *e = NULL;
+	char *address;
+	GDBusConnection *conn;
 
-	f = fopen("/sys/class/bluetooth/hci0/address", "re");
-	if (f == NULL)
-		return E_ACCESS_DENIED;
-
-	if (fgets(addr, MAX_BT_ADDR+1, f) == NULL) {
-		fclose(f);
+	conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &e);
+	if (e) {
+		log_dbg("Cannot open connection to system bus: %s", e->message);
+		g_error_free(e);
 		return E_ACCESS_DENIED;
 	}
 
-	fclose(f);
+	rst = g_dbus_connection_call_sync(conn, "org.bluez",
+		"/org/bluez/hci0", "org.freedesktop.DBus.Properties", "Get",
+		g_variant_new("(ss)", "org.bluez.Adapter1", "Address"),
+		NULL, G_DBUS_CALL_FLAGS_NONE, G_MAXINT, NULL, &e);
 
+	if (e) {
+		log_dbg("Cannot get bluetooth address: %s", e->message);
+		g_error_free(e);
+		g_object_unref(conn);
+		return E_ACCESS_DENIED;
+	}
+
+	g_variant_get(rst, "(v)", &v);
+	g_variant_get(v, "s", &address);
+
+	strncpy(addr, address, MAX_BT_ADDR);
+	addr[MAX_BT_ADDR] = '\0';
+
+	g_variant_unref(rst);
+	g_variant_unref(v);
+	g_object_unref(conn);
 	return S_OK;
 }
 
