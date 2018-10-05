@@ -21,6 +21,8 @@
 
 #include <artik_log.h>
 #include <artik_list.h>
+#include <artik_utils.h>
+#include <artik_module.h>
 #include <artik_websocket.h>
 #include "os_websocket.h"
 
@@ -58,13 +60,71 @@ typedef struct {
 
 static artik_list *requested_node = NULL;
 
+static int websocket_parse_uri(const char *uri, char **host, char **path,
+								int *port, bool *use_tls)
+{
+	artik_utils_module *utils = artik_request_api_module("utils");
+	artik_uri_info uri_info;
+	int ret = -1;
+	int default_port;
+	char *_host = NULL;
+	char *_path = NULL;
+
+	if (utils->get_uri_info(&uri_info, uri) != S_OK)
+		return -1;
+
+	if (strcmp(uri_info.scheme, "wss") == 0) {
+		default_port = 443;
+		*use_tls = true;
+	} else if (strcmp(uri_info.scheme, "ws") == 0) {
+		default_port = 80;
+		*use_tls = false;
+	} else {
+		goto error;
+	}
+
+	if (uri_info.port != -1)
+		*port = uri_info.port;
+	else
+		*port = default_port;
+
+	_host = strdup(uri_info.hostname);
+	if (!_host)
+		goto error;
+
+	_path = strdup(uri_info.path);
+	if (!_path) {
+		free(_host);
+		goto error;
+	}
+
+	*host = _host;
+	*path = _path;
+
+	ret = 1;
+
+error:
+	utils->free_uri_info(&uri_info);
+	artik_release_api_module(utils);
+	return ret;
+}
+
 artik_error artik_websocket_request(artik_websocket_handle *handle,
 					artik_websocket_config *config)
 {
 	websocket_node *node;
+	char *host = NULL;
+	char *path = NULL;
+	int port = 0;
+	bool use_tls = false;
 
 	if (!handle || !config || !config->uri)
 		return E_BAD_ARGS;
+
+	if (websocket_parse_uri(config->uri, &host, &path, &port, &use_tls) < 0) {
+		log_err("Failed to parse uri");
+		return E_WEBSOCKET_ERROR;
+	}
 
 	node = (websocket_node *) artik_list_add(
 				&requested_node, 0, sizeof(websocket_node));

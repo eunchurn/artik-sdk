@@ -751,59 +751,10 @@ exit:
 }
 #endif
 
-static int websocket_parse_uri(const char *uri, char **host, char **path,
-								int *port, bool *use_tls)
-{
-	artik_utils_module *utils = artik_request_api_module("utils");
-	artik_uri_info uri_info;
-	int ret = -1;
-	int default_port;
-	char *_host = NULL;
-	char *_path = NULL;
-
-	if (utils->get_uri_info(&uri_info, uri) != S_OK)
-		return -1;
-
-	if (strcmp(uri_info.scheme, "wss") == 0) {
-		default_port = 443;
-		*use_tls = true;
-	} else if (strcmp(uri_info.scheme, "ws") == 0) {
-		default_port = 80;
-		*use_tls = false;
-	} else {
-		goto error;
-	}
-
-	if (uri_info.port != -1)
-		*port = uri_info.port;
-	else
-		*port = default_port;
-
-	_host = strdup(uri_info.hostname);
-	if (!_host)
-		goto error;
-
-	_path = strdup(uri_info.path);
-	if (!_path) {
-		free(_host);
-		goto error;
-	}
-
-	*host = _host;
-	*path = _path;
-
-	ret = 1;
-
-error:
-	utils->free_uri_info(&uri_info);
-	artik_release_api_module(utils);
-	return ret;
-}
-
 artik_error os_websocket_open_stream(artik_websocket_config *config)
 {
 	artik_error ret = S_OK;
-	os_websocket_fds *fds;
+	os_websocket_fds *fds = NULL;
 	os_websocket_interface *interface = NULL;
 	struct lws_context *context = NULL;
 	struct lws_context_creation_info info;
@@ -825,19 +776,12 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		goto exit;
 	}
 
-	if (websocket_parse_uri(config->uri, &host, &path, &port, &use_tls) < 0) {
-		log_err("Failed to parse uri");
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
-
 	if (config->ping_period < config->pong_timeout) {
 		log_err("The pong_timeout value must be significantly smaller "
 			"than ping_period.");
 		ret = E_BAD_ARGS;
 		goto exit;
 	}
-
 
 	log_dbg("");
 
@@ -965,16 +909,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		conn_info.ssl_connection = 0;
 	}
 
-	wsi = lws_client_connect_via_info(&conn_info);
-	if (wsi == NULL) {
-		log_err("Connecting websocket failed");
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
-
-	free(hostport);
-	hostport = NULL;
-
 	fds = malloc(sizeof(*fds));
 	if (fds == NULL) {
 		log_err("Failed to allocate memory");
@@ -991,7 +925,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 
 	memset(interface, 0, sizeof(*interface));
 	interface->context = (void *)context;
-	interface->wsi = (void *)wsi;
 	interface->container.fds = (void *)fds;
 	interface->ssl_ctx = info.provided_client_ssl_ctx;
 	interface->error_connect = false;
@@ -1000,6 +933,21 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	interface->container.ping_period = config->ping_period;
 	interface->container.pong_timeout = config->pong_timeout;
 
+	loop->add_idle_callback(&interface->loop_process_id,
+		os_websocket_process_stream, (void *)interface);
+
+	config->private_data = (void *)interface;
+
+	wsi = lws_client_connect_via_info(&conn_info);
+	if (wsi == NULL) {
+		log_err("Connecting websocket failed");
+		ret = E_WEBSOCKET_ERROR;
+		goto exit;
+	}
+
+	interface->wsi = (void *)wsi;
+	SSL_CTX_set_ex_data(interface->ssl_ctx, 0, (void *)wsi);
+
 	node = (websocket_node *)artik_list_add(&requested_node,
 			(ARTIK_LIST_HANDLE)wsi, sizeof(websocket_node));
 	if (!node)
@@ -1007,12 +955,9 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 
 	memcpy(&node->interface, interface, sizeof(node->interface));
 
-	SSL_CTX_set_ex_data(interface->ssl_ctx, 0, (void *)wsi);
+	free(hostport);
+	hostport = NULL;
 
-	loop->add_idle_callback(&interface->loop_process_id,
-		os_websocket_process_stream, (void *)interface);
-
-	config->private_data = (void *)interface;
 exit:
 	if (ret != S_OK) {
 		if (interface) {
@@ -1341,14 +1286,11 @@ artik_error os_websocket_close_stream(artik_websocket_config *config)
 	artik_error ret = S_OK;
 
 	log_dbg("");
-
 	if (config->private_data == NULL)
 		return E_NOT_CONNECTED;
 
 	if (config->ssl_config.se_config)
 		release_openssl_engine();
-
 	lws_cleanup(config);
-
 	return ret;
 }
