@@ -1814,16 +1814,16 @@ static int security_rsassa_sign_verify(artik::Security *security) {
       } else {
         see_selfprintf(" success\n");
       }
-    }
 
-    if (hash != NULL) {
-      free(hash);
-      hash = NULL;
-    }
+      if (hash != NULL) {
+        free(hash);
+        hash = NULL;
+      }
 
-    if (out != NULL) {
-      free(out);
-      out = NULL;
+      if (out != NULL) {
+        free(out);
+        out = NULL;
+      }
     }
   }
 
@@ -1908,7 +1908,7 @@ static int security_ecdsa_sign_verify(artik::Security *security) {
   };
   unsigned int hash_size[SEE_ECDSA_SV_TC] = { 20, 32, 48, 64, 20, 32, 48, 64,
                                               20, 32, 48, 64, 20, 32, 48, 64 };
-  unsigned char hash[100];
+  unsigned char *hash = NULL;
   unsigned char *out = NULL;
   unsigned int outlen = 0;
 
@@ -1934,6 +1934,8 @@ static int security_ecdsa_sign_verify(artik::Security *security) {
         ret = security->set_key(ECC_SEC_P521R1, key_name,
           test_ecdsa_dev_nist, sizeof(test_ecdsa_dev_nist));
       }
+
+      ret += security->get_random_bytes(hash_size[j], &hash);
       ret += security->get_ecdsa_signature((see_algorithm)algo_type[j],
                                   key_name, hash, hash_size[j], &out, &outlen);
       ret += security->verify_ecdsa_signature((see_algorithm)algo_type[j],
@@ -1954,6 +1956,11 @@ static int security_ecdsa_sign_verify(artik::Security *security) {
       if (out != NULL) {
         free(out);
         out = NULL;
+      }
+
+      if (hash != NULL) {
+        free(hash);
+        hash = NULL;
       }
     }
   }
@@ -1977,6 +1984,7 @@ static int security_ecdsa_sign_verify(artik::Security *security) {
           test_ecdsa_dev_nist, sizeof(test_ecdsa_dev_nist));
       }
 
+      ret += security->get_random_bytes(hash_size[j], &hash);
       ret += security->get_ecdsa_signature((see_algorithm)algo_type[j],
                                   key_name, hash, hash_size[j], &out, &outlen);
       ret += security->verify_ecdsa_signature((see_algorithm)algo_type[j],
@@ -1995,6 +2003,11 @@ static int security_ecdsa_sign_verify(artik::Security *security) {
       if (out != NULL) {
         free(out);
         out = NULL;
+      }
+
+      if (hash != NULL) {
+        free(hash);
+        hash = NULL;
       }
     }
   }
