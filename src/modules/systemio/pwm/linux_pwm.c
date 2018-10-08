@@ -221,15 +221,19 @@ static artik_error os_pwm_clean(artik_pwm_user_data_t *user_data)
 	return S_OK;
 }
 
-
 artik_error os_pwm_request(artik_pwm_config *config)
 {
 	artik_pwm_user_data_t *user_data = NULL;
 	artik_error res = S_OK;
+	char val[17];
 
 	log_dbg("");
 
 	if (config->duty_cycle > config->period)
+		return E_BAD_ARGS;
+
+	if ((config->polarity != ARTIK_PWM_POLR_NORMAL) &&
+			(config->polarity != ARTIK_PWM_POLR_INVERT))
 		return E_BAD_ARGS;
 
 	if (config->duty_cycle == 0)
@@ -239,15 +243,18 @@ artik_error os_pwm_request(artik_pwm_config *config)
 	if (res != S_OK)
 		return res;
 
-	res = os_pwm_set_period(config, config->period);
+	res = os_pwm_ioctl(config->user_data, ARTIK_PWM_PERD,
+			itoa(config->period, val));
 	if (res != S_OK)
 		goto exit;
 
-	res = os_pwm_set_duty_cycle(config, config->duty_cycle);
+	res = os_pwm_ioctl(config->user_data, ARTIK_PWM_CYCL,
+			itoa(config->duty_cycle, val));
 	if (res != S_OK)
 		goto exit;
 
-	res = os_pwm_set_polarity(config, config->polarity);
+	res = os_pwm_ioctl(config->user_data, ARTIK_PWM_POLR,
+			tab_value_polarity[config->polarity]);
 	if (res != S_OK)
 		goto exit;
 
