@@ -526,7 +526,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 			/* Look for UNIX style ending first */
 			end = strstr(start, PEM_END_CERTIFICATE_UNIX);
 			if (end) {
-				end += strlen(PEM_END_CERTIFICATE_UNIX) + 1;
+				end += strlen(PEM_END_CERTIFICATE_UNIX);
 			} else {
 				/* If not found, check for Windows stye ending */
 				end = strstr(start, PEM_END_CERTIFICATE_WIN);
@@ -535,7 +535,7 @@ artik_error setup_ssl_ctx(SSL_CTX **pctx, artik_ssl_config *ssl_config,
 					ret = E_BAD_ARGS;
 					goto exit;
 				}
-				end += strlen(PEM_END_CERTIFICATE_WIN) + 1;
+				end += strlen(PEM_END_CERTIFICATE_WIN);
 			}
 
 			/* Convert CA certificate string into a BIO */
