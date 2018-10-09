@@ -74,37 +74,24 @@ typedef struct {
 	int alarm_id;
 } artik_time_alarm_t;
 
-static artik_error os_time_struct_empty(void *data, int len)
-{
-	int *addr = data;
-	int size = 0;
-	int check_set = 0;
-
-	while (size < len) {
-		check_set |= *addr;
-		size += sizeof(*addr);
-		addr = (void *)((intptr_t)data + size);
-	}
-
-	return check_set > 0 ? S_OK : E_BAD_ARGS;
-}
-
 static artik_error os_time_get_sys(struct tm *time, artik_time_zone gmt)
 {
+	char gmtname[GMT_MAX_LEN];
 	struct tm *rtime = NULL;
 	struct timeval tval;
-	int res = gettimeofday(&tval, NULL);
+	int res = 0;
 
+	res = gettimeofday(&tval, NULL);
 	if (res < 0)
 		return E_BAD_ARGS;
 
-	rtime = gmtime(&tval.tv_sec);
+	snprintf(gmtname, GMT_MAX_LEN, "GMT-%d", gmt);
+	setenv("TZ", gmtname, 1);
+	tzset();
 
+	rtime = localtime(&tval.tv_sec);
 	if (!rtime)
 		return E_BAD_ARGS;
-
-	rtime->tm_hour = (rtime->tm_hour+gmt)%24;
-	rtime->tm_year += EPOCH_DEF;
 
 	memcpy(time, rtime, sizeof(struct tm));
 
@@ -113,6 +100,9 @@ static artik_error os_time_get_sys(struct tm *time, artik_time_zone gmt)
 
 artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 {
+	struct tm str_time;
+	time_t sec = 0;
+	struct timespec time_spec;
 	char gmtname[GMT_MAX_LEN];
 
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
@@ -142,11 +132,6 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	if ((int)date.msecond < 0)
 		return E_BAD_ARGS;
 
-	struct tm str_time;
-	time_t sec = 0;
-	struct timespec time_spec;
-
-
 	memset(&str_time, 0, sizeof(str_time));
 	memset(&time_spec, 0, sizeof(time_spec));
 
@@ -155,8 +140,8 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	str_time.tm_hour = date.hour;
 	str_time.tm_min = date.minute;
 	str_time.tm_mday = date.day;
-	str_time.tm_mon = date.month--;
-	str_time.tm_year = date.year-EPOCH_DEF;
+	str_time.tm_mon = date.month - 1;
+	str_time.tm_year = date.year - EPOCH_DEF;
 	str_time.tm_wday = date.day_of_week;
 
 	snprintf(gmtname, GMT_MAX_LEN, "GMT-%d", gmt);
@@ -164,7 +149,6 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 	tzset();
 
 	sec = mktime(&str_time);
-
 	if (sec < 0)
 		return E_BAD_ARGS;
 
@@ -181,36 +165,28 @@ artik_error os_time_set_time(artik_time date, artik_time_zone gmt)
 
 artik_error os_time_get_time(artik_time_zone gmt, artik_time *date)
 {
+	struct tm rtime;
+	artik_error err = S_OK;
+
 	if (!date)
 		return E_BAD_ARGS;
 
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
 
-	struct tm *rtime = NULL;
-	struct timeval tval;
-	int res = gettimeofday(&tval, NULL);
+	err = os_time_get_sys(&rtime, gmt);
+	if (err != S_OK)
+		return err;
 
-	if (res < 0)
-		return E_INVALID_VALUE;
-
-	rtime = gmtime(&tval.tv_sec);
-
-	if (!rtime)
-		return E_INVALID_VALUE;
-
-	rtime->tm_hour = (rtime->tm_hour+gmt)%24;
-	rtime->tm_mon++;
-	rtime->tm_year += EPOCH_DEF;
-
-	date->second = (unsigned int)rtime->tm_sec;
-	date->minute = (unsigned int)rtime->tm_min;
-	date->hour = (unsigned int)rtime->tm_hour;
-	date->day = (unsigned int)rtime->tm_mday;
-	date->month = (unsigned int)rtime->tm_mon;
-	date->year = (unsigned int)rtime->tm_year;
-	date->day_of_week = (unsigned int)rtime->tm_wday;
-	date->msecond = (unsigned int)(tval.tv_usec/1000);
+	memset(date, 0, sizeof(artik_time));
+	date->second = (unsigned int)rtime.tm_sec;
+	date->minute = (unsigned int)rtime.tm_min;
+	date->hour = (unsigned int)rtime.tm_hour;
+	date->day = (unsigned int)rtime.tm_mday;
+	date->month = (unsigned int)rtime.tm_mon + 1;
+	date->year = (unsigned int)rtime.tm_year + EPOCH_DEF;
+	date->day_of_week = (unsigned int)rtime.tm_wday;
+	date->msecond = (unsigned int)(os_time_get_tick() % 1000);
 
 	return S_OK;
 }
@@ -245,28 +221,14 @@ artik_error os_time_get_time_str(char *date_str, int size, char *const format,
 
 artik_msecond os_time_get_tick(void)
 {
-	struct tm val_curr;
-	time_t curr_in_sec = 0;
-	time_t ms_current = 0;
+	struct timeval tval;
+	int res = 0;
 
-	memset(&val_curr, 0, sizeof(val_curr));
+	res = gettimeofday(&tval, NULL);
+	if (res < 0)
+		return 0;
 
-	os_time_get_sys(&val_curr, ARTIK_TIME_UTC);
-
-	ms_current = val_curr.tm_yday;
-
-	val_curr.tm_yday = 0;
-	val_curr.tm_year -= EPOCH_DEF;
-	val_curr.tm_mon++;
-
-	curr_in_sec = mktime(&val_curr);
-
-	if (curr_in_sec == -1)
-		return S_OK;
-
-	curr_in_sec = (curr_in_sec * 1000L) + ((time_t) ms_current / 1000L);
-
-	return curr_in_sec;
+	return ((tval.tv_sec * 1000) + (tval.tv_usec / 1000));
 }
 
 artik_error os_time_create_alarm_second(artik_time_zone gmt,
@@ -278,6 +240,7 @@ artik_error os_time_create_alarm_second(artik_time_zone gmt,
 	artik_time_alarm_t *alarm_data = NULL;
 	struct tm curr_usr;
 	time_t curr_in_sec;
+	char gmtname[GMT_MAX_LEN];
 
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
 		return E_BAD_ARGS;
@@ -288,10 +251,12 @@ artik_error os_time_create_alarm_second(artik_time_zone gmt,
 	if (!func)
 		return E_BAD_ARGS;
 
+	snprintf(gmtname, GMT_MAX_LEN, "GMT-%d", gmt);
+	setenv("TZ", gmtname, 1);
+	tzset();
+
 	memset(&curr_usr, 0, sizeof(curr_usr));
 	os_time_get_sys(&curr_usr, gmt);
-	curr_usr.tm_yday = 0;
-	curr_usr.tm_year -= EPOCH_DEF;
 	curr_in_sec = mktime(&curr_usr);
 	if (curr_in_sec < 0)
 		return E_BAD_ARGS;
@@ -307,8 +272,12 @@ artik_error os_time_create_alarm_second(artik_time_zone gmt,
 	alarm_data->gmt = gmt;
 	alarm_data->date_alarm = curr_in_sec;
 
-	if (!alarm_data->loop)
+	if (!alarm_data->loop) {
+		log_dbg("Failed to request loop module");
+		free(*handle);
+		*handle = NULL;
 		return E_BUSY;
+	}
 
 	return alarm_data->loop->add_timeout_callback(&alarm_data->alarm_id,
 						(unsigned int)second*1000,
@@ -324,11 +293,9 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 	time_t date_in_sec = 0, curr_in_sec = 0;
 	double diff_t;
 	struct tm date_usr, curr_usr;
+	char gmtname[GMT_MAX_LEN];
 
 	if (gmt < ARTIK_TIME_UTC || gmt > ARTIK_TIME_GMT12)
-		return E_BAD_ARGS;
-
-	if (os_time_struct_empty(&date, sizeof(date)) != S_OK)
 		return E_BAD_ARGS;
 
 	if (!func)
@@ -358,13 +325,13 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 	if ((int)date.msecond < 0)
 		return E_BAD_ARGS;
 
+	snprintf(gmtname, GMT_MAX_LEN, "GMT-%d", gmt);
+	setenv("TZ", gmtname, 1);
+	tzset();
+
 	memset(&curr_usr, 0, sizeof(curr_usr));
 	os_time_get_sys(&curr_usr, gmt);
-
-	curr_usr.tm_yday = 0;
-	curr_usr.tm_year -= EPOCH_DEF;
 	curr_in_sec = mktime(&curr_usr);
-
 	if (curr_in_sec < 0)
 		return E_INVALID_VALUE;
 
@@ -372,9 +339,8 @@ artik_error os_time_create_alarm_date(artik_time_zone gmt,
 	date_usr.tm_sec = date.second;
 	date_usr.tm_min = date.minute;
 	date_usr.tm_hour = date.hour;
-	date_usr.tm_min = date.minute;
 	date_usr.tm_mday = date.day;
-	date_usr.tm_mon = date.month--;
+	date_usr.tm_mon = date.month - 1;
 	date_usr.tm_year = date.year - EPOCH_DEF;
 	date_usr.tm_wday = date.day_of_week;
 
@@ -418,9 +384,6 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 		return ret;
 	}
 
-	curr_usr.tm_year -= EPOCH_DEF;
-	curr_usr.tm_yday = 0;
-
 	res = mktime(&curr_usr);
 	if (res == 0)
 		*msecond = 0;
@@ -431,7 +394,7 @@ artik_error os_time_get_delay_alarm(artik_alarm_handle handle,
 
 	curr_in_sec = res;
 	*msecond = alarm_data->date_alarm <= curr_in_sec ?
-		0 : (alarm_data->date_alarm - curr_in_sec);
+		0 : ((alarm_data->date_alarm - curr_in_sec) * 1000);
 
 	return S_OK;
 }
@@ -581,12 +544,9 @@ artik_error os_time_convert_time_to_timestamp(const artik_time *date,
 	rtime.tm_min = (int)date->minute;
 	rtime.tm_hour = (int)date->hour;
 	rtime.tm_mday = (int)date->day;
-	rtime.tm_mon = (int)date->month;
-	rtime.tm_year = (int)date->year;
+	rtime.tm_mon = (int)date->month - 1;
+	rtime.tm_year = (int)date->year - EPOCH_DEF;
 	rtime.tm_wday = (int)date->day_of_week;
-
-	rtime.tm_year -= EPOCH_DEF;
-	rtime.tm_mon--;
 
 	*timestamp = (int64_t)timegm(&rtime);
 
