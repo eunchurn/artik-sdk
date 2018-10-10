@@ -595,6 +595,16 @@ static int loop_handler(int fd, enum watch_io io, void *handle_client)
 	if (!client || !client->mosq)
 		return 0;
 
+#if LIBMOSQUITTO_VERSION_NUMBER >= 1004015
+	rc = mosquitto_loop_want_connect(client->mosq);
+	if (rc != MOSQ_ERR_SUCCESS) {
+		log_dbg("mosquitto_loop_want_connect returned %d", rc);
+		loop_handle_mosquitto_error(client, rc);
+		client->watch_id = 0;
+		return 0;
+	}
+#endif
+
 	rc = mosquitto_loop_read(client->mosq, 1);
 	if (rc != MOSQ_ERR_SUCCESS) {
 		log_dbg("mosquitto_loop_read returned %d", rc);
