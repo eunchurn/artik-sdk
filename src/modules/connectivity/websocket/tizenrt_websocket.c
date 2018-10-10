@@ -431,29 +431,15 @@ exit:
 	return ret;
 }
 
-artik_error os_websocket_open_stream(artik_websocket_config *config)
+artik_error os_websocket_open_stream(artik_websocket_config *config, char *host,
+		char *path, int port, bool use_tls)
 {
 	struct websocket_priv *priv = NULL;
 	websocket_return_t ret;
 	char port_str[16];
-	char *host = NULL;
-	char *path = NULL;
-	int port = 0;
-	bool use_tls = false;
 	artik_error err = S_OK;
 
 	log_dbg("");
-
-	if (!config->uri) {
-		log_err("Undefined uri");
-		return E_WEBSOCKET_ERROR;
-	}
-
-	if (websocket_parse_uri(config->uri, &host, &path, &port, &use_tls)
-									< 0) {
-		log_err("Failed to parse uri");
-		return E_WEBSOCKET_ERROR;
-	}
 
 	/* Allocate private data structure */
 	priv = (struct websocket_priv *)zalloc(sizeof(struct websocket_priv));
@@ -500,18 +486,11 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		goto error;
 	}
 
-	free(host);
-	free(path);
-
 	config->private_data = (void *)priv;
 
 	return S_OK;
 
 error:
-	if (host)
-		free(host);
-	if (path)
-		free(path);
 	if (priv) {
 		if (priv->cli) {
 			ssl_cleanup(priv->cli);

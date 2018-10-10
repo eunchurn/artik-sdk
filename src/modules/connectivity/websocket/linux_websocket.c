@@ -751,7 +751,8 @@ exit:
 }
 #endif
 
-artik_error os_websocket_open_stream(artik_websocket_config *config)
+artik_error os_websocket_open_stream(artik_websocket_config *config, char *host,
+		char *path, int port, bool use_tls)
 {
 	artik_error ret = S_OK;
 	os_websocket_fds *fds = NULL;
@@ -760,21 +761,10 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	struct lws_context_creation_info info;
 	struct lws *wsi = NULL;
 	websocket_node *node = NULL;
-	char *host = NULL;
-	char *path = NULL;
-	int port = 0;
-	bool use_tls = false;
 	struct lws_client_connect_info conn_info;
-	char *hostport = NULL;
 	artik_loop_module *loop = (artik_loop_module *)
 		artik_request_api_module("loop");
 	artik_utils_module *utils = artik_request_api_module("utils");
-
-	if (!config->uri) {
-		log_err("Undefined uri");
-		ret = E_WEBSOCKET_ERROR;
-		goto exit;
-	}
 
 	if (config->ping_period < config->pong_timeout) {
 		log_err("The pong_timeout value must be significantly smaller "
@@ -817,7 +807,8 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 	info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
 #endif
 
-	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &config->ssl_config, host);
+	ret = setup_ssl_ctx(&info.provided_client_ssl_ctx, &config->ssl_config,
+			host);
 	if (ret != S_OK)
 		goto exit;
 
@@ -872,19 +863,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 		utils->free_uri_info(&lws_proxy);
 
 	memset(&conn_info, 0, sizeof(conn_info));
-
-	if (host) {
-		int host_len = strlen(host) + 5 + 1;
-
-		hostport = malloc(host_len);
-		if (!hostport) {
-			ret = E_NO_MEM;
-			goto exit;
-		}
-
-		snprintf(hostport, host_len, "%.*s:%d", 256, host, port);
-	}
-
 	conn_info.context = context;
 	conn_info.address = host ? host : "";
 	conn_info.port = port;
@@ -955,9 +933,6 @@ artik_error os_websocket_open_stream(artik_websocket_config *config)
 
 	memcpy(&node->interface, interface, sizeof(node->interface));
 
-	free(hostport);
-	hostport = NULL;
-
 exit:
 	if (ret != S_OK) {
 		if (interface) {
@@ -966,13 +941,6 @@ exit:
 			free(interface);
 		}
 	}
-
-	if (host)
-		free(host);
-	if (path)
-		free(path);
-	if (hostport)
-		free(hostport);
 
 	artik_release_api_module(utils);
 

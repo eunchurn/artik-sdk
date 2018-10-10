@@ -56,6 +56,10 @@ const artik_websocket_module websocket_module = {
 typedef struct {
 	artik_list node;
 	artik_websocket_config config;
+	char *host;
+	char *path;
+	int port;
+	bool use_tls;
 } websocket_node;
 
 static artik_list *requested_node = NULL;
@@ -70,8 +74,10 @@ static int websocket_parse_uri(const char *uri, char **host, char **path,
 	char *_host = NULL;
 	char *_path = NULL;
 
-	if (utils->get_uri_info(&uri_info, uri) != S_OK)
+	if (utils->get_uri_info(&uri_info, uri) != S_OK) {
+		artik_release_api_module(utils);
 		return -1;
+	}
 
 	if (strcmp(uri_info.scheme, "wss") == 0) {
 		default_port = 443;
@@ -113,23 +119,21 @@ artik_error artik_websocket_request(artik_websocket_handle *handle,
 					artik_websocket_config *config)
 {
 	websocket_node *node;
-	char *host = NULL;
-	char *path = NULL;
-	int port = 0;
-	bool use_tls = false;
 
 	if (!handle || !config || !config->uri)
 		return E_BAD_ARGS;
-
-	if (websocket_parse_uri(config->uri, &host, &path, &port, &use_tls) < 0) {
-		log_err("Failed to parse uri");
-		return E_WEBSOCKET_ERROR;
-	}
 
 	node = (websocket_node *) artik_list_add(
 				&requested_node, 0, sizeof(websocket_node));
 	if (!node)
 		return E_NO_MEM;
+
+	if (websocket_parse_uri(config->uri, &node->host, &node->path, &node->port,
+			&node->use_tls) < 0) {
+		log_err("Failed to parse uri");
+		artik_list_delete_node(&requested_node, (artik_list *)node);
+		return E_BAD_ARGS;
+	}
 
 	node->node.handle = (ARTIK_LIST_HANDLE)node;
 	if (config != NULL)
@@ -149,7 +153,8 @@ artik_error artik_websocket_open_stream(artik_websocket_handle handle)
 	if (!node)
 		return E_BAD_ARGS;
 
-	ret = os_websocket_open_stream(&node->config);
+	ret = os_websocket_open_stream(&node->config, node->host, node->path,
+			node->port, node->use_tls);
 	if (ret != S_OK)
 		ret = E_WEBSOCKET_ERROR;
 
@@ -245,6 +250,11 @@ artik_error artik_websocket_release(artik_websocket_handle handle)
 
 	if (!node)
 		return E_BAD_ARGS;
+
+	if (node->host)
+		free(node->host);
+	if (node->path)
+		free(node->path);
 
 	artik_list_delete_node(&requested_node, (artik_list *)node);
 

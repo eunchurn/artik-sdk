@@ -21,7 +21,8 @@
 
 #include "artik_error.h"
 
-artik_error os_websocket_open_stream(artik_websocket_config *config);
+artik_error os_websocket_open_stream(artik_websocket_config * config,
+			char *host, char *path, int port, bool use_tls);
 artik_error os_websocket_write_stream(artik_websocket_config *config,
 					char *message, int len);
 artik_error os_websocket_set_connection_callback(artik_websocket_config *config,
