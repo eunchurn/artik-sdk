@@ -210,8 +210,6 @@ artik_error os_time_get_time_str(char *date_str, int size, char *const format,
 
 	os_time_get_sys(&rtime, gmt);
 
-	rtime.tm_year -= EPOCH_DEF;
-
 	if (strftime(date_str, size, format ? format : ARTIK_TIME_DFORMAT,
 							&rtime) == 0)
 		return E_BAD_ARGS;
