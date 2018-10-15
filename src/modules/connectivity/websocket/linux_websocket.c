@@ -939,6 +939,7 @@ exit:
 			if (interface->protocols)
 				free(interface->protocols);
 			free(interface);
+			config->private_data = NULL;
 		}
 	}
 
