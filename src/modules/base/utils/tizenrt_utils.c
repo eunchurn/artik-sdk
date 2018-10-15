@@ -115,7 +115,7 @@ artik_error os_get_uri_info(artik_uri_info *uri_info, const char *uri)
 			if (!isalnum(c) && c != '-' && c != '.' && c != '_' && c != '~'
 				&& c != '!' && c != '$' && c != '&' && c != '/' && c != '('
 				&& c != ')' && c != '*' && c != '+' && c != ',' && c != ';'
-				&& c != '=' && c != ':' && c != '@') {
+				&& c != '=' && c != ':' && c != '@' && c != '?' ) {
 				return E_BAD_ARGS;
 			}
 			break;
