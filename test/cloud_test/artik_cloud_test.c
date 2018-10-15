@@ -936,11 +936,10 @@ int main(int argc, char *argv[])
 	artik_ssl_config ssl_config = {0};
 	artik_loop_module *loop = (artik_loop_module *)
 		artik_request_api_module("loop");
-
 	int opt;
 	struct stat st;
 	FILE *f;
-	char *root_ca = NULL; // Root CA certificate
+	char *root_ca = NULL;
 
 	if (!artik_is_module_available(ARTIK_MODULE_CLOUD)) {
 		fprintf(stdout,
@@ -1053,10 +1052,6 @@ int main(int argc, char *argv[])
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device_token(token, device_id, &ssl_config);
-	if (ret != S_OK)
-		goto exit;
-
 	ret = test_cloud_message(token, device_id, message, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
@@ -1066,6 +1061,10 @@ int main(int argc, char *argv[])
 		goto exit;
 
 	ret = test_update_device_token(token, device_id, &ssl_config);
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_get_device_token(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
@@ -1109,10 +1108,6 @@ int main(int argc, char *argv[])
 	if (ret != S_OK)
 		goto exit;
 
-	ret = test_get_device_token_async(token, device_id, &ssl_config);
-	if (ret != S_OK)
-		goto exit;
-
 	ret = test_cloud_message_async(token, device_id, message, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
@@ -1122,6 +1117,10 @@ int main(int argc, char *argv[])
 		goto exit;
 
 	ret = test_update_device_token_async(token, device_id, &ssl_config);
+	if (ret != S_OK)
+		goto exit;
+
+	ret = test_get_device_token_async(token, device_id, &ssl_config);
 	if (ret != S_OK)
 		goto exit;
 
