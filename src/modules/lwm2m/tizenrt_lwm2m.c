@@ -726,6 +726,7 @@ artik_error os_lwm2m_client_read_resource(artik_lwm2m_handle handle,
 	pthread_mutex_lock(&node->mutex);
 
 	if (node->state != LWM2M_CONNECT) {
+		pthread_mutex_unlock(&node->mutex);
 		ret = E_NOT_CONNECTED;
 		goto exit;
 	}
