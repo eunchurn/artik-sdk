@@ -172,7 +172,7 @@ This package contains development files for building programs against the ARTIK 
 %package zigbee
 Group: Development/Libraries
 Requires: %{name}-base = %{version}-%{release}
-Requires: libzigbee >= 0.7
+Requires: libzigbee >= 0.8
 Provides: %{name}-zigbee.so.%{version}
 Provides: %{name}-zigbee.so.1
 Summary: Package containing APIs for communicating with other devices over Zigbee

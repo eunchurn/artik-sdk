@@ -73,16 +73,45 @@ static artik_error _convert_error(int err)
 	return result;
 }
 
+static void ep_convert_to_sending_info(const artik_zigbee_endpoint *ep,
+		struct zigbee_sending_info *sending_info)
+{
+	int i = 0;
+
+	memset(sending_info, 0, sizeof(struct zigbee_sending_info));
+	sending_info->type = ZIGBEE_SENDING_BY_ENDPOINT;
+	sending_info->data.dest_endpoint.endpoint_id = ep->endpoint_id;
+	sending_info->data.dest_endpoint.node_id = ep->node_id;
+	sending_info->data.dest_endpoint.device_id = ep->device_id;
+
+	for (i = 0; i < ARTIK_ZIGBEE_MAX_CLUSTER_SIZE; i++) {
+		sending_info->data.dest_endpoint.server_cluster[i] =
+				ep->server_cluster[i];
+		sending_info->data.dest_endpoint.client_cluster[i] =
+				ep->client_cluster[i];
+	}
+}
+
 artik_error os_set_local_endpoint(artik_zigbee_local_endpoint_info
 								*endpoint_info)
 {
 	int ret = EZ_OK;
+	zigbee_local_endpoint_info ep_info;
+	int i = 0;
 
 	if (endpoint_info == NULL)
 		return E_BAD_ARGS;
 
-	ret = zigbee_set_local_endpoint((zigbee_local_endpoint_info *)
-								endpoint_info);
+	memset(&ep_info, 0, sizeof(zigbee_local_endpoint_info));
+	ep_info.count = endpoint_info->count;
+
+	for (i = 0; i < endpoint_info->count; i++) {
+		ep_info.endpoints[i].profile = endpoint_info->endpoints[i].profile;
+		ep_info.endpoints[i].endpoint_id = endpoint_info->endpoints[i].endpoint_id;
+		ep_info.endpoints[i].device_id = endpoint_info->endpoints[i].device_id;
+	}
+
+	ret = zigbee_set_local_endpoint(&ep_info);
 
 	return _convert_error(ret);
 }
@@ -91,14 +120,26 @@ artik_error os_get_local_endpoint(artik_zigbee_local_endpoint_info
 								*endpoint_info)
 {
 	int ret = EZ_OK;
+	zigbee_local_endpoint_info ep_info;
+	int i = 0;
 
 	if (endpoint_info == NULL)
 		return E_BAD_ARGS;
 
-	ret = zigbee_get_local_endpoint((zigbee_local_endpoint_info *)
-								endpoint_info);
+	ret = zigbee_get_local_endpoint(&ep_info);
+	if (ret != EZ_OK)
+		return _convert_error(ret);
 
-	return _convert_error(ret);
+	memset(endpoint_info, 0, sizeof(artik_zigbee_local_endpoint_info));
+	endpoint_info->count = ep_info.count;
+
+	for (i = 0; i < ep_info.count; i++) {
+		endpoint_info->endpoints[i].profile = ep_info.endpoints[i].profile;
+		endpoint_info->endpoints[i].endpoint_id = ep_info.endpoints[i].endpoint_id;
+		endpoint_info->endpoints[i].device_id = ep_info.endpoints[i].device_id;
+	}
+
+	return S_OK;
 }
 
 void os_deinitialize(void)
@@ -256,7 +297,8 @@ artik_error os_identify_request(artik_zigbee_endpoint_handle handle,
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle((
 						zigbee_endpoint_handle)handle);
-	int ret;
+	struct zigbee_sending_info sending_info;
+	int ret = 0;
 
 	if (info == NULL) {
 		log_err("wrong handle %d", handle);
@@ -268,8 +310,9 @@ artik_error os_identify_request(artik_zigbee_endpoint_handle handle,
 		return E_ZIGBEE_ERROR;
 	}
 
-	ret = zigbee_identify_request((zigbee_endpoint *)endpoint, duration,
-							info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_identify_command(&sending_info, duration, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -279,6 +322,7 @@ artik_error os_identify_get_remaining_time(artik_zigbee_endpoint_handle handle,
 					int *time)
 {
 	struct inner_endpoint_info *info;
+	struct zigbee_sending_info sending_info;
 	int ret;
 
 	if (time == NULL)
@@ -295,8 +339,10 @@ artik_error os_identify_get_remaining_time(artik_zigbee_endpoint_handle handle,
 		return E_ZIGBEE_ERROR;
 	}
 
-	ret = zigbee_identify_get_remaining_time((zigbee_endpoint *)endpoint,
-						time, info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_identify_get_remaining_time(&sending_info, time,
+			info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -306,6 +352,7 @@ artik_error os_onoff_command(artik_zigbee_endpoint_handle handle,
 				artik_zigbee_onoff_status target_status)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret;
 
 	if (info == NULL) {
@@ -318,7 +365,9 @@ artik_error os_onoff_command(artik_zigbee_endpoint_handle handle,
 		return E_ZIGBEE_ERROR;
 	}
 
-	ret = zigbee_onoff_command((zigbee_endpoint *)endpoint, target_status,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_onoff_command(&sending_info, target_status,
 							info->endpoint_id);
 
 	return _convert_error(ret);
@@ -399,6 +448,7 @@ artik_error os_level_control_request(artik_zigbee_endpoint_handle handle,
 			const artik_zigbee_level_control_command *command)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret;
 
 	if (info == NULL) {
@@ -412,7 +462,9 @@ artik_error os_level_control_request(artik_zigbee_endpoint_handle handle,
 		return E_ZIGBEE_ERROR;
 	}
 
-	ret = zigbee_level_control_request((zigbee_endpoint *)endpoint,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_level_control_request(&sending_info,
 			(zigbee_level_control_command *)command,
 			info->endpoint_id);
 
@@ -450,6 +502,7 @@ artik_error os_color_control_request(artik_zigbee_endpoint_handle handle,
 			const artik_zigbee_color_control_command *command)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret;
 
 	if (info == NULL) {
@@ -463,8 +516,9 @@ artik_error os_color_control_request(artik_zigbee_endpoint_handle handle,
 		return E_ZIGBEE_ERROR;
 	}
 
+	ep_convert_to_sending_info(endpoint, &sending_info);
 
-	ret = zigbee_color_control_request((zigbee_endpoint *)endpoint,
+	ret = zigbee_color_control_request(&sending_info,
 			(zigbee_color_control_command *)command,
 			info->endpoint_id);
 
@@ -894,6 +948,7 @@ int os_fan_write_mode(artik_zigbee_endpoint_handle handle,
 					  artik_zigbee_fan_mode mode)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -902,8 +957,10 @@ int os_fan_write_mode(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_FAN_CONTROL_CLUSTER_ID, 0) != S_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_fan_write_mode((zigbee_endpoint *)endpoint,
-			(zigbee_fan_mode)mode, info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_fan_write_mode(&sending_info, (zigbee_fan_mode)mode,
+			info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -913,6 +970,7 @@ int os_fan_write_mode_sequence(artik_zigbee_endpoint_handle handle,
 					artik_zigbee_fan_mode_sequence seq)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -921,7 +979,9 @@ int os_fan_write_mode_sequence(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_FAN_CONTROL_CLUSTER_ID, 0) != S_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_fan_write_mode_sequence((zigbee_endpoint *)endpoint,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_fan_write_mode_sequence(&sending_info,
 			(zigbee_fan_mode_sequence)seq, info->endpoint_id);
 
 	return _convert_error(ret);
@@ -932,6 +992,7 @@ int os_fan_read_mode(artik_zigbee_endpoint_handle handle,
 					 artik_zigbee_fan_mode *fanmode)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (fanmode == NULL)
@@ -943,8 +1004,10 @@ int os_fan_read_mode(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_FAN_CONTROL_CLUSTER_ID, 0) != S_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_fan_read_mode((zigbee_endpoint *)endpoint,
-			(zigbee_fan_mode *)fanmode, info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_fan_read_mode(&sending_info, (zigbee_fan_mode *)fanmode,
+			info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -954,6 +1017,7 @@ int os_fan_read_mode_sequence(artik_zigbee_endpoint_handle handle,
 			artik_zigbee_fan_mode_sequence *fanmode_sequence)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (fanmode_sequence == NULL)
@@ -965,9 +1029,10 @@ int os_fan_read_mode_sequence(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_FAN_CONTROL_CLUSTER_ID, 0) != S_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_fan_read_mode_sequence((zigbee_endpoint *)endpoint,
-			(zigbee_fan_mode_sequence *)fanmode_sequence,
-							info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_fan_read_mode_sequence(&sending_info,
+			(zigbee_fan_mode_sequence *)fanmode_sequence, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1226,6 +1291,7 @@ artik_error os_reset_to_factory_default(artik_zigbee_endpoint_handle handle,
 				const artik_zigbee_endpoint *endpoint)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -1234,8 +1300,9 @@ artik_error os_reset_to_factory_default(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_BASIC_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_reset_to_factory_default((zigbee_endpoint *)endpoint,
-		info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_reset_to_factory_default(&sending_info, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1247,6 +1314,7 @@ artik_error os_thermostat_request_setpoint_raise_lower(
 				int temperature)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -1255,8 +1323,9 @@ artik_error os_thermostat_request_setpoint_raise_lower(
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_request_setpoint_raise_lower((zigbee_endpoint *)
-					endpoint,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_request_setpoint_raise_lower(&sending_info,
 					(zigbee_thermostat_setpoint_mode)mode,
 					temperature, info->endpoint_id);
 
@@ -1269,6 +1338,7 @@ artik_error os_thermostat_read_occupied_cooling_setpoint(
 				int *temperature)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (temperature == NULL)
@@ -1280,9 +1350,10 @@ artik_error os_thermostat_read_occupied_cooling_setpoint(
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_read_occupied_cooling_setpoint(
-						(zigbee_endpoint *)endpoint,
-						temperature, info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_read_occupied_cooling_setpoint(&sending_info,
+			temperature, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1293,6 +1364,7 @@ artik_error os_thermostat_read_occupied_heating_setpoint(
 				int *temperature)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (temperature == NULL)
@@ -1304,9 +1376,10 @@ artik_error os_thermostat_read_occupied_heating_setpoint(
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_read_occupied_heating_setpoint(
-				(zigbee_endpoint *)endpoint,
-				temperature, info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_read_occupied_heating_setpoint(&sending_info,
+			temperature, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1316,6 +1389,7 @@ artik_error os_thermostat_read_system_mode(artik_zigbee_endpoint_handle handle,
 				artik_zigbee_thermostat_system_mode *mode)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (mode == NULL)
@@ -1327,7 +1401,9 @@ artik_error os_thermostat_read_system_mode(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_read_system_mode((zigbee_endpoint *)endpoint,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_read_system_mode(&sending_info,
 			(zigbee_thermostat_system_mode *)mode,
 			info->endpoint_id);
 
@@ -1339,6 +1415,7 @@ artik_error os_thermostat_write_system_mode(artik_zigbee_endpoint_handle handle,
 				artik_zigbee_thermostat_system_mode mode)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -1347,7 +1424,9 @@ artik_error os_thermostat_write_system_mode(artik_zigbee_endpoint_handle handle,
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_write_system_mode((zigbee_endpoint *)endpoint,
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_write_system_mode(&sending_info,
 			(zigbee_thermostat_system_mode)mode, info->endpoint_id);
 
 	return _convert_error(ret);
@@ -1359,6 +1438,7 @@ artik_error os_thermostat_read_control_sequence(
 				artik_zigbee_thermostat_control_sequence *seq)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (seq == NULL)
@@ -1370,10 +1450,10 @@ artik_error os_thermostat_read_control_sequence(
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_read_control_sequence((zigbee_endpoint *)
-								endpoint,
-			(zigbee_thermostat_control_sequence *)seq,
-							info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_read_control_sequence(&sending_info,
+			(zigbee_thermostat_control_sequence *)seq, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1384,6 +1464,7 @@ artik_error os_thermostat_write_control_sequence(
 				artik_zigbee_thermostat_control_sequence seq)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 
 	if (info == NULL)
@@ -1392,10 +1473,10 @@ artik_error os_thermostat_write_control_sequence(
 	if (zigbee_check_cluster(info, ZCL_THERMOSTAT_CLUSTER_ID, 0) != EZ_OK)
 		return E_INVALID_VALUE;
 
-	ret = zigbee_thermostat_write_control_sequence((zigbee_endpoint *)
-								endpoint,
-			(zigbee_thermostat_control_sequence)seq,
-							info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_thermostat_write_control_sequence(&sending_info,
+			(zigbee_thermostat_control_sequence)seq, info->endpoint_id);
 
 	return _convert_error(ret);
 }
@@ -1407,9 +1488,9 @@ artik_error os_request_reporting(artik_zigbee_endpoint_handle handle,
 				int change_threshold)
 {
 	struct inner_endpoint_info *info = get_device_info_by_handle(handle);
+	struct zigbee_sending_info sending_info;
 	int ret = E_ZIGBEE_ERROR;
 	int cluster_id = -1;
-	zigbee_endpoint *zb_endpoint = (zigbee_endpoint *)endpoint;
 
 	if (info == NULL)
 		return E_ZIGBEE_ERROR;
@@ -1465,10 +1546,11 @@ artik_error os_request_reporting(artik_zigbee_endpoint_handle handle,
 		return E_INVALID_VALUE;
 	}
 
-	ret = zigbee_request_reporting(cluster_id, zb_endpoint,
-			(zigbee_reporting_type)report_type,
-			min_interval, max_interval, change_threshold,
-							info->endpoint_id);
+	ep_convert_to_sending_info(endpoint, &sending_info);
+
+	ret = zigbee_request_reporting(cluster_id, &sending_info,
+			(zigbee_reporting_type)report_type,	min_interval, max_interval,
+			change_threshold, info->endpoint_id);
 
 	return _convert_error(ret);
 }
