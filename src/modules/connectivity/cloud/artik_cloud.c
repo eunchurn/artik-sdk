@@ -72,6 +72,12 @@
 #define ARTIK_CLOUD_SECURE_URL_REG_STATUS	ARTIK_CLOUD_SECURE_URL("cert/"\
 						"devices/registrations/%s/"\
 						"status")
+#define ARTIK_CLOUD_SECURE_URL_GET_DEVICE   ARTIK_CLOUD_SECURE_URL("devices/%s?"\
+						"properties=%s")
+#define ARTIK_CLOUD_SECURE_URL_GET_DEVICE_TOKEN \
+						ARTIK_CLOUD_SECURE_URL("devices/%s/tokens")
+#define ARTIK_CLOUD_SECURE_URL_USER_APP_PROPS \
+						ARTIK_CLOUD_SECURE_URL("users/%s/properties?aid=%s")
 #define ARTIK_CLOUD_MESSAGE_BODY		"{\"type\": \"message\",\""\
 						"sdid\": \"%s\",\"data\": %s}"
 #define ARTIK_CLOUD_ACTION_BODY			"{\"type\": \"action\",\""\
@@ -850,8 +856,9 @@ static artik_error _get_user_application_properties(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_USER_APP_PROPS,
-		 user_id, app_id);
+	snprintf(url, ARTIK_CLOUD_URL_MAX, akc_http_request->ssl_config->se_config ?
+			ARTIK_CLOUD_SECURE_URL_USER_APP_PROPS :
+			ARTIK_CLOUD_URL_USER_APP_PROPS, user_id, app_id);
 
 	return _artik_cloud_get(akc_http_request, url, &headers);
 }
@@ -918,8 +925,9 @@ artik_error _get_device(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_GET_DEVICE,
-		 device_id, properties ? "true" : "false");
+	snprintf(url, ARTIK_CLOUD_URL_MAX, akc_http_request->ssl_config->se_config ?
+			ARTIK_CLOUD_SECURE_URL_GET_DEVICE : ARTIK_CLOUD_URL_GET_DEVICE,
+			device_id, properties ? "true" : "false");
 
 	return _artik_cloud_get(akc_http_request, url, &headers);
 }
@@ -983,8 +991,9 @@ artik_error _get_device_token(
 	fields[0].data = bearer;
 
 	/* Build up url with parameters */
-	snprintf(url, ARTIK_CLOUD_URL_MAX, ARTIK_CLOUD_URL_GET_DEVICE_TOKEN,
-		 device_id);
+	snprintf(url, ARTIK_CLOUD_URL_MAX, akc_http_request->ssl_config->se_config ?
+			ARTIK_CLOUD_SECURE_URL_GET_DEVICE_TOKEN :
+			ARTIK_CLOUD_URL_GET_DEVICE_TOKEN, device_id);
 
 	return _artik_cloud_get(akc_http_request, url, &headers);
 }
