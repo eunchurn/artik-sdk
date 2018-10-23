@@ -337,7 +337,7 @@ artik_error os_wifi_start_ap(const char *ssid, const char *password,
 	if (encryption_flags & WIFI_ENCRYPTION_WPA2) {
 		if (!password ||
 			(strlen(password) < MIN_AP_WPA2PASS_LEN) ||
-			(strlen(password) > MAX_AP_WPA2PASS_LEN))
+			(strlen(password) >= MAX_AP_WPA2PASS_LEN))
 			return E_BAD_ARGS;
 	}
 
@@ -350,8 +350,9 @@ artik_error os_wifi_start_ap(const char *ssid, const char *password,
 	memcpy(config.ssid, ssid, config.ssid_len);
 
 	if (encryption_flags && (encryption_flags & WIFI_ENCRYPTION_WPA2)) {
+		memset(&sec_config, 0, sizeof(slsi_security_config_t));
 		sec_config.secmode = SLSI_SEC_MODE_WPA2_CCMP;
-		memcpy(sec_config.passphrase, password, strlen(password));
+		memcpy(sec_config.passphrase, password, strlen(password) + 1);
 		config.security = &sec_config;
 	}
 
