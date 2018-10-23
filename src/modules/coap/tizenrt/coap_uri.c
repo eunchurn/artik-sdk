@@ -59,7 +59,7 @@ int artik_coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u)
 		goto error;
 	}
 
-	if (len & (*p == 's')) {
+	if (len && (*p == 's')) {
 		++p; --len;
 		u->secure = true;
 		u->port = COAPS_DEFAULT_PORT;
@@ -92,26 +92,30 @@ int artik_coap_split_uri(const unsigned char *uri, size_t len, coap_uri *u)
 		}
 
 		COAP_SET_STR(&u->host, q - p, (unsigned char *)p);
+
 		++q; --len;
 	} else {
+
 		while (len && *q != ':' && *q != '/' && *q != '?') {
-			++q; --len;
+			++q;
+			--len;
 		}
 
 		if (p == q) {
 			res = -3;
 			goto error;
 		}
-	}
 
-	COAP_SET_STR(&u->host, q - p, (unsigned char *)p);
+		COAP_SET_STR(&u->host, q - p, (unsigned char *)p);
+	}
 
 	if (len && *q == ':') {
 		p = ++q;
 		--len;
 
 		while (len && isdigit(*q)) {
-			++q; --len;
+			++q;
+			--len;
 		}
 
 		if (p < q) {
@@ -155,6 +159,24 @@ path:
 	}
 
 end:
+	if (u->host.s && u->host.length > 0) {
+		int u_len = 0;
+
+		u_len = u->host.length;
+		u->host.s[u_len] = '\0';
+	}
+	if (u->path.s && u->path.length > 0) {
+		int u_len = 0;
+
+		u_len = u->path.length;
+		u->path.s[u_len] = '\0';
+	}
+	if (u->query.s && u->query.length > 0) {
+		int u_len = 0;
+
+		u_len = u->query.length;
+		u->query.s[u_len] = '\0';
+	}
 	return len ? -1 : 0;
 
 error:
