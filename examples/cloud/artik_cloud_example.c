@@ -267,15 +267,18 @@ static bool execute_cmd(artik_ssl_config *ssl, void *user_data,
 
 static bool string_to_positive_integer(const char *buff, int *integer, const char *arg_name)
 {
+	char *end = NULL;
+	long val = 0;
+
 	if (buff == NULL || *buff == '\0') {
 		fprintf(stderr, "Error: Failed to parse argument '%s'.\n", arg_name);
 		return false;
 	}
 
-	char *end = NULL;
-	long val = strtol(buff, &end, 10);
+	errno = 0;
+	val = strtol(buff, &end, 10);
 
-	if (errno != 0 || buff == end || end == NULL || *end != '\0') {
+	if ((!val && errno != 0) || buff == end || end == NULL || *end != '\0') {
 		fprintf(stderr, "Error: Failed to parse argument '%s': '%s' is not a number\n", arg_name, buff);
 		return false;
 	}

@@ -27,12 +27,14 @@
 
 static unsigned int string_to_positive_integer(const char * const buff, int *dst, const char * const option_name)
 {
+	char *nbuff = NULL;
+
 	if (!buff) {
 		fprintf(stderr,  "Invalid buffer which is empty for '%s'.\n", option_name);
 		return 0;
 	}
-	char *nbuff = NULL;
 
+	errno = 0;
 	*dst = strtol(buff, &nbuff, 10);
 	if (nbuff[0] != 0 ||
 		(errno != 0 && *dst == 0) ||

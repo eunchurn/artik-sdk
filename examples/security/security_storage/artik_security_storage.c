@@ -246,13 +246,16 @@ exit:
 
 static bool string_to_positive_integer(const char *buff, unsigned int *integer)
 {
+	char *end = NULL;
+	long val = 0;
+
 	if (buff == NULL || buff == '\0')
 		return false;
 
-	char *end = NULL;
-	long val = strtol(buff, &end, 10);
+	errno = 0;
+	val = strtol(buff, &end, 10);
 
-	if (errno != 0 || buff == end || end == NULL || *end != '\0')
+	if ((!val && errno != 0) || buff == end || end == NULL || *end != '\0')
 		return false;
 
 	if (val < 0)

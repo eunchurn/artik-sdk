@@ -47,6 +47,7 @@ static unsigned int string_to_positive_integer(const char * const buff,
 		return 0;
 	}
 
+	errno = 0;
 	*dst = strtol(buff, &nbuff, 10);
 	if (nbuff[0] != 0 ||
 		(errno != 0 && *dst == 0) ||
