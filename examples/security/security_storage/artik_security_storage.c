@@ -249,7 +249,7 @@ static bool string_to_positive_integer(const char *buff, unsigned int *integer)
 	char *end = NULL;
 	long val = 0;
 
-	if (buff == NULL || buff == '\0')
+	if (buff == NULL || *buff == '\0')
 		return false;
 
 	errno = 0;

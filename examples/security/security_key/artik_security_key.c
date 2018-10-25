@@ -173,7 +173,7 @@ static bool string_to_positive_integer(const char *buff, int *integer, const cha
 	char *end = NULL;
 	long val = 0;
 
-	if (buff == NULL || buff == '\0') {
+	if (buff == NULL || *buff == '\0') {
 		fprintf(stderr, "Error: Failed to parse argument '%s'.\n", arg_name);
 		return false;
 	}
