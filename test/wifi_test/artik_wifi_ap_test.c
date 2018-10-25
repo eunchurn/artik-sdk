@@ -76,6 +76,11 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "s:p:c:e:")) != -1) {
 		switch (opt) {
 		case 's':
+			if (!strlen(optarg)) {
+				fprintf(stdout, "SSID cannot be empty\n");
+				usage();
+				return 1;
+			}
 			strncpy(ssid, optarg, MAX_PARAM_LEN);
 			fprintf(stdout, "ssid = %s\n", ssid);
 			break;
