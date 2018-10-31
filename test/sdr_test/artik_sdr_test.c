@@ -320,7 +320,7 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 		goto error;
 	}
 
-	if (security->get_publickey(sec_handle, 0, cert_name,
+	if (security->get_publickey(sec_handle, ECC_SEC_P256R1, cert_name,
 			(unsigned char **)&ssl->client_key.data, &ssl->client_key.len) != S_OK) {
 		fprintf(stderr, "Failed to get private key form the security module");
 		goto error;
