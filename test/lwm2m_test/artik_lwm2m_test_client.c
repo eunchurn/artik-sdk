@@ -312,7 +312,7 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 
 	security = (artik_security_module *)artik_request_api_module("security");
 	if (security->request(&sec_handle) != S_OK) {
-		fprintf(stderr, "Failed to request security module");
+		fprintf(stderr, "Failed to request security module\n");
 		artik_release_api_module(security);
 		free(se_config);
 		return E_SECURITY_ERROR;
@@ -323,13 +323,13 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 	if (security->get_certificate(sec_handle, cert_name,
 			ARTIK_SECURITY_CERT_TYPE_PEM, (unsigned char **)&ssl->client_cert.data,
 			&ssl->client_cert.len) != S_OK) {
-		fprintf(stderr, "Failed to get certificate from the security module");
+		fprintf(stderr, "Failed to get certificate from the security module\n");
 		goto error;
 	}
 
 	if (security->get_publickey(sec_handle, 0, cert_name,
 			(unsigned char **)&ssl->client_key.data, &ssl->client_key.len) != S_OK) {
-		fprintf(stderr, "Failed to get private key form the security module");
+		fprintf(stderr, "Failed to get private key from the security module\n");
 		goto error;
 	}
 
@@ -338,12 +338,20 @@ static artik_error fill_ssl_config(artik_ssl_config *ssl, const char *cert_name)
 	return S_OK;
 
 error:
-	if (ssl->client_cert.data)
+	if (ssl->client_cert.data) {
 		free(ssl->client_cert.data);
-	if (ssl->client_key.data)
+		ssl->client_cert.data = NULL;
+		ssl->client_cert.len = 0;
+	}
+	if (ssl->client_key.data) {
 		free(ssl->client_key.data);
-	if (ssl->se_config)
+		ssl->client_key.data = NULL;
+		ssl->client_key.len = 0;
+	}
+	if (ssl->se_config) {
 		free(ssl->se_config);
+		ssl->se_config = NULL;
+	}
 	security->release(&sec_handle);
 	artik_release_api_module(security);
 	return E_SECURITY_ERROR;
@@ -387,12 +395,18 @@ artik_error test_lwm2m_default(void)
 	}
 
 	if (akc_use_se) {
-		fill_ssl_config(&ssl_config, "ARTIK/0");
+		if (fill_ssl_config(&ssl_config, "ARTIK/0") != S_OK) {
+			fprintf(stdout, "TEST: failed\n");
+			if (ssl_config.ca_cert.data)
+				free(ssl_config.ca_cert.data);
+			return -1;
+		}
 		fprintf(stdout, "TEST: device certificate from SE\n");
 	} else if (strlen(akc_device_certificate_path) > 0 && strlen(akc_device_private_key_path) > 0) {
 		if (!fill_buffer_from_file(akc_device_certificate_path, &ssl_config.client_cert.data)) {
 			fprintf(stdout, "TEST: failed\n");
-			free(ssl_config.ca_cert.data);
+			if (ssl_config.ca_cert.data)
+				free(ssl_config.ca_cert.data);
 			return -1;
 		}
 		ssl_config.client_cert.len = strlen(ssl_config.client_cert.data);
