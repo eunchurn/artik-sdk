@@ -620,6 +620,7 @@ coap_session_t *coap_endpoint_get_session(coap_endpoint_t *endpoint,
 
 			log_dbg("");
 			session->last_rx_tx = now;
+			session->newly_created = 0;
 			return session;
 		}
 		if (session->ref == 0 && session->sendqueue == NULL &&
@@ -657,6 +658,7 @@ coap_session_t *coap_endpoint_get_session(coap_endpoint_t *endpoint,
 
 			if (session->tls) {
 				session->state = COAP_SESSION_STATE_ESTABLISHED;
+				session->newly_created = 1;
 				log_dbg("session DTLS created");
 				LL_PREPEND(endpoint->sessions, session);
 			} else {

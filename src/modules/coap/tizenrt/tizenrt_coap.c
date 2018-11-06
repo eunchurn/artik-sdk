@@ -2832,8 +2832,15 @@ artik_error os_coap_stop_server(artik_coap_handle server)
 
 	data = node->interface.coap_data;
 
-	data->quit = true;
-	pthread_join(data->thread_id, NULL);
+	if (!data) {
+		ret = E_COAP_ERROR;
+		goto exit;
+	}
+
+	if (!data->quit) {
+		data->quit = true;
+		pthread_join(data->thread_id, NULL);
+	}
 
 	node->interface.started = false;
 

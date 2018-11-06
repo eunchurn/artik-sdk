@@ -720,12 +720,13 @@ static int coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint,
 
 			session = coap_endpoint_get_session(endpoint, packet, now);
 
-			if (session && session->tls) {
+			if (session && session->tls && !session->newly_created) {
 				bytes_read = coap_dtls_receive(session, packet->payload, COAP_RXBUFFER_SIZE);
 
 				if (bytes_read > 0)
 					packet->length = bytes_read;
-			}
+			} else
+				goto exit;
 		}
 	}
 
@@ -739,6 +740,7 @@ static int coap_read_endpoint(coap_context_t *ctx, coap_endpoint_t *endpoint,
 			result = coap_handle_message_for_proto(ctx, session, packet);
 	}
 
+exit:
 	return result;
 }
 

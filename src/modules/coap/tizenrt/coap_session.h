@@ -74,6 +74,7 @@ typedef struct coap_session_t {
 	uint8_t *psk_key;
 	size_t psk_key_len;
 	coap_ecdsa_keys ecdsa_keys;
+	uint8_t newly_created;
 } coap_session_t;
 
 typedef struct coap_endpoint_t {
