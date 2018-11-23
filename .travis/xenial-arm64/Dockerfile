@@ -53,6 +53,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libcunit1-dev \
     libzigbee-dev \
     wakaama-client-dev \
+    libcoap-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # overwrite this with 'CMD []' in a dependent Dockerfile
