@@ -1200,10 +1200,10 @@ static bool device_cmd(artik_ssl_config *ssl, int argc, char **argv)
 	while ((c = getopt(argc, argv, "+h")) != -1) {
 		switch (c) {
 		case 'h':
-			usage_user();
+			usage_device();
 			return false;
 		case '?':
-			fprintf(stderr, "Error: Unknow USER OPTION '-%c'\n", optopt);
+			fprintf(stderr, "Error: Unknow DEVICE OPTION '-%c'\n", optopt);
 			usage_device();
 			return false;
 		default:
