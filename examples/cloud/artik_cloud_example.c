@@ -1241,6 +1241,8 @@ int main(int argc, char **argv)
 	int c;
 	bool verify = true;
 	artik_ssl_config ssl;
+	artik_security_module *security = NULL;
+	artik_security_handle sec_handle = NULL;
 	bool use_se = false;
 	char *dev_cert = NULL;
 	char *dev_key = NULL;
@@ -1292,9 +1294,27 @@ int main(int argc, char **argv)
 	}
 
 	if (use_se) {
+		security = (artik_security_module *)artik_request_api_module("security");
+
+		if (security->request(&sec_handle) != S_OK) {
+			fprintf(stderr, "Failed to request security module");
+			goto exit;
+		}
+
+		if (security->get_certificate(sec_handle, cert_id,
+				ARTIK_SECURITY_CERT_TYPE_PEM,
+				(unsigned char **)&ssl.client_cert.data,
+				&ssl.client_cert.len) != S_OK) {
+			security->release(sec_handle);
+			fprintf(stderr, "Failed to get certificate from the security module");
+			goto exit;
+		}
+
 		ssl.se_config = malloc(sizeof(artik_secure_element_config));
 		ssl.se_config->key_id = cert_id;
 		ssl.se_config->key_algo = ECC_SEC_P256R1;
+
+		security->release(sec_handle);
 	}
 
 	if (dev_cert) {
@@ -1330,6 +1350,9 @@ int main(int argc, char **argv)
 	}
 
 exit:
+	if (security)
+		artik_release_api_module(security);
+
 	if (ssl.se_config)
 		free(ssl.se_config);
 
